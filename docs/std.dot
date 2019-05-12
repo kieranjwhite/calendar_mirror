@@ -1,0 +1,37 @@
+/*
+* List of vars and state holders:
+*/
+
+digraph {
+
+start[shape="point"];
+
+"TYPING" [shape="ellipse"];
+"WAIT_FOR_NETWORK" [shape="ellipse"];
+"REINIT" [shape="ellipse"];
+"REINIT_PREQUERY_TOKEN" [shape="ellipse"];
+"PREQUERY_RECOVERY_PARSED" [shape="ellipse"];
+"RECOVERY_TOKEN" [shape="ellipse"];
+"DEATH" [shape="doublecircle"];
+
+start -> "WAIT_FOR_NETWORK";
+
+"TYPING" -> "TYPING" [label="(delete) Remove terms or (put) new distinct terms\n(get) reget results"];
+"TYPING" -> "REINIT" [label="(get, put, delete) 404 Not Found\nor -ve term frequency\nor missing term to delete" color="brown"];
+
+"REINIT" -> "WAIT_FOR_NETWORK" [label="abort get results\n(if getting)"];
+"WAIT_FOR_NETWORK" -> "WAIT_FOR_NETWORK" [label="(get) Network Unreachable. wait and retry" color="brown"];
+"WAIT_FOR_NETWORK" -> "REINIT_PREQUERY_TOKEN" [label="(delete) delete the query if one exists"];
+"WAIT_FOR_NETWORK" -> "DEATH" [label="(get) Network Unreachable. out of retries" color="brown"];
+
+
+"REINIT_PREQUERY_TOKEN" -> "PREQUERY_RECOVERY_PARSED" [label="(get) stem"];
+"REINIT_PREQUERY_TOKEN" -> "REINIT" [label="(get) 404 Not Found\nor -ve term frequency\nor missing term to delete" color="brown"];
+"PREQUERY_RECOVERY_PARSED" -> "RECOVERY_TOKEN" [label="(post) new query\n(put) new distinct term"];
+"PREQUERY_RECOVERY_PARSED" -> "REINIT" [label="(post, put) 404 Not Found" color="brown"];
+
+
+"RECOVERY_TOKEN" -> "TYPING" [label="No more tokens to recover\n(get) start displaying results"];
+"RECOVERY_TOKEN" -> "REINIT" [label="(get, put) 404 Not Found\nor -ve term frequency\nor missing term to delete" color="brown"];
+
+}
