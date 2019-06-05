@@ -1,5 +1,5 @@
 [package]
-name = "CalendarMirror"
+name = "calendar_mirror"
 version = "0.1.0"
 authors = ["pi"]
 edition = "2018"

@@ -1,0 +1,65 @@
+
+/*
+    start!(Load);
+    tr!([Load, Wipe], RequestCodes);
+    tr!([Load, Wait], Refresh);
+    tr!([Refresh, Save], ReadFirst);
+    tr!([RequestCodes, AuthPending, SlowPolling], Poll);
+    tr!([RequestCodes, Poll], DisplayError);
+    tr!([Poll], AuthPending);
+    tr!([Poll], SlowPolling);
+    tr!([Poll], Save);
+    tr!([ReadFirst], Page);
+    tr!([Page], Display);
+    tr!([DisplayError, Display], Wait);
+    tr!([Wait], Wipe);
+    
+    enum Machine {
+        Load(Load),
+    }
+     */
+
+trace_macros!(false);
+pub mod stm {
+    std!(create Load, {
+        [Load ], RequestCodes;   
+        [RequestCodes], ReadFirst
+    });
+}
+
+trace_macros!(false);
+/*
+pub mod stm {
+    std!(Load, {
+        [Load, Wipe], RequestCodes;   
+        [Load, Wait], Refresh;
+        [Refresh, Save], ReadFirst;
+        [RequestCodes, AuthPending, SlowPolling], Poll;
+        [RequestCodes, Poll], DisplayError;
+        [Poll], AuthPending;
+        [Poll], SlowPolling;
+        [Poll], Save;
+        [ReadFirst], Page;
+        [Page], Display;
+        [DisplayError, Display], Wait;
+        [Wait], Wipe
+    });
+}
+*/
+pub fn run() {
+    use stm::*;
+
+    trace_macros!(false);
+    let mach=stm::Machine::new();
+    loop {
+        let mach=mach;
+        mach= match mach.state() {
+            &stm::Load => {
+                std!(accept mach, RequestCodes)
+            }
+        };
+    }
+    trace_macros!(false);
+
+}
+

@@ -1,6 +1,20 @@
-fn main() {
-    println!("Hello, world!");
+#![feature(trace_macros)]
+
+#[macro_use]
+mod std;
+
+mod cal_machine;
+mod retriever;
+/*
+macro_rules! loo {
+    ($($($t: tt),+))+ => {
+        $($(println!("{0}", $t);)*)*
+    }
 }
-//#+PROPERTY: Effort_ALL 0.5d 2d 5d 
-//#+COLUMNS: %70ITEM(Task) %Effort
+*/
+fn main() {
+    //loo!(1, 1);
+
+    cal_machine::run();
+}
 
