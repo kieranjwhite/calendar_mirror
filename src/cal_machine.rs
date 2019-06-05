@@ -50,14 +50,19 @@ pub fn run() {
     use stm::*;
 
     trace_macros!(false);
-    let mach=stm::Machine::new();
+    let mut mach=Machine::new();
     loop {
-        let mach=mach;
-        mach= match mach.state() {
-            &stm::Load => {
-                std!(accept mach, RequestCodes)
+        mach=match mach {
+            Machine::Load(st) => {
+                Machine::RequestCodes(st.into())
             }
-        };
+            Machine::RequestCodes(st) => {
+                Machine::ReadFirst(st.into())
+            }
+            Machine::ReadFirst(_st) => {
+                break;
+            }
+        }
     }
     trace_macros!(false);
 
