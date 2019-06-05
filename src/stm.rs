@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! std {
+macro_rules! stm {
     (create $mod_name: ident, $start: ident, { $( [$($e:ident), +], $node:ident );+ } ) => {
         pub mod $mod_name
         {

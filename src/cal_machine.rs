@@ -20,7 +20,7 @@
      */
 
 trace_macros!(false);
-std!(create cal_stm, Load, {
+stm!(create cal_stm, Load, {
     [Load ], RequestCodes;   
     [RequestCodes], ReadFirst
 });
