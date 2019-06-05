@@ -19,13 +19,11 @@
     }
      */
 
-trace_macros!(true);
-pub mod stm {
-    std!(create Load, {
-        [Load ], RequestCodes;   
-        [RequestCodes], ReadFirst
-    });
-}
+trace_macros!(false);
+std!(create cal_stm, Load, {
+    [Load ], RequestCodes;   
+    [RequestCodes], ReadFirst
+});
 
 trace_macros!(false);
 /*
@@ -47,9 +45,8 @@ pub mod stm {
 }
 */
 pub fn run() {
-    use stm::*;
+    use cal_stm::*;
 
-    trace_macros!(true);
     let mut mach=Machine::new();
     loop {
         mach=match mach {
@@ -64,7 +61,5 @@ pub fn run() {
             }
         }
     }
-    trace_macros!(false);
-
 }
 

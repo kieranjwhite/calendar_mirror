@@ -1,7 +1,9 @@
 #[macro_export]
 macro_rules! std {
-    (create $start: ident, { $( [$($e:ident), +], $node:ident );+ } ) => {
-        pub struct $start;
+    (create $mod_name: ident, $start: ident, { $( [$($e:ident), +], $node:ident );+ } ) => {
+        pub mod $mod_name
+        {
+            pub struct $start;
 
             $(
                 pub struct $node {
@@ -23,16 +25,17 @@ macro_rules! std {
 
             )*
 
-        pub enum Machine {
-            $start($start),
-            $(
-                $node($node),
-            )*
-        }
+            pub enum Machine {
+                $start($start),
+                $(
+                    $node($node),
+                )*
+            }
 
-        impl Machine {
-            pub fn new() -> Machine {
-                Machine::$start($start)
+            impl Machine {
+                pub fn new() -> Machine {
+                    Machine::$start($start)
+                }
             }
         }
     };
