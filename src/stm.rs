@@ -19,7 +19,7 @@ macro_rules! stm {
                             }
                         }
                     }
-
+                    
                 )*
 
 
@@ -33,7 +33,7 @@ macro_rules! stm {
             }
 
             impl Machine {
-                pub fn new() -> Machine {
+                pub const fn new() -> Machine {
                     Machine::$start($start)
                 }
             }

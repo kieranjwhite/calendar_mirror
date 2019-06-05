@@ -1,5 +1,3 @@
-#![feature(trace_macros)]
-
 #[macro_use]
 mod stm;
 
