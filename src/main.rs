@@ -1,7 +1,7 @@
 #![feature(trace_macros)]
 
 #[macro_use]
-mod std;
+mod stm;
 
 mod cal_machine;
 mod retriever;

@@ -4,13 +4,17 @@ macro_rules! std {
         pub struct $start;
 
             $(
-                pub struct $node;
+                pub struct $node {
+                    _secret: ()
+                }
 
                 $(
 
                     impl From<$e> for $node {
                         fn from(_st: $e) -> $node {
-                            $node
+                            $node {
+                                _secret: ()
+                            }
                         }
                     }
 

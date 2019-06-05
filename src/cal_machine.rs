@@ -19,7 +19,7 @@
     }
      */
 
-trace_macros!(false);
+trace_macros!(true);
 pub mod stm {
     std!(create Load, {
         [Load ], RequestCodes;   
@@ -49,7 +49,7 @@ pub mod stm {
 pub fn run() {
     use stm::*;
 
-    trace_macros!(false);
+    trace_macros!(true);
     let mut mach=Machine::new();
     loop {
         mach=match mach {
