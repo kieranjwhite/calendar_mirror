@@ -5,3 +5,6 @@ authors = ["pi"]
 edition = "2018"
 
 [dependencies]
+hyper = "0.12.29"
+hyper-tls="0.3.2"
+url="1.7.2"
