@@ -1,4 +1,6 @@
 #![feature(log_syntax)]
+//#[macro_use]
+//extern crate serde;
 //#![feature(async_await, await_macro, futures_api)]
 //#![feature(trace_macros)]
 

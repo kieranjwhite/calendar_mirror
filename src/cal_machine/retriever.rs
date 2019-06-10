@@ -7,6 +7,8 @@ use hyper::header::HeaderMap;
 use hyper::header::HeaderValue;
 use hyper::Request;
 use hyper_tls::HttpsConnector;
+use serde::{Deserialize,Serialize};
+use serde_json::Result;
 use std::io::Write;
 use url::form_urlencoded;
 //use std::io::{self, Write};
@@ -29,6 +31,7 @@ const VERIFICATION_URL_KEY: &str = "verification_url";
 pub struct EventRetriever {
     client: Client<HttpsConnector<HttpConnector>, Body>,
 }
+
 impl EventRetriever {
     pub fn inst() -> EventRetriever {
         let https = HttpsConnector::new(1).expect("TLS initialization failed");
@@ -51,4 +54,13 @@ impl EventRetriever {
         
         self.client.request(req)
     }
+}
+
+#[derive(Serialize,Deserialize)]
+pub struct DeviceUserCodeResponse {
+    device_code: String,
+    user_code: String,
+    expires_in: u32,
+    interval: u32,
+    verification_url: String
 }

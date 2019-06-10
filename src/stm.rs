@@ -25,7 +25,7 @@ macro_rules! stm {
                             }
                         }
                     }
-                    
+
                 )*
             )*
 
