@@ -10,13 +10,13 @@
 }
 ** Poll Google's authorisation server 
 *** Before user authorises
-**** [18:04:23] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&&client_secret=miaNRI8ECPVbiAaKWgiw6a3S&cod=AH-1Ng2UWOD6PAtnTo3EDATCXC8RLEIz-yUiUPKUjLzeCANbVSpc733HyAaw3TUMsipbp1lFUhMMC0OoVHNQcD7Eh143aXof0A&grant_type=http://oauth.net/grant_type/device/1.0" -H "Content-Type: application/x-www-form-urlencoded" https://www.googleapis.com/oauth2/v4/token
+**** [18:04:23] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&&client_secret=miaNRI8ECPVbiAaKWgiw6a3S&&code=AH-1Ng2UWOD6PAtnTo3EDATCXC8RLEIz-yUiUPKUjLzeCANbVSpc733HyAaw3TUMsipbp1lFUhMMC0OoVHNQcD7Eh143aXof0A&grant_type=http://oauth.net/grant_type/device/1.0" -H "Content-Type: application/x-www-form-urlencoded" https://www.googleapis.com/oauth2/v4/token
 {
   "error": "authorization_pending",
   "error_description": "Precondition Failed"
 }
 *** After user authorises
-**** [18:05:12] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&&client_secret=miaNRI8ECPVbiAaKWgiw6a3S&cod=AH-1Ng2UWOD6PAtnTo3EDATCXC8RLEIz-yUiUPKUjLzeCANbVSpc733HyAaw3TUMsipbp1lFUhMMC0OoVHNQcD7Eh143aXof0A&grant_type=http://oauth.net/grant_type/device/1.0&access_type=offline" -H "Content-Type: application/x-www-form-urlencoded" https://www.googleapis.com/oauth2/v4/token
+**** [18:05:12] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&&client_secret=miaNRI8ECPVbiAaKWgiw6a3S&&code=AH-1Ng2UWOD6PAtnTo3EDATCXC8RLEIz-yUiUPKUjLzeCANbVSpc733HyAaw3TUMsipbp1lFUhMMC0OoVHNQcD7Eh143aXof0A&grant_type=http://oauth.net/grant_type/device/1.0&access_type=offline" -H "Content-Type: application/x-www-form-urlencoded" https://www.googleapis.com/oauth2/v4/token
 {
   "access_token": "ya29.GlsAB9Mc30wmGv22K3b-b35uCDpJuM2XDMttn-aZgjJ4_u9Afn0kKohxwj4mN5aQGeHbomdQQGeYWjzAoURfAGX9DRgv6xvVFjQn8e_f4sHd7dQB-gx4yI3_0_LV",
   "expires_in": 3600,

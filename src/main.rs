@@ -1,9 +1,9 @@
-#![feature(log_syntax)]
+//#![feature(log_syntax)]
 mod cal_machine;
 mod stm;
 
-use reqwest::Result;
+use cal_machine::Error;
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Error> {
     cal_machine::run()
 }
