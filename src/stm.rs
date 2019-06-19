@@ -15,6 +15,7 @@ macro_rules! stm {
 
                     impl From<$e> for $node {
                         fn from(_st: $e) -> $node {
+                            println!("{:?} -> {:?}", stringify!($e), stringify!($node));
                             $node {
                                 _secret: ()
                             }

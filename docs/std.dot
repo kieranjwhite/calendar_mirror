@@ -8,39 +8,35 @@ start[shape="point"];
 
 "LOAD" [shape="ellipse"];
 "REQUEST_CODES" [shape="ellipse"];
-"POLL" [shape="ellipse"];
-"AUTH_PENDING" [shape="ellipse"];
-"SLOW_POLLING" [shape="ellipse"];
 "REFRESH" [shape="ellipse"];
-"SAVE" [shape="ellipse"];
 "READ_FIRST" [shape="ellipse"];
+"POLL" [shape="ellipse"];
+"DISPLAY_ERROR" [shape="ellipse"];
+"SAVE" [shape="ellipse"];
 "PAGE" [shape="ellipse"];
 "DISPLAY" [shape="ellipse"];
-"DISPLAY_ERROR" [shape="ellipse"];
 "WAIT" [shape="ellipse"];
+"WIPE" [shape="ellipse"];
 
 start -> "LOAD";
-"LOAD" -> "REQUEST_CODES"
+"READ_FIRST" -> "REQUEST_CODES";
+"WIPE" -> "REQUEST_CODES" [label="wipe refresh_token"];
 "LOAD" -> "REFRESH";
+"WAIT" -> "REFRESH";
 "REFRESH" -> "READ_FIRST";
-"REQUEST_CODES" -> "POLL";
-"REQUEST_CODES" -> "DISPLAY_ERROR" [label="HTTP 403" color="brown"];
-"POLL" -> "AUTH_PENDING" [label="HTTP 400"];
-"AUTH_PENDING" -> "POLL";
-"POLL" -> "SLOW_POLLING" [label="HTTP 429, double polling period" color="brown"];
-"SLOW_POLLING" -> "POLL";
-"POLL" -> "DISPLAY_ERROR" [label="HTTP 400, 401, 403" color="brown"];
-"POLL" -> "SAVE";
 "SAVE" -> "READ_FIRST";
+"REQUEST_CODES" -> "POLL";
+"LOAD" -> "DISPLAY_ERROR" [ label="io error" color="brown"];
+"POLL" -> "DISPLAY_ERROR" [label="HTTP 400, 401, 403" color="brown"];
+"READ_FIRST" -> "DISPLAY_ERROR" [ label="no credentials found"];
+"REQUEST_CODES" -> "DISPLAY_ERROR" [label="HTTP 403" color="brown"];
+"SAVE" -> "DISPLAY_ERROR" [label="no credentials" color="brown"];
+"POLL" -> "SAVE";
 "READ_FIRST" -> "PAGE";
-"PAGE" -> "PAGE";
 "PAGE" -> "DISPLAY";
 "DISPLAY_ERROR" -> "WAIT";
 "DISPLAY" -> "WAIT";
-"WAIT" -> "REFRESH";
 "WAIT" -> "WIPE";
-"WIPE" ->  "REQUEST_CODES" [label="wipe refresh_token"];
-
 }
 /*
 * "TYPING" -> "REINIT" [label="(get, put, delete) 404 Not Found\nor -ve term frequency\nor missing term to delete" color="brown"];

@@ -47,7 +47,10 @@ impl EventRetriever {
 
     pub fn retrieve_dev_and_code(&self) -> reqwest::Result<Response> {
         let post_args = [(CLIENT_ID_KEY, CLIENT_ID_VAL), (SCOPE_KEY, SCOPE_VAL)];
-        self.client.post(DEVICE_CODE_URL).form(&post_args).send()
+        println!("device code args: {:?}", post_args);
+        let request=self.client.post(DEVICE_CODE_URL).form(&post_args);
+        println!("device code request: {:?}", request);
+        request.send()
     }
 
     pub fn poll(&self, code: &str) -> reqwest::Result<Response> {
@@ -61,13 +64,14 @@ impl EventRetriever {
     }
 
     pub fn read(&self, bearer: &str) -> reqwest::Result<Response> {
-        let post_args = [(MAX_RESULTS_KEY, "1"), (SINGLE_EVENTS_KEY, "true")];
-        self.client
-            .post(READ_URL)
+        let args = [(MAX_RESULTS_KEY, "1"), (SINGLE_EVENTS_KEY, "true")];
+        let request=self.client
+            .get(READ_URL)
             .header(ACCEPT_HEADER, ACCEPT_JSON)
             .header(AUTHORISATION_HEADER, bearer)
-            .form(&post_args)
-            .send()
+            .query(&args);
+        println!("cal read request: {:?}", request);
+        request.send()
     }
 }
 
@@ -95,29 +99,22 @@ pub struct PollResponse {
 }
 
 impl PollResponse {
-    pub fn new() -> PollResponse {
-        let access_token = String::new();
-        let refresh_token = String::new();
-        let expires_in: u32 = 0;
-        let token_type = String::new();
-
-        PollResponse {
-            access_token,
-            refresh_token,
-            expires_in,
-            token_type,
+    pub fn load(path: &Path) -> io::Result<Option<Self>> {
+        match File::open(path) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let text: String = reader.lines().collect::<io::Result<String>>()?;
+                let credentials = serde_json::from_str(&text)?;
+                Ok(Some(credentials))
+            },
+            Err(_error) => {
+                return Ok(None);
+            }
         }
     }
 
-    pub fn load(path: &Path) -> io::Result<Self> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let text = reader.lines().collect::<io::Result<String>>()?;
-        let credentials = serde_json::from_str(&text)?;
-        Ok(credentials)
-    }
-
     pub fn save(&self, path: &Path) -> io::Result<()> {
+        println!("before file ");
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         let serialised = serde_json::to_string(self)?;

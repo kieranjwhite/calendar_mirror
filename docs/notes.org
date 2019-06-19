@@ -1,6 +1,6 @@
 * Algorithm for downloading events for a particular day
 ** Request device and user codes
-*** [17:54:01] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/calenar.readonly" https://accounts.google.com/o/oauth2/device/code
+*** [17:54:01] nostril-watcher:~/projects/rust/oauth2-rs$ curl -d "client_id=873648397769-eba22ohhel0t30e37dib506540vjdb25.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/calendar.readonly" https://accounts.google.com/o/oauth2/device/code
 {
   "device_code": "AH-1Ng2UWOD6PAtnTo3EDATCXC8RLEIz-yUiUPKUjLzeCANbVSpc733HyAaw3TUMsipbp1lFUhMMC0OoVHNQcD7Eh143aXof0A",
   "user_code": "PPN-DCV-PYC",
