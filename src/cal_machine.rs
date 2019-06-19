@@ -3,22 +3,29 @@ mod retriever;
 use crate::stm;
 use reqwest::{Response, StatusCode};
 use retriever::*;
-use std::{io, path::Path, thread, time::Duration};
+use serde::{Deserialize, Serialize};
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Write},
+    path::Path,
+    thread,
+    time::Duration,
+};
 
 stm!(cal_stm, Load, {
-    [ReadFirst, Wipe], RequestCodes;
+    [Refresh, Wipe], RequestCodes;
     [Load, Wait], Refresh;
-    [Refresh, Save], ReadFirst;
+    [Save], ReadFirst;
     [RequestCodes], Poll;
-    [Load, Poll, ReadFirst, RequestCodes, Save], DisplayError;
-    [Poll], Save;
+    [Load, Poll, ReadFirst, Refresh, RequestCodes, Save], DisplayError;
+    [Poll, Refresh], Save;
     [ReadFirst], Page;
     [Page], Display;
     [DisplayError, Display], Wait;
     [Wait], Wipe
 });
 
-const MISSING_CREDENTIALS: &str="Missing credentials";
+const MISSING_CREDENTIALS: &str = "Missing credentials";
 const LOAD_FAILED: &str = "Failed to load credentials";
 const QUOTA_EXCEEDED: &str = "Quota Exceeded";
 const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
@@ -44,6 +51,63 @@ impl From<io::Error> for Error {
     }
 }
 
+struct RefreshToken(String);
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Authenticator {
+    pub access_token: String,
+    refresh_token: String,
+    expires_in: u32,
+}
+
+impl Authenticator {
+    pub fn load(path: &Path) -> io::Result<Option<Self>> {
+        match File::open(path) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let text: String = reader.lines().collect::<io::Result<String>>()?;
+                let credentials = serde_json::from_str(&text)?;
+                Ok(Some(credentials))
+            }
+            Err(_error) => {
+                return Ok(None);
+            }
+        }
+    }
+
+    pub fn save(&self, path: &Path) -> io::Result<()> {
+        println!("before file ");
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+        let serialised = serde_json::to_string(self)?;
+        writer.write_all(serialised.as_bytes())?;
+        writer.flush()
+    }
+}
+
+impl From<PollResponse> for Authenticator {
+    fn from(resp: PollResponse) -> Authenticator {
+        Authenticator {
+            access_token: resp.access_token,
+            refresh_token: resp.refresh_token,
+            expires_in: resp.expires_in,
+        }
+    }
+}
+
+type AuthTokens = (RefreshToken, RefreshResponse);
+
+impl From<(AuthTokens)> for Authenticator {
+    fn from(token_response: AuthTokens) -> Authenticator {
+        let (RefreshToken(refresh_token), refresh_response) = token_response;
+        Authenticator {
+            access_token: refresh_response.access_token,
+            refresh_token: refresh_token,
+            expires_in: refresh_response.expires_in,
+        }
+    }
+}
+
 pub fn run() -> Result<(), Error> {
     use cal_stm::Machine;
     use cal_stm::Machine::*;
@@ -57,7 +121,7 @@ pub fn run() -> Result<(), Error> {
     let mut credentials = None;
     loop {
         mach = match mach {
-            Load(st) => match PollResponse::load(config_file) {
+            Load(st) => match Authenticator::load(config_file) {
                 Err(error_msg) => {
                     error = Some(format!("{}: {}", LOAD_FAILED, error_msg.to_string()));
                     DisplayError(st.into())
@@ -102,7 +166,47 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Refresh(st) => ReadFirst(st.into()),
+            Refresh(st) => match credentials {
+                None => {
+                    RequestCodes(st.into())
+                }
+                Some(ref credential_tokens) => {
+                    let mut resp: Response = retriever.refresh(&credential_tokens.refresh_token)?;
+                    let status = resp.status();
+                    match status {
+                        StatusCode::OK => {
+                            println!("Headers: {:#?}", resp.headers());
+                            let credentials_tokens: RefreshResponse = resp.json()?;
+
+                            let token_type = credentials_tokens.token_type.clone();
+                            if token_type != TOKEN_TYPE {
+                                error =
+                                    Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
+                                DisplayError(st.into())
+                            } else {
+                                println!("Body is next... {:?}", credentials_tokens);
+                                credentials = Some(
+                                    (
+                                        RefreshToken(credential_tokens.refresh_token.clone()),
+                                        credentials_tokens,
+                                    )
+                                        .into(),
+                                );
+                                Save(st.into())
+                            }
+                        }
+                        other_status => {
+                            let body: PollErrorResponse = resp.json()?;
+                            let err_msg = format!(
+                                "When refreshing status: {:?} body: {:?}",
+                                other_status, body
+                            );
+                            error = Some(err_msg);
+                            DisplayError(st.into())
+                        }
+                    }
+                }
+            },
             Poll(st) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
@@ -110,9 +214,17 @@ pub fn run() -> Result<(), Error> {
                 match status {
                     StatusCode::OK => {
                         println!("Headers: {:#?}", resp.headers());
-                        let credentials_tokens: PollResponse=resp.json()?;
-                        credentials=Some(credentials_tokens);
-                        Save(st.into())
+                        let credentials_tokens: PollResponse = resp.json()?;
+
+                        let token_type = credentials_tokens.token_type.clone();
+                        if token_type != TOKEN_TYPE {
+                            error = Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
+                            DisplayError(st.into())
+                        } else {
+                            println!("Body is next... {:?}", credentials_tokens);
+                            credentials = Some(credentials_tokens.into());
+                            Save(st.into())
+                        }
                     }
                     other_status => {
                         let body: PollErrorResponse = resp.json()?;
@@ -155,25 +267,21 @@ pub fn run() -> Result<(), Error> {
                 None => {
                     error = Some(MISSING_CREDENTIALS.to_string());
                     DisplayError(st.into())
-                },
+                }
                 Some(ref credential_tokens) => {
-                    let token_type = credential_tokens.token_type.clone();
-                    if token_type != TOKEN_TYPE {
-                        error = Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
-                        DisplayError(st.into())
-                    } else {
-                        println!("Body is next... {:?}", credential_tokens);
-                        credential_tokens.save(config_file)?;
-                        ReadFirst(st.into())
-                    }
+                    credential_tokens.save(config_file)?;
+                    ReadFirst(st.into())
                 }
             },
             ReadFirst(st) => {
                 match credentials {
-                    None => RequestCodes(st.into()),
+                    None => {
+                        error = Some(MISSING_CREDENTIALS.to_string());
+                        DisplayError(st.into())
+                    }
                     Some(ref credentials_tokens) => {
-                        let mut resp: Response =
-                            retriever.read(&format!("Bearer {}", credentials_tokens.access_token))?;
+                        let mut resp: Response = retriever
+                            .read(&format!("Bearer {}", credentials_tokens.access_token))?;
                         let status = resp.status();
                         match status {
                             StatusCode::OK => {

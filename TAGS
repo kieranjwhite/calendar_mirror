@@ -2,15 +2,158 @@
 test.rs,21
 pub fn main(53,1181
 
-src/cal_machine.rs,19
-pub fn run(24,481
+target/debug/build/crc-0311582c917dcfa4/out/crc32_constants.rs,234
+pub const CASTAGNOLI: u32 1,0
+pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
+pub const IEEE: u32 260,4110
+pub const IEEE_TABLE:IEEE_TABLE261,4144
+pub const KOOPMAN: u32 519,8207
+pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
 
-src/main.rs,72
-mod stm;2,13
-mod cal_machine;4,23
-mod retriever;5,40
-fn main(13,152
+target/debug/build/crc-0311582c917dcfa4/out/crc16_constants.rs,129
+pub const X25: u16 1,0
+pub const X25_TABLE:X25_TABLE2,28
+pub const USB: u16 260,2838
+pub const USB_TABLE:USB_TABLE261,2866
 
-src/stm.rs,0
+target/debug/build/crc-0311582c917dcfa4/out/crc64_constants.rs,132
+pub const ECMA: u64 1,0
+pub const ECMA_TABLE:ECMA_TABLE2,44
+pub const ISO: u64 260,6570
+pub const ISO_TABLE:ISO_TABLE261,6613
 
-src/retriever.rs,0
+target/debug/build/crc-ad849be24c79a08d/out/crc32_constants.rs,234
+pub const CASTAGNOLI: u32 1,0
+pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
+pub const IEEE: u32 260,4110
+pub const IEEE_TABLE:IEEE_TABLE261,4144
+pub const KOOPMAN: u32 519,8207
+pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
+
+target/debug/build/crc-ad849be24c79a08d/out/crc16_constants.rs,129
+pub const X25: u16 1,0
+pub const X25_TABLE:X25_TABLE2,28
+pub const USB: u16 260,2838
+pub const USB_TABLE:USB_TABLE261,2866
+
+target/debug/build/crc-ad849be24c79a08d/out/crc64_constants.rs,132
+pub const ECMA: u64 1,0
+pub const ECMA_TABLE:ECMA_TABLE2,44
+pub const ISO: u64 260,6570
+pub const ISO_TABLE:ISO_TABLE261,6613
+
+target/rls/debug/build/crc-0311582c917dcfa4/out/crc32_constants.rs,234
+pub const CASTAGNOLI: u32 1,0
+pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
+pub const IEEE: u32 260,4110
+pub const IEEE_TABLE:IEEE_TABLE261,4144
+pub const KOOPMAN: u32 519,8207
+pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
+
+target/rls/debug/build/crc-0311582c917dcfa4/out/crc16_constants.rs,129
+pub const X25: u16 1,0
+pub const X25_TABLE:X25_TABLE2,28
+pub const USB: u16 260,2838
+pub const USB_TABLE:USB_TABLE261,2866
+
+target/rls/debug/build/crc-0311582c917dcfa4/out/crc64_constants.rs,132
+pub const ECMA: u64 1,0
+pub const ECMA_TABLE:ECMA_TABLE2,44
+pub const ISO: u64 260,6570
+pub const ISO_TABLE:ISO_TABLE261,6613
+
+src/cal_machine.rs,853
+mod retriever;1,0
+use crate::stm;3,16
+use reqwest:reqwest4,32
+use retriever:retriever5,69
+use std:std6,87
+const MISSING_CREDENTIALS: &str=str21,474
+const LOAD_FAILED: &str str22,529
+const QUOTA_EXCEEDED: &str str23,585
+const ACCESS_DENIED: &str str24,632
+const PENDING_REQUEST: &str str25,713
+const SLOW_DOWN: &str str26,803
+const UNRECOGNISED_TOKEN_TYPE: &str str27,880
+pub enum Error 30,963
+    Reqwest(31,980
+    Reqwest(reqwest::Error)31,980
+    IO(32,1009
+    IO(io::Error)32,1009
+    use cal_stm::Machine;48,1294
+    use cal_stm::Machine:cal_stm::Machine49,1320
+    let config_file 51,1350
+    let retriever 52,1441
+    let mut mach: Machine 53,1485
+    let mut error: Option<Option54,1533
+    let mut device_code 55,1575
+    let mut delay_s: u64 56,1616
+    let mut credentials 57,1646
+        mach 59,1689
+
+src/stm.rs,206
+            pub enum Machine 28,708
+                $start(29,739
+                $start($start)29,739
+                $(30,771
+                    $node(31,790
+                    $node($node)31,790
+
+src/cal_machine/retriever.rs,1753
+use reqwest:reqwest1,0
+use serde:serde2,39
+use std:std3,76
+const DEVICE_CODE_URL: &str str9,175
+const AUTHORISATION_URL: &str str10,257
+const READ_URL: &str str11,335
+const CLIENT_ID_KEY: &str str12,425
+const CLIENT_ID_VAL: &str str13,466
+const SCOPE_KEY: &str str15,574
+const SCOPE_VAL: &str str16,607
+const CLIENT_SECRET_KEY: &str str17,684
+const CLIENT_SECRET_VAL: &str str18,733
+const CODE_KEY: &str str19,793
+const GRANT_TYPE_KEY: &str str20,824
+const GRANT_TYPE_VAL: &str str21,867
+const REFRESH_TOKEN_KEY: &str str22,938
+const TIME_MIN_KEY: &str str24,988
+const TIME_MAX_KEY: &str str25,1026
+const MAX_RESULTS_KEY: &str str26,1064
+const SINGLE_EVENTS_KEY: &str str27,1108
+const AUTHORISATION_HEADER: &str str29,1157
+const ACCEPT_HEADER: &str str30,1209
+const ACCEPT_JSON: &str str31,1247
+pub const TOKEN_TYPE: &str str32,1293
+pub struct EventRetriever 38,1519
+    client: Client,39,1547
+pub struct DeviceUserCodeResponse 93,3375
+    pub device_code: String,94,3411
+    user_code: String,95,3440
+    expires_in: u32,96,3463
+    pub interval: u32,97,3484
+    verification_url: String,98,3507
+pub const QUOTA_EXCEEDED_ERROR_CODE: &str str101,3540
+pub struct DeviceUserCodeErrorResponse 103,3648
+    pub error_code: String,104,3689
+pub struct PollResponse 108,3761
+    pub access_token: String,109,3787
+    refresh_token: String,110,3817
+    expires_in: u32,111,3844
+    pub token_type: String,112,3865
+pub const ACCESS_DENIED_ERROR: &str str140,4692
+pub const AUTHORISATION_PENDING_ERROR: &str str141,4747
+pub const POLLING_TOO_FREQUENTLY_ERROR: &str str142,4818
+pub struct PollErrorResponse 145,4920
+    pub error: String,146,4951
+    pub error_description: String,147,4974
+
+src/main.rs,65
+mod cal_machine;2,26
+mod stm;3,43
+use cal_machine::Error;5,53
+
+target/rls/debug/build/mime_guess-0cfbca0bb5f05d9a/out/mime_types_generated.rs,0
+
+target/debug/build/mime_guess-bc2fa3f92e59c801/out/mime_types_generated.rs,0
+
+target/debug/build/mime_guess-0cfbca0bb5f05d9a/out/mime_types_generated.rs,0
