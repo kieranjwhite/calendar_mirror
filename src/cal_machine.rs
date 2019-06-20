@@ -27,7 +27,6 @@ stm!(cal_stm, Load, {
 });
 
 const HTTP_ERROR: &str = "HTTP error";
-const MISSING_CREDENTIALS: &str = "Missing credentials";
 const LOAD_FAILED: &str = "Failed to load credentials";
 const QUOTA_EXCEEDED: &str = "Quota Exceeded";
 const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
@@ -119,7 +118,7 @@ impl From<(AuthTokens)> for Authenticator {
 #[derive(Debug)]
 pub struct Event {
     summary: String,
-    //description: String,
+    description: Option<String>,
     start: DateTime<Local>,
     end: DateTime<Local>,
 }
@@ -128,7 +127,7 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
     fn from(ev: &retriever::Event) -> Result<Event, ParseError> {
         Ok(Event {
             summary: ev.summary.to_string(),
-            //            description: ev.description.to_string(),
+            description: ev.description.clone(),
             start: ev.start.date_time.parse()?,
             end: ev.end.date_time.parse()?,
         })
