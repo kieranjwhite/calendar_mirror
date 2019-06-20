@@ -19,7 +19,7 @@ start[shape="point"];
 "WIPE" [shape="ellipse"];
 
 start -> "LOAD";
-"REFRESH" -> "REQUEST_CODES" [label="first time"];
+"LOAD" -> "REQUEST_CODES" [label="first time"];
 "WIPE" -> "REQUEST_CODES" [label="wipe refresh_token"];
 "LOAD" -> "REFRESH";
 "WAIT" -> "REFRESH";

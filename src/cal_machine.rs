@@ -13,17 +13,18 @@ use std::{
     time::Duration,
 };
 
-stm!(cal_stm, Load, {
-    [Refresh, Wipe], RequestCodes;
-    [Load, Wait], Refresh;
-    [Save], ReadFirst;
-    [RequestCodes], Poll;
-    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError;
-    [Poll, Refresh], Save;
-    [ReadFirst], Page;
-    [Page], Display;
-    [DisplayError, Display], Wait;
-    [Wait], Wipe
+stm!(cal_stm, Machine,
+     Load(), {
+         [Load, Wipe], RequestCodes();
+         [Load, Wait], Refresh(Authenticator);
+         [Save], ReadFirst(Authenticator);
+         [RequestCodes], Poll();
+         [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError();
+         [Poll, Refresh], Save(Authenticator);
+         [ReadFirst], Page(Authenticator, Option<PageToken>);
+         [Page], Display();
+         [DisplayError, Display], Wait();
+         [Wait], Wipe()
 });
 
 const HTTP_ERROR: &str = "HTTP error";
@@ -144,18 +145,14 @@ fn add_events(received: &EventsResponse, events: &mut Vec<Event>) -> Result<(), 
 }
 
 pub fn run() -> Result<(), Error> {
-    use cal_stm::Machine;
-    use cal_stm::Machine::*;
-
+    use Machine::*;
     let today = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("/home/kieran/projects/rust/calendar_mirror/config.json");
     let retriever = EventRetriever::inst();
-    let mut mach: Machine = Machine::new_stm();
+    let mut mach: Machine = Load(cal_stm::Load);
     let mut error: Option<String> = None;
     let mut device_code = String::new();
     let mut delay_s: u64 = 1;
-    let mut credentials = None;
-    let mut page_token = None;
     let mut events: Vec<Event> = Vec::new();
 
     loop {
@@ -165,10 +162,8 @@ pub fn run() -> Result<(), Error> {
                     error = Some(format!("{}: {}", LOAD_FAILED, error_msg.to_string()));
                     DisplayError(st.into())
                 }
-                Ok(creds) => {
-                    credentials = creds;
-                    Refresh(st.into())
-                }
+                Ok(None) => RequestCodes(st.into()),
+                Ok(Some(creds)) => Refresh(st.into(), creds),
             },
             RequestCodes(st) => {
                 let mut resp: Response = retriever.retrieve_dev_and_code()?;
@@ -206,46 +201,39 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Refresh(st) => match credentials {
-                None => RequestCodes(st.into()),
-                Some(ref credential_tokens) => {
-                    let mut resp: Response = retriever.refresh(&credential_tokens.refresh_token)?;
-                    let status = resp.status();
-                    match status {
-                        StatusCode::OK => {
-                            println!("Headers: {:#?}", resp.headers());
-                            //println!("Refresh response is next... {:?}", resp.text()?);
-                            let credentials_tokens: RefreshResponse = resp.json()?;
+            Refresh(st, credential_tokens) => {
+                let mut resp: Response = retriever.refresh(&credential_tokens.refresh_token)?;
+                let status = resp.status();
+                match status {
+                    StatusCode::OK => {
+                        println!("Headers: {:#?}", resp.headers());
+                        let credentials_tokens: RefreshResponse = resp.json()?;
 
-                            let token_type = credentials_tokens.token_type.clone();
-                            if token_type != TOKEN_TYPE {
-                                error =
-                                    Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
-                                DisplayError(st.into())
-                            } else {
-                                println!("Body is next... {:?}", credentials_tokens);
-                                credentials = Some(
-                                    (
-                                        RefreshToken(credential_tokens.refresh_token.clone()),
-                                        credentials_tokens,
-                                    )
-                                        .into(),
-                                );
-                                Save(st.into())
-                            }
-                        }
-                        other_status => {
-                            let body: PollErrorResponse = resp.json()?;
-                            let err_msg = format!(
-                                "When refreshing status: {:?} body: {:?}",
-                                other_status, body
-                            );
-                            error = Some(err_msg);
+                        let token_type = credentials_tokens.token_type.clone();
+                        if token_type != TOKEN_TYPE {
+                            error = Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
                             DisplayError(st.into())
+                        } else {
+                            println!("Body is next... {:?}", credentials_tokens);
+                            let credentials: Authenticator = (
+                                RefreshToken(credential_tokens.refresh_token.clone()),
+                                credentials_tokens,
+                            )
+                                .into();
+                            Save(st.into(), credentials)
                         }
                     }
+                    other_status => {
+                        let body: PollErrorResponse = resp.json()?;
+                        let err_msg = format!(
+                            "When refreshing status: {:?} body: {:?}",
+                            other_status, body
+                        );
+                        error = Some(err_msg);
+                        DisplayError(st.into())
+                    }
                 }
-            },
+            }
             Poll(st) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
@@ -261,8 +249,7 @@ pub fn run() -> Result<(), Error> {
                             DisplayError(st.into())
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
-                            credentials = Some(credentials_tokens.into());
-                            Save(st.into())
+                            Save(st.into(), credentials_tokens.into())
                         }
                     }
                     other_status => {
@@ -302,13 +289,11 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Save(st) => {
-                let credentials_tokens = credentials.as_ref().ok_or(Error::MissingCredentials)?;
+            Save(st, credentials_tokens) => {
                 credentials_tokens.save(config_file)?;
-                ReadFirst(st.into())
+                ReadFirst(st.into(), credentials_tokens)
             }
-            ReadFirst(st) => {
-                let credentials_tokens = credentials.as_ref().ok_or(Error::MissingCredentials)?;
+            ReadFirst(st, credentials_tokens) => {
                 let mut resp: Response = retriever.read(
                     &format!("Bearer {}", credentials_tokens.access_token),
                     &today,
@@ -321,12 +306,11 @@ pub fn run() -> Result<(), Error> {
                         println!("Event Headers: {:#?}", resp.headers());
                         let events_resp: EventsResponse = resp.json()?;
                         add_events(&events_resp, &mut events)?;
-                        if let Some(next_page) = events_resp.next_page_token {
-                            page_token = Some(PageToken(next_page));
-                        } else {
-                            page_token = None;
-                        }
-                        Page(st.into())
+                        let page_token = match events_resp.next_page_token {
+                            None => None,
+                            Some(next_page) => Some(PageToken(next_page)),
+                        };
+                        Page(st.into(), credentials_tokens, page_token)
                     }
                     _other_status => {
                         println!("Event Headers: {:#?}", resp.headers());
@@ -336,12 +320,10 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Page(st) => {
+            Page(st, credentials_tokens, page_token) => {
                 if let None = page_token {
                     Display(st.into())
                 } else {
-                    let credentials_tokens =
-                        credentials.as_ref().ok_or(Error::MissingCredentials)?;
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.access_token),
                         &today,
@@ -354,12 +336,11 @@ pub fn run() -> Result<(), Error> {
                             println!("Event Headers: {:#?}", resp.headers());
                             let events_resp: EventsResponse = resp.json()?;
                             add_events(&events_resp, &mut events)?;
-                            if let Some(next_page) = events_resp.next_page_token {
-                                page_token = Some(PageToken(next_page));
-                            } else {
-                                page_token = None;
-                            }
-                            Page(st)
+                            let page_token = match events_resp.next_page_token {
+                                None => None,
+                                Some(next_page) => Some(PageToken(next_page)),
+                            };
+                            Page(st, credentials_tokens, page_token)
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
