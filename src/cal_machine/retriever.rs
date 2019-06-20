@@ -17,6 +17,7 @@ const GRANT_TYPE_KEY: &str = "grant_type";
 const GRANT_TYPE_POLL_VAL: &str = "http://oauth.net/grant_type/device/1.0";
 const GRANT_TYPE_REFRESH_VAL: &str = "refresh_token";
 const REFRESH_TOKEN_KEY: &str = "refresh_token";
+const PAGE_TOKEN_KEY: &str = "pageToken";
 
 const TIME_MIN_KEY: &str = "timeMin";
 const TIME_MAX_KEY: &str = "timeMax";
@@ -31,6 +32,8 @@ pub const TOKEN_TYPE: &str = "Bearer";
 pub const ACCESS_DENIED_ERROR: &str = "access_denied";
 pub const AUTHORISATION_PENDING_ERROR: &str = "authorization_pending";
 pub const POLLING_TOO_FREQUENTLY_ERROR: &str = "slow_down";
+
+pub struct PageToken(String);
 
 pub struct EventRetriever {
     client: Client,
@@ -66,19 +69,32 @@ impl EventRetriever {
         bearer: &str,
         min_time: &DateTime<Local>,
         max_time: &DateTime<Local>,
+        page_token: &Option<PageToken>,
     ) -> reqwest::Result<Response> {
-        let args: [(& str, &str); 4] = [
-            (TIME_MIN_KEY, &min_time.format("%+").to_string().clone()),
-            (TIME_MAX_KEY, &max_time.format("%+").to_string().clone()),
-            (MAX_RESULTS_KEY, "1"),
-            (SINGLE_EVENTS_KEY, "true"),
-        ];
+        let min = &min_time.format("%+").to_string().clone();
+        let max = &max_time.format("%+").to_string().clone();
         let request = self
             .client
             .get(READ_URL)
             .header(ACCEPT_HEADER, ACCEPT_JSON)
-            .header(AUTHORISATION_HEADER, bearer)
-            .query(&args);
+            .header(AUTHORISATION_HEADER, bearer);
+        let request = match page_token {
+            None => {
+                request.query(&[
+                    (TIME_MIN_KEY, min),
+                    (TIME_MAX_KEY, max),
+                    (MAX_RESULTS_KEY, &String::from("1")),
+                    (SINGLE_EVENTS_KEY, &String::from("true")),
+                ])
+            }
+            Some(PageToken(token)) => request.query(&[
+                (TIME_MIN_KEY, min),
+                (TIME_MAX_KEY, max),
+                (MAX_RESULTS_KEY, &String::from("1")),
+                (SINGLE_EVENTS_KEY, &String::from("true")),
+                (PAGE_TOKEN_KEY, token),
+            ]),
+        };
         println!("cal read request: {:?}", request);
         request.send()
     }

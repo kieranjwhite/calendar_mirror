@@ -284,7 +284,7 @@ pub fn run() -> Result<(), Error> {
                     }
                     Some(ref credentials_tokens) => {
                         let mut resp: Response = retriever
-                            .read(&format!("Bearer {}", credentials_tokens.access_token), &today, &(today+chrono::Duration::days(1)-chrono::Duration::seconds(1)))?;
+                            .read(&format!("Bearer {}", credentials_tokens.access_token), &today, &(today+chrono::Duration::days(1)-chrono::Duration::seconds(1)), &Option::<PageToken>::None)?;
                         let status = resp.status();
                         match status {
                             StatusCode::OK => {
