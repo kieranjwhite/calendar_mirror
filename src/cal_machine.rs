@@ -13,18 +13,17 @@ use std::{
     time::Duration,
 };
 
-stm!(cal_stm, Machine,
-     Load(), {
-         [Load, Wipe], RequestCodes();
-         [Load, Wait], Refresh(Authenticator);
-         [Save], ReadFirst(Authenticator);
-         [RequestCodes], Poll();
-         [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError();
-         [Poll, Refresh], Save(Authenticator);
-         [ReadFirst], Page(Authenticator, Option<PageToken>);
-         [Page], Display();
-         [DisplayError, Display], Wait();
-         [Wait], Wipe()
+stm!(cal_stm, Machine, Load(), {
+    [Load, Wipe], RequestCodes();
+    [Load, Wait], Refresh(Authenticator);
+    [Save], ReadFirst(Authenticator);
+    [RequestCodes], Poll(String, u64);
+    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError(String);
+    [Poll, Refresh], Save(Authenticator);
+    [ReadFirst], Page(Authenticator, Option<PageToken>, Vec<Event>);
+    [Page], Display(Vec<Event>);
+    [DisplayError, Display], Wait();
+    [Wait], Wipe()
 });
 
 const HTTP_ERROR: &str = "HTTP error";
@@ -134,13 +133,14 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
     }
 }
 
-fn add_events(received: &EventsResponse, events: &mut Vec<Event>) -> Result<(), ParseError> {
+fn add_events(received: &EventsResponse) -> Result<Vec<Event>, ParseError> {
+    let mut events=Vec::new();
     for ev in received.items.iter() {
         let ev_res: Result<Event, ParseError> = ev.into();
         let typed_ev = ev_res?;
         events.push(typed_ev);
     }
-    Ok(())
+    Ok(events)
 }
 
 pub fn run() -> Result<(), Error> {
@@ -149,18 +149,14 @@ pub fn run() -> Result<(), Error> {
     let config_file = Path::new("/home/kieran/projects/rust/calendar_mirror/config.json");
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
-    let mut error: Option<String> = None;
-    let mut device_code = String::new();
-    let mut delay_s: u64 = 1;
-    let mut events: Vec<Event> = Vec::new();
 
     loop {
         mach = match mach {
             Load(st) => match Authenticator::load(config_file) {
-                Err(error_msg) => {
-                    error = Some(format!("{}: {}", LOAD_FAILED, error_msg.to_string()));
-                    DisplayError(st.into())
-                }
+                Err(error_msg) => DisplayError(
+                    st.into(),
+                    format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
+                ),
                 Ok(None) => RequestCodes(st.into()),
                 Ok(Some(creds)) => Refresh(st.into(), creds),
             },
@@ -173,9 +169,7 @@ pub fn run() -> Result<(), Error> {
                         let body: DeviceUserCodeResponse = resp.json()?;
                         println!("Body is next... {:?}", body);
 
-                        device_code = String::from(body.device_code);
-                        delay_s = body.interval as u64;
-                        Poll(st.into())
+                        Poll(st.into(), String::from(body.device_code), body.interval as u64)
                     }
                     other_status => {
                         let body: DeviceUserCodeErrorResponse = resp.json()?;
@@ -184,18 +178,17 @@ pub fn run() -> Result<(), Error> {
                             StatusCode::FORBIDDEN
                                 if body.error_code == QUOTA_EXCEEDED_ERROR_CODE =>
                             {
-                                error = Some(QUOTA_EXCEEDED.to_string());
-                                DisplayError(st.into())
+                                DisplayError(st.into(), QUOTA_EXCEEDED.to_string())
                             }
-                            _otherwise => {
-                                error = Some(format!(
+                            _otherwise => DisplayError(
+                                st.into(),
+                                format!(
                                     "{}: {}, {}",
                                     HTTP_ERROR,
                                     other_status.as_u16(),
                                     body.error_code
-                                ));
-                                DisplayError(st.into())
-                            }
+                                ),
+                            ),
                         }
                     }
                 }
@@ -210,8 +203,7 @@ pub fn run() -> Result<(), Error> {
 
                         let token_type = credentials_tokens.token_type.clone();
                         if token_type != TOKEN_TYPE {
-                            error = Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
-                            DisplayError(st.into())
+                            DisplayError(st.into(), format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type))
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
                             let credentials: Authenticator = (
@@ -228,12 +220,11 @@ pub fn run() -> Result<(), Error> {
                             "When refreshing status: {:?} body: {:?}",
                             other_status, body
                         );
-                        error = Some(err_msg);
-                        DisplayError(st.into())
+                        DisplayError(st.into(), err_msg)
                     }
                 }
             }
-            Poll(st) => {
+            Poll(st, device_code, delay_s) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
                 let status = resp.status();
@@ -244,8 +235,7 @@ pub fn run() -> Result<(), Error> {
 
                         let token_type = credentials_tokens.token_type.clone();
                         if token_type != TOKEN_TYPE {
-                            error = Some(format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type));
-                            DisplayError(st.into())
+                            DisplayError(st.into(), format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type))
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
                             Save(st.into(), credentials_tokens.into())
@@ -256,33 +246,30 @@ pub fn run() -> Result<(), Error> {
                         eprintln!("Error when polling: {:?}", body);
                         match other_status {
                             StatusCode::FORBIDDEN if body.error == ACCESS_DENIED_ERROR => {
-                                error = Some(ACCESS_DENIED.to_string());
-                                DisplayError(st.into())
+                                DisplayError(st.into(), ACCESS_DENIED.to_string())
                             }
                             StatusCode::BAD_REQUEST
                                 if body.error == AUTHORISATION_PENDING_ERROR =>
                             {
-                                Poll(st)
+                                Poll(st, device_code, delay_s)
                             }
                             StatusCode::PRECONDITION_REQUIRED
                                 if body.error == AUTHORISATION_PENDING_ERROR =>
                             {
-                                Poll(st)
+                                Poll(st, device_code, delay_s)
                             }
                             StatusCode::TOO_MANY_REQUESTS
                                 if body.error == POLLING_TOO_FREQUENTLY_ERROR =>
                             {
-                                delay_s *= 2;
-                                Poll(st)
+                                Poll(st, device_code, delay_s*2)
                             }
                             _otherwise => {
-                                error = Some(format!(
+                                DisplayError(st.into(), format!(
                                     "HTTP error: {}, {}, {}",
                                     other_status.as_u16(),
                                     body.error,
                                     body.error_description
-                                ));
-                                DisplayError(st.into())
+                                ))
                             }
                         }
                     }
@@ -304,24 +291,23 @@ pub fn run() -> Result<(), Error> {
                     StatusCode::OK => {
                         println!("Event Headers: {:#?}", resp.headers());
                         let events_resp: EventsResponse = resp.json()?;
-                        add_events(&events_resp, &mut events)?;
+                        let new_events=add_events(&events_resp)?;
                         let page_token = match events_resp.next_page_token {
                             None => None,
                             Some(next_page) => Some(PageToken(next_page)),
                         };
-                        Page(st.into(), credentials_tokens, page_token)
+                        Page(st.into(), credentials_tokens, page_token, new_events)
                     }
                     _other_status => {
                         println!("Event Headers: {:#?}", resp.headers());
                         println!("Event is next... {:?}", resp.text()?);
-                        error = Some(format!("in readfirst. http status: {:?}", status));
-                        DisplayError(st.into())
+                        DisplayError(st.into(), format!("in readfirst. http status: {:?}", status))
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token) => {
+            Page(st, credentials_tokens, page_token, events) => {
                 if let None = page_token {
-                    Display(st.into())
+                    Display(st.into(), events)
                 } else {
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.access_token),
@@ -334,33 +320,32 @@ pub fn run() -> Result<(), Error> {
                         StatusCode::OK => {
                             println!("Event Headers: {:#?}", resp.headers());
                             let events_resp: EventsResponse = resp.json()?;
-                            add_events(&events_resp, &mut events)?;
+                            let new_events=add_events(&events_resp)?;
                             let page_token = match events_resp.next_page_token {
                                 None => None,
                                 Some(next_page) => Some(PageToken(next_page)),
                             };
-                            Page(st, credentials_tokens, page_token)
+
+                            let mut all_events=Vec::with_capacity(2*(events.len()+new_events.len()));
+                            all_events.extend(events);
+                            all_events.extend(new_events);
+                            Page(st, credentials_tokens, page_token, all_events)
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
                             println!("Event is next... {:?}", resp.text()?);
-                            error = Some(format!("in readfirst. http status: {:?}", status));
-                            DisplayError(st.into())
+                            DisplayError(st.into(), format!("in readfirst. http status: {:?}", status))
                         }
                     }
                 }
             }
-            Display(st) => {
+            Display(st, events) => {
                 println!("Retrieved events: {:?}", events);
                 Wait(st.into())
             }
             Wait(st) => Wait(st),
             Wipe(st) => Wipe(st),
-            DisplayError(st) => {
-                let message = match error.take() {
-                    None => "Uninitialised".to_string(),
-                    Some(error_msg) => error_msg,
-                };
+            DisplayError(st, message) => {
                 eprintln!("Error: {}", message);
                 Wait(st.into())
             }
