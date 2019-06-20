@@ -33,7 +33,7 @@ pub const ACCESS_DENIED_ERROR: &str = "access_denied";
 pub const AUTHORISATION_PENDING_ERROR: &str = "authorization_pending";
 pub const POLLING_TOO_FREQUENTLY_ERROR: &str = "slow_down";
 
-pub struct PageToken(String);
+pub struct PageToken(pub String);
 
 pub struct EventRetriever {
     client: Client,
@@ -79,14 +79,12 @@ impl EventRetriever {
             .header(ACCEPT_HEADER, ACCEPT_JSON)
             .header(AUTHORISATION_HEADER, bearer);
         let request = match page_token {
-            None => {
-                request.query(&[
-                    (TIME_MIN_KEY, min),
-                    (TIME_MAX_KEY, max),
-                    (MAX_RESULTS_KEY, &String::from("1")),
-                    (SINGLE_EVENTS_KEY, &String::from("true")),
-                ])
-            }
+            None => request.query(&[
+                (TIME_MIN_KEY, min),
+                (TIME_MAX_KEY, max),
+                (MAX_RESULTS_KEY, &String::from("1")),
+                (SINGLE_EVENTS_KEY, &String::from("true")),
+            ]),
             Some(PageToken(token)) => request.query(&[
                 (TIME_MIN_KEY, min),
                 (TIME_MAX_KEY, max),
@@ -147,4 +145,26 @@ pub struct RefreshResponse {
 pub struct PollErrorResponse {
     pub error: String,
     pub error_description: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DateTimeStamp {
+    //#[serde(rename = "dateTime")]
+    pub date_time: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Event {
+    pub summary: String,
+    //pub description: String,
+    pub start: DateTimeStamp,
+    pub end: DateTimeStamp,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EventsResponse {
+    pub next_page_token: Option<String>,
+    pub items: Vec<Event>,
 }

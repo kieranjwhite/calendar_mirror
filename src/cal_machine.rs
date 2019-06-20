@@ -1,7 +1,7 @@
 mod retriever;
 
-use chrono::prelude::*;
 use crate::stm;
+use chrono::{format::ParseError, prelude::*};
 use reqwest::{Response, StatusCode};
 use retriever::*;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ stm!(cal_stm, Load, {
     [Load, Wait], Refresh;
     [Save], ReadFirst;
     [RequestCodes], Poll;
-    [Load, Poll, ReadFirst, Refresh, RequestCodes, Save], DisplayError;
+    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError;
     [Poll, Refresh], Save;
     [ReadFirst], Page;
     [Page], Display;
@@ -26,7 +26,7 @@ stm!(cal_stm, Load, {
     [Wait], Wipe
 });
 
-const HTTP_ERROR: &str="HTTP error";
+const HTTP_ERROR: &str = "HTTP error";
 const MISSING_CREDENTIALS: &str = "Missing credentials";
 const LOAD_FAILED: &str = "Failed to load credentials";
 const QUOTA_EXCEEDED: &str = "Quota Exceeded";
@@ -37,6 +37,8 @@ const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
 pub enum Error {
     Reqwest(reqwest::Error),
     IO(io::Error),
+    Chrono(ParseError),
+    MissingCredentials,
 }
 
 impl From<reqwest::Error> for Error {
@@ -48,6 +50,12 @@ impl From<reqwest::Error> for Error {
 impl From<io::Error> for Error {
     fn from(orig: io::Error) -> Error {
         Error::IO(orig)
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(orig: ParseError) -> Error {
+        Error::Chrono(orig)
     }
 }
 
@@ -108,11 +116,39 @@ impl From<(AuthTokens)> for Authenticator {
     }
 }
 
+#[derive(Debug)]
+pub struct Event {
+    summary: String,
+    //description: String,
+    start: DateTime<Local>,
+    end: DateTime<Local>,
+}
+
+impl From<&retriever::Event> for Result<Event, ParseError> {
+    fn from(ev: &retriever::Event) -> Result<Event, ParseError> {
+        Ok(Event {
+            summary: ev.summary.to_string(),
+            //            description: ev.description.to_string(),
+            start: ev.start.date_time.parse()?,
+            end: ev.end.date_time.parse()?,
+        })
+    }
+}
+
+fn add_events(received: &EventsResponse, events: &mut Vec<Event>) -> Result<(), ParseError> {
+    for ev in received.items.iter() {
+        let ev_res: Result<Event, ParseError> = ev.into();
+        let typed_ev = ev_res?;
+        events.push(typed_ev);
+    }
+    Ok(())
+}
+
 pub fn run() -> Result<(), Error> {
     use cal_stm::Machine;
     use cal_stm::Machine::*;
 
-    let today=Local::today().and_hms(0,0,0);
+    let today = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("/home/kieran/projects/rust/calendar_mirror/config.json");
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Machine::new_stm();
@@ -120,7 +156,9 @@ pub fn run() -> Result<(), Error> {
     let mut device_code = String::new();
     let mut delay_s: u64 = 1;
     let mut credentials = None;
-    
+    let mut page_token = None;
+    let mut events: Vec<Event> = Vec::new();
+
     loop {
         mach = match mach {
             Load(st) => match Authenticator::load(config_file) {
@@ -170,15 +208,14 @@ pub fn run() -> Result<(), Error> {
                 }
             }
             Refresh(st) => match credentials {
-                None => {
-                    RequestCodes(st.into())
-                }
+                None => RequestCodes(st.into()),
                 Some(ref credential_tokens) => {
                     let mut resp: Response = retriever.refresh(&credential_tokens.refresh_token)?;
                     let status = resp.status();
                     match status {
                         StatusCode::OK => {
                             println!("Headers: {:#?}", resp.headers());
+                            //println!("Refresh response is next... {:?}", resp.text()?);
                             let credentials_tokens: RefreshResponse = resp.json()?;
 
                             let token_type = credentials_tokens.token_type.clone();
@@ -266,44 +303,78 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Save(st) => match credentials {
-                None => {
-                    error = Some(MISSING_CREDENTIALS.to_string());
-                    DisplayError(st.into())
-                }
-                Some(ref credential_tokens) => {
-                    credential_tokens.save(config_file)?;
-                    ReadFirst(st.into())
-                }
-            },
+            Save(st) => {
+                let credentials_tokens = credentials.as_ref().ok_or(Error::MissingCredentials)?;
+                credentials_tokens.save(config_file)?;
+                ReadFirst(st.into())
+            }
             ReadFirst(st) => {
-                match credentials {
-                    None => {
-                        error = Some(MISSING_CREDENTIALS.to_string());
+                let credentials_tokens = credentials.as_ref().ok_or(Error::MissingCredentials)?;
+                let mut resp: Response = retriever.read(
+                    &format!("Bearer {}", credentials_tokens.access_token),
+                    &today,
+                    &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                    &Option::<PageToken>::None,
+                )?;
+                let status = resp.status();
+                match status {
+                    StatusCode::OK => {
+                        println!("Event Headers: {:#?}", resp.headers());
+                        let events_resp: EventsResponse = resp.json()?;
+                        add_events(&events_resp, &mut events)?;
+                        if let Some(next_page) = events_resp.next_page_token {
+                            page_token = Some(PageToken(next_page));
+                        } else {
+                            page_token = None;
+                        }
+                        Page(st.into())
+                    }
+                    _other_status => {
+                        println!("Event Headers: {:#?}", resp.headers());
+                        println!("Event is next... {:?}", resp.text()?);
+                        error = Some(format!("in readfirst. http status: {:?}", status));
                         DisplayError(st.into())
                     }
-                    Some(ref credentials_tokens) => {
-                        let mut resp: Response = retriever
-                            .read(&format!("Bearer {}", credentials_tokens.access_token), &today, &(today+chrono::Duration::days(1)-chrono::Duration::seconds(1)), &Option::<PageToken>::None)?;
-                        let status = resp.status();
-                        match status {
-                            StatusCode::OK => {
-                                println!("Event Headers: {:#?}", resp.headers());
-                                println!("Event is next... {:?}", resp.text());
-                                Page(st.into())
+                }
+            }
+            Page(st) => {
+                if let None = page_token {
+                    Display(st.into())
+                } else {
+                    let credentials_tokens =
+                        credentials.as_ref().ok_or(Error::MissingCredentials)?;
+                    let mut resp: Response = retriever.read(
+                        &format!("Bearer {}", credentials_tokens.access_token),
+                        &today,
+                        &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                        &page_token,
+                    )?;
+                    let status = resp.status();
+                    match status {
+                        StatusCode::OK => {
+                            println!("Event Headers: {:#?}", resp.headers());
+                            let events_resp: EventsResponse = resp.json()?;
+                            add_events(&events_resp, &mut events)?;
+                            if let Some(next_page) = events_resp.next_page_token {
+                                page_token = Some(PageToken(next_page));
+                            } else {
+                                page_token = None;
                             }
-                            _other_status => {
-                                println!("Event Headers: {:#?}", resp.headers());
-                                println!("Event is next... {:?}", resp.text());
-                                error = Some(format!("in readfirst. http status: {:?}", status));
-                                DisplayError(st.into())
-                            }
+                            Page(st)
+                        }
+                        _other_status => {
+                            println!("Event Headers: {:#?}", resp.headers());
+                            println!("Event is next... {:?}", resp.text()?);
+                            error = Some(format!("in readfirst. http status: {:?}", status));
+                            DisplayError(st.into())
                         }
                     }
                 }
             }
-            Page(st) => Page(st),
-            Display(st) => Display(st),
+            Display(st) => {
+                println!("Retrieved events: {:?}", events);
+                Wait(st.into())
+            }
             Wait(st) => Wait(st),
             Wipe(st) => Wipe(st),
             DisplayError(st) => {
