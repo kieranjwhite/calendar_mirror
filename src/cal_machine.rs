@@ -1,5 +1,6 @@
 mod retriever;
 
+use chrono::prelude::*;
 use crate::stm;
 use reqwest::{Response, StatusCode};
 use retriever::*;
@@ -25,12 +26,11 @@ stm!(cal_stm, Load, {
     [Wait], Wipe
 });
 
+const HTTP_ERROR: &str="HTTP error";
 const MISSING_CREDENTIALS: &str = "Missing credentials";
 const LOAD_FAILED: &str = "Failed to load credentials";
 const QUOTA_EXCEEDED: &str = "Quota Exceeded";
 const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
-const PENDING_REQUEST: &str = "The user has not yet granted you access to this calender";
-const SLOW_DOWN: &str = "This device is checking for access too frequently";
 const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
 
 #[derive(Debug)]
@@ -112,6 +112,7 @@ pub fn run() -> Result<(), Error> {
     use cal_stm::Machine;
     use cal_stm::Machine::*;
 
+    let today=Local::today().and_hms(0,0,0);
     let config_file = Path::new("/home/kieran/projects/rust/calendar_mirror/config.json");
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Machine::new_stm();
@@ -119,6 +120,7 @@ pub fn run() -> Result<(), Error> {
     let mut device_code = String::new();
     let mut delay_s: u64 = 1;
     let mut credentials = None;
+    
     loop {
         mach = match mach {
             Load(st) => match Authenticator::load(config_file) {
@@ -156,7 +158,8 @@ pub fn run() -> Result<(), Error> {
                             }
                             _otherwise => {
                                 error = Some(format!(
-                                    "HTTP error: {}, {}",
+                                    "{}: {}, {}",
+                                    HTTP_ERROR,
                                     other_status.as_u16(),
                                     body.error_code
                                 ));
@@ -281,12 +284,11 @@ pub fn run() -> Result<(), Error> {
                     }
                     Some(ref credentials_tokens) => {
                         let mut resp: Response = retriever
-                            .read(&format!("Bearer {}", credentials_tokens.access_token))?;
+                            .read(&format!("Bearer {}", credentials_tokens.access_token), &today, &(today+chrono::Duration::days(1)-chrono::Duration::seconds(1)))?;
                         let status = resp.status();
                         match status {
                             StatusCode::OK => {
                                 println!("Event Headers: {:#?}", resp.headers());
-                                //let body: ReadResponse = resp.json()?;
                                 println!("Event is next... {:?}", resp.text());
                                 Page(st.into())
                             }

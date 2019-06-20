@@ -1,5 +1,6 @@
+use chrono::prelude::*;
 use reqwest::{self, Client, Response};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 const DEVICE_CODE_URL: &str = "https://accounts.google.com/o/oauth2/device/code";
 const AUTHORISATION_URL: &str = "https://www.googleapis.com/oauth2/v4/token";
@@ -14,7 +15,7 @@ const CLIENT_SECRET_VAL: &str = "miaNRI8ECPVbiAaKWgiw6a3S";
 const CODE_KEY: &str = "code";
 const GRANT_TYPE_KEY: &str = "grant_type";
 const GRANT_TYPE_POLL_VAL: &str = "http://oauth.net/grant_type/device/1.0";
-const GRANT_TYPE_REFRESH_VAL: &str="refresh_token";
+const GRANT_TYPE_REFRESH_VAL: &str = "refresh_token";
 const REFRESH_TOKEN_KEY: &str = "refresh_token";
 
 const TIME_MIN_KEY: &str = "timeMin";
@@ -26,10 +27,10 @@ const AUTHORISATION_HEADER: &str = "Authorization";
 const ACCEPT_HEADER: &str = "Accept";
 const ACCEPT_JSON: &str = "application/json";
 pub const TOKEN_TYPE: &str = "Bearer";
-//const USER_CODE_KEY: &str = "user_code";
-//const EXPIRES_IN_KEY: &str = "expires_in";
-//const INTERVAL_KEY: &str = "interval";
-//const VERIFICATION_URL_KEY: &str = "verification_url";
+
+pub const ACCESS_DENIED_ERROR: &str = "access_denied";
+pub const AUTHORISATION_PENDING_ERROR: &str = "authorization_pending";
+pub const POLLING_TOO_FREQUENTLY_ERROR: &str = "slow_down";
 
 pub struct EventRetriever {
     client: Client,
@@ -60,8 +61,18 @@ impl EventRetriever {
         self.client.post(AUTHORISATION_URL).form(&post_args).send()
     }
 
-    pub fn read(&self, bearer: &str) -> reqwest::Result<Response> {
-        let args = [(MAX_RESULTS_KEY, "1"), (SINGLE_EVENTS_KEY, "true")];
+    pub fn read(
+        &self,
+        bearer: &str,
+        min_time: &DateTime<Local>,
+        max_time: &DateTime<Local>,
+    ) -> reqwest::Result<Response> {
+        let args: [(& str, &str); 4] = [
+            (TIME_MIN_KEY, &min_time.format("%+").to_string().clone()),
+            (TIME_MAX_KEY, &max_time.format("%+").to_string().clone()),
+            (MAX_RESULTS_KEY, "1"),
+            (SINGLE_EVENTS_KEY, "true"),
+        ];
         let request = self
             .client
             .get(READ_URL)
@@ -77,7 +88,7 @@ impl EventRetriever {
             (CLIENT_ID_KEY, CLIENT_ID_VAL),
             (CLIENT_SECRET_KEY, CLIENT_SECRET_VAL),
             (REFRESH_TOKEN_KEY, refresh_token),
-            (GRANT_TYPE_KEY, GRANT_TYPE_REFRESH_VAL)
+            (GRANT_TYPE_KEY, GRANT_TYPE_REFRESH_VAL),
         ];
         println!("refresh request args: {:?}", post_args);
         let request = self.client.post(AUTHORISATION_URL).form(&post_args);
@@ -86,7 +97,7 @@ impl EventRetriever {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct DeviceUserCodeResponse {
     pub device_code: String,
     user_code: String,
@@ -96,12 +107,12 @@ pub struct DeviceUserCodeResponse {
 }
 
 pub const QUOTA_EXCEEDED_ERROR_CODE: &str = "rate_limit_exceeded";
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct DeviceUserCodeErrorResponse {
     pub error_code: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct PollResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -109,18 +120,14 @@ pub struct PollResponse {
     pub token_type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct RefreshResponse {
     pub access_token: String,
     pub expires_in: u32,
     pub token_type: String,
 }
 
-pub const ACCESS_DENIED_ERROR: &str = "access_denied";
-pub const AUTHORISATION_PENDING_ERROR: &str = "authorization_pending";
-pub const POLLING_TOO_FREQUENTLY_ERROR: &str = "slow_down";
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct PollErrorResponse {
     pub error: String,
     pub error_description: String,
