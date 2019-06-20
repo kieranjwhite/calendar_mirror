@@ -38,7 +38,6 @@ pub enum Error {
     Reqwest(reqwest::Error),
     IO(io::Error),
     Chrono(ParseError),
-    MissingCredentials,
 }
 
 impl From<reqwest::Error> for Error {
