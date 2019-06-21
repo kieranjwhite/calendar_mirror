@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! stm {
-    ($mod_name: ident, $enum_name:ident, $start: ident($($start_arg:ty),*), { $( [$($e:ident), +], $node:ident($($arg:ty),*) );+ } ) => {
+    ($mod_name: ident, $enum_name:ident, $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+ } ) => {
 
         pub mod $mod_name
         {

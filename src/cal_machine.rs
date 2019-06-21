@@ -14,16 +14,16 @@ use std::{
 };
 
 stm!(cal_stm, Machine, Load(), {
-    [Load, Wipe], RequestCodes();
-    [Load, Wait], Refresh(RefreshToken);
-    [Save], ReadFirst(Authenticators);
-    [RequestCodes], Poll(String, u64);
-    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError(String);
-    [Poll, Refresh], Save(Authenticators);
-    [ReadFirst], Page(Authenticators, Option<PageToken>, Vec<Event>);
-    [Page], Display(Vec<Event>);
-    [DisplayError, Display], Wait();
-    [Wait], Wipe()
+    [Load, Wipe] => RequestCodes();
+    [Load, Wait] => Refresh(RefreshToken);
+    [Save] => ReadFirst(Authenticators);
+    [RequestCodes] => Poll(String, u64);
+    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
+    [Poll, Refresh] => Save(Authenticators);
+    [ReadFirst] => Page(Authenticators, Option<PageToken>, Vec<Event>);
+    [Page] => Display(Vec<Event>);
+    [DisplayError, Display] => Wait();
+    [Wait] => Wipe()
 });
 
 const HTTP_ERROR: &str = "HTTP error";
@@ -63,14 +63,6 @@ pub struct VolatileAuthenticator {
     //refresh_token: String,
     expires_in: u32,
 }
-
-/*
-pub struct Authenticator {
-    pub access_token: String,
-    refresh_token: String,
-    expires_in: u32,
-}
- */
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RefreshToken(String);
