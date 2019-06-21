@@ -305,7 +305,7 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token, events) => {
+            Page(st, credentials_tokens, page_token, mut events) => {
                 if let None = page_token {
                     Display(st.into(), events)
                 } else {
@@ -326,10 +326,8 @@ pub fn run() -> Result<(), Error> {
                                 Some(next_page) => Some(PageToken(next_page)),
                             };
 
-                            let mut all_events=Vec::with_capacity(2*(events.len()+new_events.len()));
-                            all_events.extend(events);
-                            all_events.extend(new_events);
-                            Page(st, credentials_tokens, page_token, all_events)
+                            events.extend(new_events);
+                            Page(st, credentials_tokens, page_token, events)
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());

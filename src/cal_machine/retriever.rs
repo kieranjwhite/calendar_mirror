@@ -82,7 +82,7 @@ impl EventRetriever {
             None => request.query(&[
                 (TIME_MIN_KEY, min),
                 (TIME_MAX_KEY, max),
-                (MAX_RESULTS_KEY, &String::from("20")),
+                (MAX_RESULTS_KEY, &String::from("1")),
                 (SINGLE_EVENTS_KEY, &String::from("true")),
             ]),
             Some(PageToken(token)) => request.query(&[
