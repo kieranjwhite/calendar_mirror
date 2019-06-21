@@ -151,15 +151,11 @@ pub fn run() -> Result<(), Error> {
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
 
-    #[cfg(feature = "render_stm")]
-    {
+    if cfg!(feature = "render_stm") {
         let mut f = File::create("docs/cal_machine.dot").unwrap();
         Machine::render_to(&mut f);
         Ok(())
-    }
-
-    #[cfg(not(feature = "render_stm"))]
-    {
+    } else {
         use reqwest::{Response, StatusCode};
         use std::{thread, time::Duration};
 

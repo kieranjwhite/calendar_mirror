@@ -33,7 +33,7 @@ macro_rules! stm {
             pub struct MachineEdges(pub Vec<Ed>);
 
             #[cfg(feature = "render_stm")]
-            pub const START_NODE_NAME:&str="start";
+            pub const START_NODE_NAME:&str="_start";
         }
 
         pub enum $enum_name {
@@ -43,27 +43,31 @@ macro_rules! stm {
             )*
         }
 
-        #[cfg(feature = "render_stm")]
         impl $enum_name {
+
+            #[allow(unused_variables)]
             pub fn render_to<W: Write>(output: &mut W) {
-                let mut edge_vec=Vec::new();
-                edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
-                
-                $(
-                    $(
-                        edge_vec.push({
-                            let f=stringify!($e);
-                            let t=stringify!($node);
-                            (f,t)
-                        });
-                    )*
-                )*
+                #[cfg(feature = "render_stm")]
+                {
+                    let mut edge_vec=Vec::new();
+                    edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
                     
-                let edges = $mod_name::MachineEdges(edge_vec);
-                dot::render(&edges, output).unwrap()
+                    $(
+                        $(
+                            edge_vec.push({
+                                let f=stringify!($e);
+                                let t=stringify!($node);
+                                (f,t)
+                            });
+                        )*
+                    )*
+                        
+                    let edges = $mod_name::MachineEdges(edge_vec);
+                    dot::render(&edges, output).unwrap()
+                }
             }
         }
-        
+
         #[cfg(feature = "render_stm")]
         impl<'a> dot::Labeller<'a, $mod_name::Nd, $mod_name::Ed> for $mod_name::MachineEdges {
             fn graph_id(&'a self) -> dot::Id<'a> { dot::Id::new(stringify!($mod_name)).unwrap() }
@@ -108,7 +112,7 @@ macro_rules! stm {
                             return dot::LabelText::EscStr(edge_name.into())
                         }
                     }
-                  )*  
+                  )*
                 dot::LabelText::EscStr("".into())
             }
         }
