@@ -1,0 +1,34 @@
+digraph cal_stm {
+    Display[label="Display"][shape="ellipse"];
+    DisplayError[label="DisplayError"][shape="ellipse"];
+    Load[label="Load"][shape="ellipse"];
+    Page[label="Page"][shape="ellipse"];
+    Poll[label="Poll"][shape="ellipse"];
+    ReadFirst[label="ReadFirst"][shape="ellipse"];
+    Refresh[label="Refresh"][shape="ellipse"];
+    RequestCodes[label="RequestCodes"][shape="ellipse"];
+    Save[label="Save"][shape="ellipse"];
+    Wait[label="Wait"][shape="ellipse"];
+    Wipe[label="Wipe"][shape="ellipse"];
+    start[label="start"][shape="point"];
+    start -> Load[label=""];
+    Load -> RequestCodes[label=""];
+    Wipe -> RequestCodes[label=""];
+    Load -> Refresh[label="RefreshToken\n"];
+    Wait -> Refresh[label="RefreshToken\n"];
+    Save -> ReadFirst[label="Authenticators\n"];
+    RequestCodes -> Poll[label="String\nu64\n"];
+    Load -> DisplayError[label="String\n"];
+    Page -> DisplayError[label="String\n"];
+    Poll -> DisplayError[label="String\n"];
+    ReadFirst -> DisplayError[label="String\n"];
+    Refresh -> DisplayError[label="String\n"];
+    RequestCodes -> DisplayError[label="String\n"];
+    Poll -> Save[label="Authenticators\n"];
+    Refresh -> Save[label="Authenticators\n"];
+    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nVec<Event>\n"];
+    Page -> Display[label="Vec<Event>\n"];
+    DisplayError -> Wait[label=""];
+    Display -> Wait[label=""];
+    Wait -> Wipe[label=""];
+}

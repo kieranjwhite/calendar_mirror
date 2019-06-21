@@ -153,7 +153,7 @@ pub fn run() -> Result<(), Error> {
 
     #[cfg(feature = "render_stm")]
     {
-        let mut f = File::create("cal_machine.dot").unwrap();
+        let mut f = File::create("docs/cal_machine.dot").unwrap();
         Machine::render_to(&mut f);
         Ok(())
     }
