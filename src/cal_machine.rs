@@ -15,12 +15,12 @@ use std::{
 
 stm!(cal_stm, Machine, Load(), {
     [Load, Wipe], RequestCodes();
-    [Load, Wait], Refresh(Authenticator);
-    [Save], ReadFirst(Authenticator);
+    [Load, Wait], Refresh(RefreshToken);
+    [Save], ReadFirst(Authenticators);
     [RequestCodes], Poll(String, u64);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes], DisplayError(String);
-    [Poll, Refresh], Save(Authenticator);
-    [ReadFirst], Page(Authenticator, Option<PageToken>, Vec<Event>);
+    [Poll, Refresh], Save(Authenticators);
+    [ReadFirst], Page(Authenticators, Option<PageToken>, Vec<Event>);
     [Page], Display(Vec<Event>);
     [DisplayError, Display], Wait();
     [Wait], Wipe()
@@ -57,16 +57,25 @@ impl From<ParseError> for Error {
     }
 }
 
-struct RefreshToken(String);
-
 #[derive(Serialize, Deserialize, Debug)]
+pub struct VolatileAuthenticator {
+    pub access_token: String,
+    //refresh_token: String,
+    expires_in: u32,
+}
+
+/*
 pub struct Authenticator {
     pub access_token: String,
     refresh_token: String,
     expires_in: u32,
 }
+ */
 
-impl Authenticator {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RefreshToken(String);
+
+impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
         match File::open(path) {
             Ok(file) => {
@@ -91,25 +100,33 @@ impl Authenticator {
     }
 }
 
-impl From<PollResponse> for Authenticator {
-    fn from(resp: PollResponse) -> Authenticator {
-        Authenticator {
-            access_token: resp.access_token,
-            refresh_token: resp.refresh_token,
-            expires_in: resp.expires_in,
+pub struct Authenticators {
+    refresh_token: RefreshToken,
+    volatiles: VolatileAuthenticator
+}
+
+impl From<PollResponse> for Authenticators {
+    fn from(resp: PollResponse) -> Authenticators {
+        Authenticators {
+            refresh_token: RefreshToken(resp.refresh_token),
+            volatiles: VolatileAuthenticator {
+                access_token: resp.access_token,
+                expires_in: resp.expires_in,
+            },
         }
     }
 }
 
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-impl From<(AuthTokens)> for Authenticator {
-    fn from(token_response: AuthTokens) -> Authenticator {
-        let (RefreshToken(refresh_token), refresh_response) = token_response;
-        Authenticator {
-            access_token: refresh_response.access_token,
-            refresh_token: refresh_token,
-            expires_in: refresh_response.expires_in,
+impl From<(AuthTokens)> for Authenticators {
+    fn from((refresh_token, refresh_response): AuthTokens) -> Authenticators {
+        Authenticators {
+            refresh_token,
+            volatiles: VolatileAuthenticator {
+                access_token: refresh_response.access_token,
+                expires_in: refresh_response.expires_in,
+            },
         }
     }
 }
@@ -134,7 +151,7 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
 }
 
 fn add_events(received: &EventsResponse) -> Result<Vec<Event>, ParseError> {
-    let mut events=Vec::new();
+    let mut events = Vec::new();
     for ev in received.items.iter() {
         let ev_res: Result<Event, ParseError> = ev.into();
         let typed_ev = ev_res?;
@@ -152,13 +169,13 @@ pub fn run() -> Result<(), Error> {
 
     loop {
         mach = match mach {
-            Load(st) => match Authenticator::load(config_file) {
+            Load(st) => match RefreshToken::load(config_file) {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
                 ),
                 Ok(None) => RequestCodes(st.into()),
-                Ok(Some(creds)) => Refresh(st.into(), creds),
+                Ok(Some(refresh_token)) => Refresh(st.into(), refresh_token),
             },
             RequestCodes(st) => {
                 let mut resp: Response = retriever.retrieve_dev_and_code()?;
@@ -169,7 +186,11 @@ pub fn run() -> Result<(), Error> {
                         let body: DeviceUserCodeResponse = resp.json()?;
                         println!("Body is next... {:?}", body);
 
-                        Poll(st.into(), String::from(body.device_code), body.interval as u64)
+                        Poll(
+                            st.into(),
+                            String::from(body.device_code),
+                            body.interval as u64,
+                        )
                     }
                     other_status => {
                         let body: DeviceUserCodeErrorResponse = resp.json()?;
@@ -193,8 +214,8 @@ pub fn run() -> Result<(), Error> {
                     }
                 }
             }
-            Refresh(st, credential_tokens) => {
-                let mut resp: Response = retriever.refresh(&credential_tokens.refresh_token)?;
+            Refresh(st, RefreshToken(refresh_token)) => {
+                let mut resp: Response = retriever.refresh(&refresh_token)?;
                 let status = resp.status();
                 match status {
                     StatusCode::OK => {
@@ -203,14 +224,14 @@ pub fn run() -> Result<(), Error> {
 
                         let token_type = credentials_tokens.token_type.clone();
                         if token_type != TOKEN_TYPE {
-                            DisplayError(st.into(), format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type))
+                            DisplayError(
+                                st.into(),
+                                format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
+                            )
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
-                            let credentials: Authenticator = (
-                                RefreshToken(credential_tokens.refresh_token.clone()),
-                                credentials_tokens,
-                            )
-                                .into();
+                            let credentials: Authenticators =
+                                (RefreshToken(refresh_token.clone()), credentials_tokens).into();
                             Save(st.into(), credentials)
                         }
                     }
@@ -235,7 +256,10 @@ pub fn run() -> Result<(), Error> {
 
                         let token_type = credentials_tokens.token_type.clone();
                         if token_type != TOKEN_TYPE {
-                            DisplayError(st.into(), format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type))
+                            DisplayError(
+                                st.into(),
+                                format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
+                            )
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
                             Save(st.into(), credentials_tokens.into())
@@ -261,27 +285,31 @@ pub fn run() -> Result<(), Error> {
                             StatusCode::TOO_MANY_REQUESTS
                                 if body.error == POLLING_TOO_FREQUENTLY_ERROR =>
                             {
-                                Poll(st, device_code, delay_s*2)
+                                Poll(st, device_code, delay_s * 2)
                             }
-                            _otherwise => {
-                                DisplayError(st.into(), format!(
+                            _otherwise => DisplayError(
+                                st.into(),
+                                format!(
                                     "HTTP error: {}, {}, {}",
                                     other_status.as_u16(),
                                     body.error,
                                     body.error_description
-                                ))
-                            }
+                                ),
+                            ),
                         }
                     }
                 }
             }
-            Save(st, credentials_tokens) => {
-                credentials_tokens.save(config_file)?;
-                ReadFirst(st.into(), credentials_tokens)
+            Save(st, persistent_authenticators) => {
+                persistent_authenticators.refresh_token.save(config_file)?;
+                ReadFirst(st.into(), persistent_authenticators)
             }
-            ReadFirst(st, credentials_tokens) => {
+            ReadFirst(
+                st,
+                credentials_tokens
+            ) => {
                 let mut resp: Response = retriever.read(
-                    &format!("Bearer {}", credentials_tokens.access_token),
+                    &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &today,
                     &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
                     &Option::<PageToken>::None,
@@ -291,7 +319,7 @@ pub fn run() -> Result<(), Error> {
                     StatusCode::OK => {
                         println!("Event Headers: {:#?}", resp.headers());
                         let events_resp: EventsResponse = resp.json()?;
-                        let new_events=add_events(&events_resp)?;
+                        let new_events = add_events(&events_resp)?;
                         let page_token = match events_resp.next_page_token {
                             None => None,
                             Some(next_page) => Some(PageToken(next_page)),
@@ -301,16 +329,24 @@ pub fn run() -> Result<(), Error> {
                     _other_status => {
                         println!("Event Headers: {:#?}", resp.headers());
                         println!("Event is next... {:?}", resp.text()?);
-                        DisplayError(st.into(), format!("in readfirst. http status: {:?}", status))
+                        DisplayError(
+                            st.into(),
+                            format!("in readfirst. http status: {:?}", status),
+                        )
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token, mut events) => {
+            Page(
+                st,
+                credentials_tokens,
+                page_token,
+                mut events,
+            ) => {
                 if let None = page_token {
                     Display(st.into(), events)
                 } else {
                     let mut resp: Response = retriever.read(
-                        &format!("Bearer {}", credentials_tokens.access_token),
+                        &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                         &today,
                         &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
                         &page_token,
@@ -320,7 +356,7 @@ pub fn run() -> Result<(), Error> {
                         StatusCode::OK => {
                             println!("Event Headers: {:#?}", resp.headers());
                             let events_resp: EventsResponse = resp.json()?;
-                            let new_events=add_events(&events_resp)?;
+                            let new_events = add_events(&events_resp)?;
                             let page_token = match events_resp.next_page_token {
                                 None => None,
                                 Some(next_page) => Some(PageToken(next_page)),
@@ -332,7 +368,10 @@ pub fn run() -> Result<(), Error> {
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
                             println!("Event is next... {:?}", resp.text()?);
-                            DisplayError(st.into(), format!("in readfirst. http status: {:?}", status))
+                            DisplayError(
+                                st.into(),
+                                format!("in readfirst. http status: {:?}", status),
+                            )
                         }
                     }
                 }
