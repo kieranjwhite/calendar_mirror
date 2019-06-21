@@ -152,8 +152,9 @@ pub fn run() -> Result<(), Error> {
     let mut mach: Machine = Load(cal_stm::Load);
 
     if cfg!(feature = "render_stm") {
-        let mut f = File::create("docs/cal_machine.dot").unwrap();
+        let mut f = File::create("docs/cal_machine.dot")?;
         Machine::render_to(&mut f);
+        f.flush()?;
         Ok(())
     } else {
         use reqwest::{Response, StatusCode};
