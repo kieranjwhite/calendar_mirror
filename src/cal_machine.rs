@@ -148,7 +148,7 @@ pub fn run() -> Result<(), Error> {
     use Machine::*;
 
     let today = Local::today().and_hms(0, 0, 0);
-    let config_file = Path::new("/home/kieran/projects/rust/calendar_mirror/config.json");
+    let config_file = Path::new("config.json");
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
 
