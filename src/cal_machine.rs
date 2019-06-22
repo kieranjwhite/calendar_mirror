@@ -14,7 +14,7 @@ stm!(cal_stm, Machine, Load(), {
     [Load, Wipe] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
     [Save] => ReadFirst(Authenticators);
-    [RequestCodes] => Poll(String, u64);
+    [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll, Refresh] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Vec<Event>);
@@ -22,6 +22,9 @@ stm!(cal_stm, Machine, Load(), {
     [DisplayError, Display] => Wait();
     [Wait] => Wipe()
 });
+
+type PeriodSeconds = u64;
+type AuthTokens = (RefreshToken, RefreshResponse);
 
 #[derive(Debug)]
 pub enum Error {
@@ -99,8 +102,6 @@ impl From<PollResponse> for Authenticators {
         }
     }
 }
-
-type AuthTokens = (RefreshToken, RefreshResponse);
 
 impl From<(AuthTokens)> for Authenticators {
     fn from((refresh_token, refresh_response): AuthTokens) -> Authenticators {
@@ -188,7 +189,7 @@ pub fn run() -> Result<(), Error> {
                             Poll(
                                 st.into(),
                                 String::from(body.device_code),
-                                body.interval as u64,
+                                body.interval as PeriodSeconds,
                             )
                         }
                         other_status => {

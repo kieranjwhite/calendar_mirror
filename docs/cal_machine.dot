@@ -17,7 +17,7 @@ digraph cal_stm {
     Load -> Refresh[label="RefreshToken\n"];
     Wait -> Refresh[label="RefreshToken\n"];
     Save -> ReadFirst[label="Authenticators\n"];
-    RequestCodes -> Poll[label="String\nu64\n"];
+    RequestCodes -> Poll[label="String\nPeriodSeconds\n"];
     Load -> DisplayError[label="String\n"];
     Page -> DisplayError[label="String\n"];
     Poll -> DisplayError[label="String\n"];
