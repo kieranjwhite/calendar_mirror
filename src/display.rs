@@ -41,6 +41,7 @@ impl RenderPipeline {
     pub fn send(&mut self, els: Iter<Operation>) -> Result<(), Error> {
         for el in els {
             let serialised = serde_json::to_string(el)?;
+            println!("sending: {}", serialised);
             write!(self.stream, "{}\n", serialised)?;
         }
         self.stream.flush()?;

@@ -60,7 +60,7 @@ impl Renderer {
     }
 
     pub fn display(&mut self, date: &DateTime<Local>, events: &Vec<Event>) -> Result<(), Error> {
-        let mut ops = Vec::with_capacity(events.len() + 3);
+        let mut ops:Vec<Op> = Vec::with_capacity(events.len() + 3);
         ops.push(Op::Clear);
 
         let heading = date.format(DATE_FORMAT).to_string();
