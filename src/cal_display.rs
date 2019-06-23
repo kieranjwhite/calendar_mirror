@@ -9,16 +9,20 @@ pub struct Renderer {
 const HEADING_ID: &str = "heading";
 const EVENTS_ID: &str = "events";
 
-const HEADING_POS: Pos = Pos(10, 0);
-const EVENTS_POS: Pos = Pos(0, 2);
+const HEADING_POS: Pos = Pos(30, 0);
+const EVENTS_POS: Pos = Pos(0, 30);
+
+const HEADING_SIZE: u32 = 20;
+const EVENTS_SIZE: u32 = 16;
 
 const DATE_FORMAT: &str = "%d/%m/%Y";
 const TIME_FORMAT: &str = "%H:%M";
 
 const NO_EVENTS: &str = "No events";
-const START_DELIMITER: &str = " < ";
-const SUMMARY_DELIMITER: &str = ". ";
-const DESC_DELIMITER: &str = "> ";
+const START_DELIMITER: &str = "-";
+const END_DELIMITER: &str=" ";
+const SUMMARY_DELIMITER: &str = "";
+//const DESC_DELIMITER: &str = "> ";
 
 const TIME_LEN: usize = 5;
 
@@ -33,43 +37,46 @@ impl Renderer {
         let mut event_str = String::with_capacity(
             TIME_LEN
                 + START_DELIMITER.len()
+                + TIME_LEN
+                + END_DELIMITER.len()
                 + event.summary.len()
                 + SUMMARY_DELIMITER.len()
-                + if let Some(ref desc) = event.description {
-                    desc.len()
-                } else {
-                    0
-                }
-                + DESC_DELIMITER.len()
-                + TIME_LEN
+                //+ if let Some(ref desc) = event.description {
+                //    desc.len()
+                //} else {
+                //    0
+                //}
+                //+ DESC_DELIMITER.len()
                 + 1,
         );
 
         event_str.push_str(&event.start.format(TIME_FORMAT).to_string());
         event_str.push_str(START_DELIMITER);
+        event_str.push_str(&event.end.format(TIME_FORMAT).to_string());
+        event_str.push_str(END_DELIMITER);
         event_str.push_str(&event.summary);
         event_str.push_str(SUMMARY_DELIMITER);
-        if let Some(ref desc) = event.description {
-            event_str.push_str(&desc);
-        }
-        event_str.push_str(DESC_DELIMITER);
-        event_str.push_str(&event.end.format(TIME_FORMAT).to_string());
+        //if let Some(ref desc) = event.description {
+        //    event_str.push_str(&desc);
+        //}
+        //event_str.push_str(DESC_DELIMITER);
         event_str.push('\n');
 
         event_str
     }
 
     pub fn display(&mut self, date: &DateTime<Local>, events: &Vec<Event>) -> Result<(), Error> {
-        let mut ops:Vec<Op> = Vec::with_capacity(events.len() + 3);
+        let mut ops: Vec<Op> = Vec::with_capacity(events.len() + 3);
         ops.push(Op::Clear);
 
         let heading = date.format(DATE_FORMAT).to_string();
-        ops.push(Op::AddText(heading, HEADING_POS, HEADING_ID.to_string()));
+        ops.push(Op::AddText(heading, HEADING_POS, HEADING_SIZE, HEADING_ID.to_string()));
 
         if events.len() == 0 {
             ops.push(Op::AddText(
                 NO_EVENTS.to_string(),
                 EVENTS_POS,
+                EVENTS_SIZE,
                 EVENTS_ID.to_string(),
             ));
         } else {
@@ -84,8 +91,9 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
-            ops.push(Op::AddText(all_events, EVENTS_POS, EVENTS_ID.to_string()));
+            ops.push(Op::AddText(all_events, EVENTS_POS, EVENTS_SIZE, EVENTS_ID.to_string()));
         }
+        ops.push(Op::WriteAll);
 
         self.pipe.send(ops.iter())?;
 

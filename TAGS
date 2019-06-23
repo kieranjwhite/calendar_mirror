@@ -1,8 +1,11 @@
 
-test.rs,21
-pub fn main(53,1181
+target/debug/build/crc-f77504953ec0047f/out/crc64_constants.rs,132
+pub const ECMA: u64 1,0
+pub const ECMA_TABLE:ECMA_TABLE2,44
+pub const ISO: u64 260,6570
+pub const ISO_TABLE:ISO_TABLE261,6613
 
-target/debug/build/crc-0311582c917dcfa4/out/crc32_constants.rs,234
+target/debug/build/crc-f77504953ec0047f/out/crc32_constants.rs,234
 pub const CASTAGNOLI: u32 1,0
 pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
 pub const IEEE: u32 260,4110
@@ -10,150 +13,167 @@ pub const IEEE_TABLE:IEEE_TABLE261,4144
 pub const KOOPMAN: u32 519,8207
 pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
 
-target/debug/build/crc-0311582c917dcfa4/out/crc16_constants.rs,129
+target/debug/build/crc-f77504953ec0047f/out/crc16_constants.rs,129
 pub const X25: u16 1,0
 pub const X25_TABLE:X25_TABLE2,28
 pub const USB: u16 260,2838
 pub const USB_TABLE:USB_TABLE261,2866
 
-target/debug/build/crc-0311582c917dcfa4/out/crc64_constants.rs,132
-pub const ECMA: u64 1,0
-pub const ECMA_TABLE:ECMA_TABLE2,44
-pub const ISO: u64 260,6570
-pub const ISO_TABLE:ISO_TABLE261,6613
-
-target/debug/build/crc-ad849be24c79a08d/out/crc32_constants.rs,234
-pub const CASTAGNOLI: u32 1,0
-pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
-pub const IEEE: u32 260,4110
-pub const IEEE_TABLE:IEEE_TABLE261,4144
-pub const KOOPMAN: u32 519,8207
-pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
-
-target/debug/build/crc-ad849be24c79a08d/out/crc16_constants.rs,129
-pub const X25: u16 1,0
-pub const X25_TABLE:X25_TABLE2,28
-pub const USB: u16 260,2838
-pub const USB_TABLE:USB_TABLE261,2866
-
-target/debug/build/crc-ad849be24c79a08d/out/crc64_constants.rs,132
-pub const ECMA: u64 1,0
-pub const ECMA_TABLE:ECMA_TABLE2,44
-pub const ISO: u64 260,6570
-pub const ISO_TABLE:ISO_TABLE261,6613
-
-target/rls/debug/build/crc-0311582c917dcfa4/out/crc32_constants.rs,234
-pub const CASTAGNOLI: u32 1,0
-pub const CASTAGNOLI_TABLE:CASTAGNOLI_TABLE2,40
-pub const IEEE: u32 260,4110
-pub const IEEE_TABLE:IEEE_TABLE261,4144
-pub const KOOPMAN: u32 519,8207
-pub const KOOPMAN_TABLE:KOOPMAN_TABLE520,8244
-
-target/rls/debug/build/crc-0311582c917dcfa4/out/crc16_constants.rs,129
-pub const X25: u16 1,0
-pub const X25_TABLE:X25_TABLE2,28
-pub const USB: u16 260,2838
-pub const USB_TABLE:USB_TABLE261,2866
-
-target/rls/debug/build/crc-0311582c917dcfa4/out/crc64_constants.rs,132
-pub const ECMA: u64 1,0
-pub const ECMA_TABLE:ECMA_TABLE2,44
-pub const ISO: u64 260,6570
-pub const ISO_TABLE:ISO_TABLE261,6613
-
-src/cal_machine.rs,853
+src/cal_machine.rs,1029
 mod retriever;1,0
-use crate::stm;3,16
-use reqwest:reqwest4,32
-use retriever:retriever5,69
-use std:std6,87
-const MISSING_CREDENTIALS: &str=str21,474
-const LOAD_FAILED: &str str22,529
-const QUOTA_EXCEEDED: &str str23,585
-const ACCESS_DENIED: &str str24,632
-const PENDING_REQUEST: &str str25,713
-const SLOW_DOWN: &str str26,803
-const UNRECOGNISED_TOKEN_TYPE: &str str27,880
-pub enum Error 30,963
-    Reqwest(31,980
-    Reqwest(reqwest::Error)31,980
-    IO(32,1009
-    IO(io::Error)32,1009
-    use cal_stm::Machine;48,1294
-    use cal_stm::Machine:cal_stm::Machine49,1320
-    let config_file 51,1350
-    let retriever 52,1441
-    let mut mach: Machine 53,1485
-    let mut error: Option<Option54,1533
-    let mut device_code 55,1575
-    let mut delay_s: u64 56,1616
-    let mut credentials 57,1646
-        mach 59,1689
+use crate::cal_display::Renderer;3,16
+use crate::display;4,50
+use crate::err;5,70
+use crate::stm;6,86
+use chrono:chrono7,102
+use retriever:retriever8,148
+use serde:serde9,166
+use std:std10,203
+type PeriodSeconds 30,831
+type AuthTokens 31,857
+const LOOP_DELAY_S: PeriodSeconds 33,909
+pub struct VolatileAuthenticator 43,1108
+    pub access_token: String,44,1143
+    expires_in: u32,45,1173
+pub struct RefreshToken(String)49,1238
+pub struct Authenticators 76,2068
+    refresh_token: RefreshToken,77,2096
+    volatiles: VolatileAuthenticator,78,2129
+pub struct Event 106,2942
+    pub summary: String,107,2961
+    pub description: Option<Option108,2986
+    pub start: DateTime<DateTime109,3023
+    pub end: DateTime<DateTime110,3055
+fn add_events(received: &EventsResponse) -> Result<Result145,4051
+    use Machine:Machine156,4381
+    let today 158,4402
+    let config_file 159,4451
+    let retriever 160,4499
+    let mut renderer 161,4543
+    let mut mach: Machine 162,4584
 
-src/stm.rs,206
-            pub enum Machine 28,708
-                $start(29,739
-                $start($start)29,739
-                $(30,771
-                    $node(31,790
-                    $node($node)31,790
+src/main.rs,122
+mod cal_machine;3,54
+mod cal_display;4,71
+mod display;5,88
+mod err;6,101
+mod stm;7,110
+use cal_machine::Error;9,120
 
-src/cal_machine/retriever.rs,1753
-use reqwest:reqwest1,0
-use serde:serde2,39
-use std:std3,76
-const DEVICE_CODE_URL: &str str9,175
-const AUTHORISATION_URL: &str str10,257
-const READ_URL: &str str11,335
-const CLIENT_ID_KEY: &str str12,425
-const CLIENT_ID_VAL: &str str13,466
-const SCOPE_KEY: &str str15,574
-const SCOPE_VAL: &str str16,607
-const CLIENT_SECRET_KEY: &str str17,684
-const CLIENT_SECRET_VAL: &str str18,733
-const CODE_KEY: &str str19,793
-const GRANT_TYPE_KEY: &str str20,824
-const GRANT_TYPE_VAL: &str str21,867
-const REFRESH_TOKEN_KEY: &str str22,938
-const TIME_MIN_KEY: &str str24,988
-const TIME_MAX_KEY: &str str25,1026
-const MAX_RESULTS_KEY: &str str26,1064
-const SINGLE_EVENTS_KEY: &str str27,1108
-const AUTHORISATION_HEADER: &str str29,1157
-const ACCEPT_HEADER: &str str30,1209
-const ACCEPT_JSON: &str str31,1247
-pub const TOKEN_TYPE: &str str32,1293
-pub struct EventRetriever 38,1519
-    client: Client,39,1547
-pub struct DeviceUserCodeResponse 93,3375
-    pub device_code: String,94,3411
-    user_code: String,95,3440
-    expires_in: u32,96,3463
-    pub interval: u32,97,3484
-    verification_url: String,98,3507
-pub const QUOTA_EXCEEDED_ERROR_CODE: &str str101,3540
-pub struct DeviceUserCodeErrorResponse 103,3648
-    pub error_code: String,104,3689
-pub struct PollResponse 108,3761
-    pub access_token: String,109,3787
-    refresh_token: String,110,3817
-    expires_in: u32,111,3844
-    pub token_type: String,112,3865
-pub const ACCESS_DENIED_ERROR: &str str140,4692
-pub const AUTHORISATION_PENDING_ERROR: &str str141,4747
-pub const POLLING_TOO_FREQUENTLY_ERROR: &str str142,4818
-pub struct PollErrorResponse 145,4920
-    pub error: String,146,4951
-    pub error_description: String,147,4974
+src/display.rs,658
+use crate::err;1,0
+use serde::Serialize;2,16
+use serde_json::error::Error as SerdeError;3,38
+use std::io:std::io4,82
+use std::net::TcpStream;5,121
+use std::slice::Iter;6,146
+pub const DRIVER_PORT: u16 8,169
+pub enum Operation 12,246
+    AddText(13,267
+    AddText(String,13,267
+    AddText(String, Pos,13,267
+    AddText(String, Pos, Id)13,267
+    UpdateText(14,297
+    UpdateText(Id,14,297
+    UpdateText(Id, String)14,297
+    RemoveText(15,325
+    RemoveText(Id)15,325
+    Clear,16,345
+    WriteAll,17,356
+type Id 20,373
+pub struct Pos(pub u32, pub u32)23,413
+pub struct RenderPipeline 30,512
+    stream: BufWriter<BufWriter31,540
 
-src/main.rs,65
-mod cal_machine;2,26
-mod stm;3,43
-use cal_machine::Error;5,53
+src/cal_machine/retriever.rs,2441
+use chrono::prelude:chrono::prelude1,0
+use reqwest:reqwest2,24
+use serde::Deserialize;3,63
+const DEVICE_CODE_URL: &str str5,88
+const AUTHORISATION_URL: &str str6,170
+const READ_URL: &str str7,248
+const CLIENT_ID_KEY: &str str8,338
+const CLIENT_ID_VAL: &str str9,379
+const SCOPE_KEY: &str str11,487
+const SCOPE_VAL: &str str12,520
+const CLIENT_SECRET_KEY: &str str13,597
+const CLIENT_SECRET_VAL: &str str14,646
+const CODE_KEY: &str str15,706
+const GRANT_TYPE_KEY: &str str16,737
+const GRANT_TYPE_POLL_VAL: &str str17,780
+const GRANT_TYPE_REFRESH_VAL: &str str18,856
+const REFRESH_TOKEN_KEY: &str str19,910
+const PAGE_TOKEN_KEY: &str str20,959
+const TIME_MIN_KEY: &str str22,1002
+const TIME_MAX_KEY: &str str23,1040
+const MAX_RESULTS_KEY: &str str24,1078
+const SINGLE_EVENTS_KEY: &str str25,1122
+const AUTHORISATION_HEADER: &str str27,1171
+const ACCEPT_HEADER: &str str28,1223
+const ACCEPT_JSON: &str str29,1261
+pub const TOKEN_TYPE: &str str30,1307
+pub const ACCESS_DENIED_ERROR: &str str32,1347
+pub const AUTHORISATION_PENDING_ERROR: &str str33,1402
+pub const POLLING_TOO_FREQUENTLY_ERROR: &str str34,1473
+pub struct PageToken(pub String)36,1534
+pub struct EventRetriever 38,1569
+    client: Client,39,1597
+pub struct DeviceUserCodeResponse 115,4227
+    pub device_code: String,116,4263
+    user_code: String,117,4292
+    expires_in: u32,118,4315
+    pub interval: u32,119,4336
+    verification_url: String,120,4359
+pub const QUOTA_EXCEEDED_ERROR_CODE: &str str123,4392
+pub struct DeviceUserCodeErrorResponse 125,4489
+    pub error_code: String,126,4530
+pub struct PollResponse 130,4591
+    pub access_token: String,131,4617
+    pub refresh_token: String,132,4647
+    pub expires_in: u32,133,4678
+    pub token_type: String,134,4703
+pub struct RefreshResponse 138,4764
+    pub access_token: String,139,4793
+    pub expires_in: u32,140,4823
+    pub token_type: String,141,4848
+pub struct PollErrorResponse 145,4909
+    pub error: String,146,4940
+    pub error_description: String,147,4963
+pub struct DateTimeStamp 152,5066
+    pub date_time: String,154,5129
+pub struct Event 158,5189
+    pub summary: String,159,5208
+    pub description: Option<Option160,5233
+    pub start: DateTimeStamp,161,5270
+    pub end: DateTimeStamp,162,5300
+pub struct EventsResponse 167,5396
+    pub next_page_token: Option<Option168,5424
+    pub items: Vec<Vec169,5465
 
-target/rls/debug/build/mime_guess-0cfbca0bb5f05d9a/out/mime_types_generated.rs,0
+src/err.rs,126
+        pub enum $enum_name 14,486
+            $(15,516
+                $var(16,531
+                $var($embedded)16,531
 
-target/debug/build/mime_guess-bc2fa3f92e59c801/out/mime_types_generated.rs,0
+src/cal_display.rs,550
+use crate::display::Operation as Op;1,0
+use crate:crate2,37
+use chrono::prelude:chrono::prelude3,82
+pub struct Renderer 5,107
+    pipe: RenderPipeline,6,129
+const HEADING_ID: &str str9,158
+const EVENTS_ID: &str str10,194
+const HEADING_POS: Pos 12,229
+const EVENTS_POS: Pos 13,266
+const DATE_FORMAT: &str str15,302
+const TIME_FORMAT: &str str16,340
+const NO_EVENTS: &str str18,376
+const START_DELIMITER: &str str19,413
+const SUMMARY_DELIMITER: &str str20,450
+const DESC_DELIMITER: &str str21,488
+const TIME_LEN: usize 23,524
 
-target/debug/build/mime_guess-0cfbca0bb5f05d9a/out/mime_types_generated.rs,0
+src/stm.rs,0
+
+target/debug/build/mime_guess-03509d51952c9685/out/mime_types_generated.rs,0

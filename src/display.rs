@@ -5,12 +5,12 @@ use std::io::{self, BufWriter, Write};
 use std::net::TcpStream;
 use std::slice::Iter;
 
-pub const DRIVER_PORT: u16 = 6028;
+pub const DRIVER_PORT: u16 = 6029;
 
 #[allow(dead_code)]
 #[derive(Serialize)]
 pub enum Operation {
-    AddText(String, Pos, Id),
+    AddText(String, Pos, Size, Id),
     UpdateText(Id, String),
     RemoveText(Id),
     Clear,
@@ -18,6 +18,7 @@ pub enum Operation {
 }
 
 type Id = String;
+type Size = u32;
 
 #[derive(Serialize)]
 pub struct Pos(pub u32, pub u32);
