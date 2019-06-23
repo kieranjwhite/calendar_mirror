@@ -27,10 +27,10 @@ stm!(cal_stm, Machine, Load(), {
     [Wait] => Wipe()
 });
 
-const LOOP_DELAY_S: u64 = 5;
-
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
+
+const LOOP_DELAY_S: PeriodSeconds = 5;
 
 err!(Error {
     Chrono(ParseError),
