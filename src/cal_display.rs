@@ -18,7 +18,7 @@ const TIME_FORMAT: &str = "%H:%M";
 const NO_EVENTS: &str = "No events";
 const START_DELIMITER: &str = " < ";
 const SUMMARY_DELIMITER: &str = ". ";
-const DESC_DELIMITER: &str = " > ";
+const DESC_DELIMITER: &str = "> ";
 
 const TIME_LEN: usize = 5;
 

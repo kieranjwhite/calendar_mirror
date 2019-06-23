@@ -3,6 +3,7 @@
 mod cal_machine;
 mod cal_display;
 mod display;
+mod err;
 mod stm;
 
 use cal_machine::Error;

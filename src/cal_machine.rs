@@ -2,6 +2,7 @@ mod retriever;
 
 use crate::cal_display::Renderer;
 use crate::display;
+use crate::err;
 use crate::stm;
 use chrono::{format::ParseError, prelude::*};
 use retriever::*;
@@ -26,45 +27,21 @@ stm!(cal_stm, Machine, Load(), {
     [Wait] => Wipe()
 });
 
+const LOOP_DELAY_S: u64 = 5;
+
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-#[derive(Debug)]
-pub enum Error {
+err!(Error {
     Chrono(ParseError),
     Display(display::Error),
     IO(io::Error),
-    Reqwest(reqwest::Error),
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(orig: reqwest::Error) -> Error {
-        Error::Reqwest(orig)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(orig: io::Error) -> Error {
-        Error::IO(orig)
-    }
-}
-
-impl From<ParseError> for Error {
-    fn from(orig: ParseError) -> Error {
-        Error::Chrono(orig)
-    }
-}
-
-impl From<display::Error> for Error {
-    fn from(orig: display::Error) -> Error {
-        Error::Display(orig)
-    }
-}
+    Reqwest(reqwest::Error)
+});
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VolatileAuthenticator {
     pub access_token: String,
-    //refresh_token: String,
     expires_in: u32,
 }
 
@@ -406,7 +383,10 @@ pub fn run() -> Result<(), Error> {
                     renderer.display(&today, &events)?;
                     Wait(st.into())
                 }
-                Wait(st) => Wait(st),
+                Wait(st) => {
+                    thread::sleep(Duration::from_secs(LOOP_DELAY_S));
+                    Wait(st)
+                }
                 Wipe(st) => Wipe(st),
                 DisplayError(st, message) => {
                     eprintln!("Error: {}", message);
