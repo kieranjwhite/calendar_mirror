@@ -67,14 +67,18 @@ impl Renderer {
         ops.push(Op::AddText(heading, HEADING_POS, HEADING_ID.to_string()));
 
         if events.len() == 0 {
-            ops.push(Op::AddText(NO_EVENTS.to_string(), EVENTS_POS, EVENTS_ID.to_string()));
+            ops.push(Op::AddText(
+                NO_EVENTS.to_string(),
+                EVENTS_POS,
+                EVENTS_ID.to_string(),
+            ));
         } else {
             let mut events = events.clone();
             events.sort();
 
-            let ev_strs : Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
-            let ev_ref_strs=&ev_strs;
-            let event_len = ev_ref_strs.iter().fold(0, |s, ev| s+ev.len());
+            let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
+            let ev_ref_strs = &ev_strs;
+            let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
             let mut all_events = String::with_capacity(event_len);
             for ev in ev_strs {
                 all_events.push_str(&ev);
@@ -84,7 +88,7 @@ impl Renderer {
         }
 
         self.pipe.send(ops.iter())?;
-        
+
         Ok(())
     }
 }

@@ -125,7 +125,7 @@ impl From<(AuthTokens)> for Authenticators {
     }
 }
 
-#[derive(Clone,Debug,Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Event {
     pub summary: String,
     pub description: Option<String>,
@@ -136,22 +136,14 @@ pub struct Event {
 impl Ord for Event {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.start.cmp(&other.start) {
-            Ordering::Equal => {
-                match self.end.cmp(&other.end) {
-                    Ordering::Equal => {
-                        match self.summary.cmp(&other.summary) {
-                            Ordering::Equal => {
-                                self.description.cmp(&other.description)
-                            }
-                            other => other
-                        }
-                    }
-                    other => other
-                }
-            }
-            other => {
-                other
-            }
+            Ordering::Equal => match self.end.cmp(&other.end) {
+                Ordering::Equal => match self.summary.cmp(&other.summary) {
+                    Ordering::Equal => self.description.cmp(&other.description),
+                    other => other,
+                },
+                other => other,
+            },
+            other => other,
         }
     }
 }
@@ -189,9 +181,9 @@ pub fn run() -> Result<(), Error> {
     let today = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("config.json");
     let retriever = EventRetriever::inst();
-    let mut renderer=Renderer::new()?;
+    let mut renderer = Renderer::new()?;
     let mut mach: Machine = Load(cal_stm::Load);
-    
+
     if cfg!(feature = "render_stm") {
         let mut f = File::create("docs/cal_machine.dot")?;
         Machine::render_to(&mut f);

@@ -16,7 +16,7 @@ pub enum Operation {
     WriteAll,
 }
 
-type Id=String;
+type Id = String;
 
 #[derive(Serialize)]
 pub struct Pos(pub u32, pub u32);
@@ -24,7 +24,7 @@ pub struct Pos(pub u32, pub u32);
 #[derive(Debug)]
 pub enum Error {
     Network(io::Error),
-    Serde(SerdeError)
+    Serde(SerdeError),
 }
 
 impl From<io::Error> for Error {
