@@ -1,6 +1,7 @@
 digraph cal_stm {
     Display[label="Display"][shape="ellipse"];
     DisplayError[label="DisplayError"][shape="ellipse"];
+    ErrorWait[label="ErrorWait"][shape="ellipse"];
     Load[label="Load"][shape="ellipse"];
     Page[label="Page"][shape="ellipse"];
     Poll[label="Poll"][shape="ellipse"];
@@ -8,15 +9,21 @@ digraph cal_stm {
     Refresh[label="Refresh"][shape="ellipse"];
     RequestCodes[label="RequestCodes"][shape="ellipse"];
     Save[label="Save"][shape="ellipse"];
+    Start[label="Start"][shape="ellipse"];
     Wait[label="Wait"][shape="ellipse"];
     Wipe[label="Wipe"][shape="ellipse"];
     _start[label="_start"][shape="point"];
-    _start -> Load[label=""];
+    _start -> Start[label=""];
+    DisplayError -> ErrorWait[label="Instant\n"];
+    Start -> Load[label=""];
+    ErrorWait -> Load[label=""];
     Load -> RequestCodes[label=""];
     Wipe -> RequestCodes[label=""];
     Load -> Refresh[label="RefreshToken\n"];
     Wait -> Refresh[label="RefreshToken\n"];
-    Save -> ReadFirst[label="Authenticators\n"];
+    Refresh -> ReadFirst[label="Authenticators\nInstant\n"];
+    Save -> ReadFirst[label="Authenticators\nInstant\n"];
+    Wait -> ReadFirst[label="Authenticators\nInstant\n"];
     RequestCodes -> Poll[label="String\nPeriodSeconds\n"];
     Load -> DisplayError[label="String\n"];
     Page -> DisplayError[label="String\n"];
@@ -25,10 +32,8 @@ digraph cal_stm {
     Refresh -> DisplayError[label="String\n"];
     RequestCodes -> DisplayError[label="String\n"];
     Poll -> Save[label="Authenticators\n"];
-    Refresh -> Save[label="Authenticators\n"];
-    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nVec<Event>\n"];
-    Page -> Display[label="Vec<Event>\n"];
-    DisplayError -> Wait[label=""];
-    Display -> Wait[label=""];
+    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nVec<Event>\nInstant\n"];
+    Page -> Display[label="Authenticators\nVec<Event>\nInstant\n"];
+    Display -> Wait[label="Authenticators\nInstant\nInstant\n"];
     Wait -> Wipe[label=""];
 }

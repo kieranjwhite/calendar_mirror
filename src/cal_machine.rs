@@ -1,36 +1,42 @@
 mod retriever;
 
 use crate::cal_display::Renderer;
+use crate::cal_machine::instant_types::{RefreshedAt, WaitingFrom};
 use crate::display;
 use crate::err;
 use crate::stm;
 use chrono::{format::ParseError, prelude::*};
 use retriever::*;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{
     cmp::{Ord, Ordering},
     fs::File,
     io::{self, BufRead, BufReader, BufWriter, Write},
     path::Path,
+    thread,
 };
 
-stm!(cal_stm, Machine, Load(), {
+stm!(cal_stm, Machine, Start(), {
+    [DisplayError] => ErrorWait(WaitingFrom);
+    [Start,ErrorWait] => Load();
     [Load, Wipe] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
-    [Save] => ReadFirst(Authenticators);
+    [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
-    [Poll, Refresh] => Save(Authenticators);
-    [ReadFirst] => Page(Authenticators, Option<PageToken>, Vec<Event>);
-    [Page] => Display(Vec<Event>);
-    [DisplayError, Display] => Wait();
+    [Poll] => Save(Authenticators);
+    [ReadFirst] => Page(Authenticators, Option<PageToken>, Vec<Event>, RefreshedAt);
+    [Page] => Display(Authenticators, Vec<Event>, RefreshedAt);
+    [Display] => Wait(Authenticators, RefreshedAt, WaitingFrom);
     [Wait] => Wipe()
 });
 
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-const LOOP_DELAY_S: PeriodSeconds = 5;
+const TWO_MINS_S: PeriodSeconds = 120;
+const REFRESH_PERIOD_S: PeriodSeconds = 300;
 
 err!(Error {
     Chrono(ParseError),
@@ -42,11 +48,34 @@ err!(Error {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VolatileAuthenticator {
     pub access_token: String,
-    expires_in: u32,
+    expires_in: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RefreshToken(String);
+
+macro_rules! instant {
+    ($name:ident) => {
+        #[derive(Debug)]
+        pub struct $name(Instant);
+        
+        impl $name {
+            pub fn now() -> $name {
+                $name(Instant::now())
+            }
+            
+            pub fn instant(&self) -> Instant {
+                self.0
+            }
+        }
+    };
+}
+
+mod instant_types {
+    use std::time::Instant;
+    instant!(RefreshedAt);
+    instant!(WaitingFrom);
+}
 
 impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
@@ -158,8 +187,7 @@ pub fn run() -> Result<(), Error> {
     let today = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("config.json");
     let retriever = EventRetriever::inst();
-    let mut renderer = Renderer::new()?;
-    let mut mach: Machine = Load(cal_stm::Load);
+    let mut mach: Machine = Start(cal_stm::Start);
 
     if cfg!(feature = "render_stm") {
         let mut f = File::create("docs/cal_machine.dot")?;
@@ -168,7 +196,6 @@ pub fn run() -> Result<(), Error> {
         Ok(())
     } else {
         use reqwest::{Response, StatusCode};
-        use std::{thread, time::Duration};
 
         const HTTP_ERROR: &str = "HTTP error";
         const LOAD_FAILED: &str = "Failed to load credentials";
@@ -176,8 +203,11 @@ pub fn run() -> Result<(), Error> {
         const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
         const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
 
+        let mut renderer = Renderer::new()?;
+
         loop {
             mach = match mach {
+                Start(st) => Load(st.into()),
                 Load(st) => match RefreshToken::load(config_file) {
                     Err(error_msg) => DisplayError(
                         st.into(),
@@ -242,7 +272,7 @@ pub fn run() -> Result<(), Error> {
                                 let credentials: Authenticators =
                                     (RefreshToken(refresh_token.clone()), credentials_tokens)
                                         .into();
-                                Save(st.into(), credentials)
+                                ReadFirst(st.into(), credentials, RefreshedAt::now())
                             }
                         }
                         other_status => {
@@ -310,11 +340,11 @@ pub fn run() -> Result<(), Error> {
                         }
                     }
                 }
-                Save(st, persistent_authenticators) => {
-                    persistent_authenticators.refresh_token.save(config_file)?;
-                    ReadFirst(st.into(), persistent_authenticators)
+                Save(st, credentials) => {
+                    credentials.refresh_token.save(config_file)?;
+                    ReadFirst(st.into(), credentials, RefreshedAt::now())
                 }
-                ReadFirst(st, credentials_tokens) => {
+                ReadFirst(st, credentials_tokens, refreshed_at) => {
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                         &today,
@@ -331,7 +361,13 @@ pub fn run() -> Result<(), Error> {
                                 None => None,
                                 Some(next_page) => Some(PageToken(next_page)),
                             };
-                            Page(st.into(), credentials_tokens, page_token, new_events)
+                            Page(
+                                st.into(),
+                                credentials_tokens,
+                                page_token,
+                                new_events,
+                                refreshed_at,
+                            )
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
@@ -343,9 +379,9 @@ pub fn run() -> Result<(), Error> {
                         }
                     }
                 }
-                Page(st, credentials_tokens, page_token, mut events) => {
+                Page(st, credentials_tokens, page_token, mut events, refreshed_at) => {
                     if let None = page_token {
-                        Display(st.into(), events)
+                        Display(st.into(), credentials_tokens, events, refreshed_at)
                     } else {
                         let mut resp: Response = retriever.read(
                             &format!("Bearer {}", credentials_tokens.volatiles.access_token),
@@ -365,7 +401,7 @@ pub fn run() -> Result<(), Error> {
                                 };
 
                                 events.extend(new_events);
-                                Page(st, credentials_tokens, page_token, events)
+                                Page(st, credentials_tokens, page_token, events, refreshed_at)
                             }
                             _other_status => {
                                 println!("Event Headers: {:#?}", resp.headers());
@@ -378,19 +414,41 @@ pub fn run() -> Result<(), Error> {
                         }
                     }
                 }
-                Display(st, events) => {
+                Display(st, credentials, events, refreshed_at) => {
                     println!("Retrieved events: {:?}", events);
                     renderer.display(&today, &events)?;
-                    Wait(st.into())
+                    Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
                 }
-                Wait(st) => {
-                    thread::sleep(Duration::from_secs(LOOP_DELAY_S));
-                    Wait(st)
+                Wait(st, credentials, refreshed_at, started_wait_at) => {
+                    let waiting_for = started_wait_at.instant().elapsed().as_secs();
+                    if waiting_for >= REFRESH_PERIOD_S {
+                        let elapsed_since_token_refresh =
+                            refreshed_at.instant().elapsed().as_secs();
+                        let expires_in = credentials.volatiles.expires_in;
+                        if expires_in < TWO_MINS_S
+                            || elapsed_since_token_refresh
+                                >= credentials.volatiles.expires_in - TWO_MINS_S
+                        {
+                            Refresh(st.into(), credentials.refresh_token)
+                        } else {
+                            ReadFirst(st.into(), credentials, refreshed_at)
+                        }
+                    } else {
+                        Wait(st, credentials, refreshed_at, started_wait_at)
+                    }
+                }
+                ErrorWait(st, started_wait_at) => {
+                    let waiting_for = started_wait_at.instant().elapsed().as_secs();
+                    if waiting_for >= REFRESH_PERIOD_S {
+                        Load(st.into())
+                    } else {
+                        ErrorWait(st, started_wait_at)
+                    }
                 }
                 Wipe(st) => Wipe(st),
                 DisplayError(st, message) => {
                     eprintln!("Error: {}", message);
-                    Wait(st.into())
+                    ErrorWait(st.into(), WaitingFrom::now())
                 }
             };
         }

@@ -10,7 +10,7 @@ const HEADING_ID: &str = "heading";
 const EVENTS_ID: &str = "events";
 
 const HEADING_POS: Pos = Pos(30, 0);
-const EVENTS_POS: Pos = Pos(0, 30);
+const EVENTS_POS: Pos = Pos(0, 25);
 
 const HEADING_SIZE: u32 = 20;
 const EVENTS_SIZE: u32 = 16;

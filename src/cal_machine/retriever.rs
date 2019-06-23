@@ -130,14 +130,14 @@ pub struct DeviceUserCodeErrorResponse {
 pub struct PollResponse {
     pub access_token: String,
     pub refresh_token: String,
-    pub expires_in: u32,
+    pub expires_in: u64,
     pub token_type: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct RefreshResponse {
     pub access_token: String,
-    pub expires_in: u32,
+    pub expires_in: u64,
     pub token_type: String,
 }
 
