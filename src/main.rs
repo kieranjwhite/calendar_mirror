@@ -1,6 +1,7 @@
 //#![feature(trace_macros)]
 //#![feature(log_syntax)]
 mod cal_machine;
+mod cal_display;
 mod display;
 mod stm;
 
