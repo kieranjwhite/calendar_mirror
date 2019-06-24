@@ -1,10 +1,20 @@
 #[macro_export]
 macro_rules! stm {
-    ($mod_name:ident, $enum_name:ident, $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+ } ) => {
+    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+ } ) => {
 
         pub mod $mod_name
         {
             pub struct $start;
+
+            $(
+                impl From<$start_e> for $start {
+                    fn from(_st: $start_e) -> $start {
+                        println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
+                        $start
+                    }
+                }
+
+            )*
 
             $(
                 pub struct $node {
@@ -64,7 +74,7 @@ macro_rules! stm {
             #[cfg(feature = "render_stm")]
             impl<'a> dot::Labeller<'a, Nd, Ed> for MachineEdges {
                 fn graph_id(&'a self) -> dot::Id<'a> { dot::Id::new(stringify!($mod_name)).unwrap() }
-                
+
                 fn node_shape(&'a self, node: &Nd) -> Option<dot::LabelText<'a>> {
                     if &START_NODE_NAME==node {
                         Some(dot::LabelText::LabelStr("point".into()))
@@ -72,11 +82,11 @@ macro_rules! stm {
                         Some(dot::LabelText::LabelStr("ellipse".into()))
                     }
                 }
-                
+
                 fn node_id(&'a self, n: &Nd) -> dot::Id<'a> {
                     dot::Id::new(*n).unwrap()
                 }
-                
+
                 fn edge_label(&'a self, (_, to): &Ed) -> dot::LabelText<'a> {
                     {
                         let dest_name=stringify!($start);
@@ -109,7 +119,7 @@ macro_rules! stm {
                     dot::LabelText::EscStr("".into())
                 }
             }
-            
+
         }
 
         pub enum $enum_name {
@@ -127,6 +137,14 @@ macro_rules! stm {
                 {
                     let mut edge_vec=Vec::new();
                     edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
+
+                    $(
+                        edge_vec.push({
+                            let f=stringify!($start_e);
+                            let t=stringify!($start);
+                            (f,t)
+                        });
+                    )*
 
                     $(
                         $(

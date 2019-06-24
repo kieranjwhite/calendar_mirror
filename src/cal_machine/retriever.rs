@@ -154,10 +154,16 @@ pub struct DateTimeStamp {
     pub date_time: String,
 }
 
+#[derive(Deserialize, Debug, Eq, PartialEq)]
+pub struct PersonalIdentifier {
+    pub email: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct Event {
     pub summary: String,
     pub description: Option<String>,
+    pub creator: PersonalIdentifier,
     pub start: DateTimeStamp,
     pub end: DateTimeStamp,
 }

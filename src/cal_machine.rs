@@ -1,10 +1,15 @@
 mod retriever;
 
-use crate::cal_display::Renderer;
-use crate::cal_machine::instant_types::{RefreshedAt, WaitingFrom};
 use crate::display;
 use crate::err;
 use crate::stm;
+use crate::{
+    cal_display::Renderer,
+    cal_machine::{
+        evs::Appointments,
+        instant_types::{RefreshedAt, WaitingFrom},
+    },
+};
 use chrono::{format::ParseError, prelude::*};
 use retriever::*;
 use serde::{Deserialize, Serialize};
@@ -17,17 +22,16 @@ use std::{
     thread,
 };
 
-stm!(cal_stm, Machine, Start(), {
+stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(WaitingFrom);
-    [Start,ErrorWait] => Load();
     [Load, Wipe] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
     [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
-    [ReadFirst] => Page(Authenticators, Option<PageToken>, Vec<Event>, RefreshedAt);
-    [Page] => Display(Authenticators, Vec<Event>, RefreshedAt);
+    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt);
+    [Page] => Display(Authenticators, Appointments, RefreshedAt);
     [Display] => Wait(Authenticators, RefreshedAt, WaitingFrom);
     [Wait] => Wipe()
 });
@@ -58,12 +62,12 @@ macro_rules! instant {
     ($name:ident) => {
         #[derive(Debug)]
         pub struct $name(Instant);
-        
+
         impl $name {
             pub fn now() -> $name {
                 $name(Instant::now())
             }
-            
+
             pub fn instant(&self) -> Instant {
                 self.0
             }
@@ -132,6 +136,71 @@ impl From<(AuthTokens)> for Authenticators {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Email(pub String);
+
+pub mod evs {
+    use crate::{
+        cal_machine::{retriever::EventsResponse, Email, Event},
+        stm,
+    };
+    use chrono::format::ParseError;
+    use std::io::Write;
+    use Machine::*;
+
+    stm!(ev_stm, Machine, [] => Uninitialised(), {
+        [Uninitialised] => OneCreator(Email);
+        [OneCreator] => NotOneCreator()
+    });
+
+    pub struct Appointments {
+        pub events: Vec<Event>,
+        state: Machine,
+    }
+
+    impl Appointments {
+        pub fn new() -> Appointments {
+            Appointments {
+                events: Vec::new(),
+                state: Uninitialised(ev_stm::Uninitialised),
+            }
+        }
+
+        pub fn email(&self) -> Option<Email> {
+            match self.state {
+                Uninitialised(_) => None,
+                OneCreator(_, ref email) => Some(email.clone()),
+                NotOneCreator(_) => None,
+            }
+        }
+
+        pub fn add(&mut self, received: &EventsResponse) -> Result<(), ParseError> {
+            use std::mem::replace;
+
+            let mut state=replace(&mut self.state, Uninitialised(ev_stm::Uninitialised));
+            for ev in received.items.iter() {
+                state = match state {
+                    Uninitialised(st) => OneCreator(st.into(), Email(ev.creator.email.clone())),
+                    OneCreator(st, Email(email)) => {
+                        if email == ev.creator.email {
+                            OneCreator(st, Email(email))
+                        } else {
+                            NotOneCreator(st.into())
+                        }
+                    }
+                    NotOneCreator(st) => NotOneCreator(st),
+                };
+                let ev_res: Result<Event, ParseError> = ev.into();
+                let typed_ev = ev_res?;
+                self.events.push(typed_ev);
+            }
+            replace(&mut self.state, state);
+            
+            Ok(())
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Event {
     pub summary: String,
     pub description: Option<String>,
@@ -171,27 +240,20 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
     }
 }
 
-fn add_events(received: &EventsResponse) -> Result<Vec<Event>, ParseError> {
-    let mut events = Vec::new();
-    for ev in received.items.iter() {
-        let ev_res: Result<Event, ParseError> = ev.into();
-        let typed_ev = ev_res?;
-        events.push(typed_ev);
-    }
-    Ok(events)
-}
-
 pub fn run() -> Result<(), Error> {
     use Machine::*;
 
     let today = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("config.json");
     let retriever = EventRetriever::inst();
-    let mut mach: Machine = Start(cal_stm::Start);
+    let mut mach: Machine = Load(cal_stm::Load);
 
     if cfg!(feature = "render_stm") {
         let mut f = File::create("docs/cal_machine.dot")?;
         Machine::render_to(&mut f);
+        f.flush()?;
+        f = File::create("docs/ev_stm.dot")?;
+        evs::Machine::render_to(&mut f);
         f.flush()?;
         Ok(())
     } else {
@@ -207,7 +269,6 @@ pub fn run() -> Result<(), Error> {
 
         loop {
             mach = match mach {
-                Start(st) => Load(st.into()),
                 Load(st) => match RefreshToken::load(config_file) {
                     Err(error_msg) => DisplayError(
                         st.into(),
@@ -356,7 +417,8 @@ pub fn run() -> Result<(), Error> {
                         StatusCode::OK => {
                             println!("Event Headers: {:#?}", resp.headers());
                             let events_resp: EventsResponse = resp.json()?;
-                            let new_events = add_events(&events_resp)?;
+                            let mut new_events = evs::Appointments::new();
+                            new_events.add(&events_resp)?;
                             let page_token = match events_resp.next_page_token {
                                 None => None,
                                 Some(next_page) => Some(PageToken(next_page)),
@@ -394,13 +456,12 @@ pub fn run() -> Result<(), Error> {
                             StatusCode::OK => {
                                 println!("Event Headers: {:#?}", resp.headers());
                                 let events_resp: EventsResponse = resp.json()?;
-                                let new_events = add_events(&events_resp)?;
+                                events.add(&events_resp)?;
                                 let page_token = match events_resp.next_page_token {
                                     None => None,
                                     Some(next_page) => Some(PageToken(next_page)),
                                 };
 
-                                events.extend(new_events);
                                 Page(st, credentials_tokens, page_token, events, refreshed_at)
                             }
                             _other_status => {
@@ -414,9 +475,9 @@ pub fn run() -> Result<(), Error> {
                         }
                     }
                 }
-                Display(st, credentials, events, refreshed_at) => {
-                    println!("Retrieved events: {:?}", events);
-                    renderer.display(&today, &events)?;
+                Display(st, credentials, apps, refreshed_at) => {
+                    println!("Retrieved events: {:?}", apps.events);
+                    renderer.display(&today, &apps)?;
                     Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
                 }
                 Wait(st, credentials, refreshed_at, started_wait_at) => {

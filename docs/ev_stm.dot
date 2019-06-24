@@ -1,0 +1,9 @@
+digraph ev_stm {
+    NotOneCreator[label="NotOneCreator"][shape="ellipse"];
+    OneCreator[label="OneCreator"][shape="ellipse"];
+    Uninitialised[label="Uninitialised"][shape="ellipse"];
+    _start[label="_start"][shape="point"];
+    _start -> Uninitialised[label=""];
+    Uninitialised -> OneCreator[label="Email\n"];
+    OneCreator -> NotOneCreator[label=""];
+}
