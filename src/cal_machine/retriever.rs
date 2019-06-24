@@ -114,10 +114,10 @@ impl EventRetriever {
 #[derive(Deserialize, Debug)]
 pub struct DeviceUserCodeResponse {
     pub device_code: String,
-    user_code: String,
-    expires_in: u32,
+    pub user_code: String,
+    pub expires_in: i64,
     pub interval: u32,
-    verification_url: String,
+    pub verification_url: String,
 }
 
 pub const QUOTA_EXCEEDED_ERROR_CODE: &str = "rate_limit_exceeded";

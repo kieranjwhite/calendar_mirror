@@ -176,7 +176,7 @@ pub mod evs {
         pub fn add(&mut self, received: &EventsResponse) -> Result<(), ParseError> {
             use std::mem::replace;
 
-            let mut state=replace(&mut self.state, Uninitialised(ev_stm::Uninitialised));
+            let mut state = replace(&mut self.state, Uninitialised(ev_stm::Uninitialised));
             for ev in received.items.iter() {
                 state = match state {
                     Uninitialised(st) => OneCreator(st.into(), Email(ev.creator.email.clone())),
@@ -194,7 +194,7 @@ pub mod evs {
                 self.events.push(typed_ev);
             }
             replace(&mut self.state, state);
-            
+
             Ok(())
         }
     }
@@ -285,6 +285,12 @@ pub fn run() -> Result<(), Error> {
                             println!("Headers: {:#?}", resp.headers());
                             let body: DeviceUserCodeResponse = resp.json()?;
                             println!("Body is next... {:?}", body);
+                            renderer.display_user_code(
+                                &body.user_code,
+                                &(Local::now()
+                                    + chrono::Duration::seconds(body.expires_in)),
+                                &body.verification_url,
+                            )?;
 
                             Poll(
                                 st.into(),
@@ -477,7 +483,7 @@ pub fn run() -> Result<(), Error> {
                 }
                 Display(st, credentials, apps, refreshed_at) => {
                     println!("Retrieved events: {:?}", apps.events);
-                    renderer.display(&today, &apps)?;
+                    renderer.display_events(&today, &apps)?;
                     Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
                 }
                 Wait(st, credentials, refreshed_at, started_wait_at) => {

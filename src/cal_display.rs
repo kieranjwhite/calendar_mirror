@@ -16,7 +16,14 @@ const EVENTS_ID: &str = "events";
 const HEADING_POS: Pos = Pos(0, 0);
 const EMAIL_POS: Pos = Pos(100, 4);
 const EVENTS_POS: Pos = Pos(0, 24);
+const INSTR1_POS: Pos = Pos(24, 24);
+const CODE_POS: Pos = Pos(64, 48);
+const INSTR2_POS: Pos = Pos(20, 108);
+const EXPIRY_POS: Pos = Pos(82, 122);
 
+const LARGE_SIZE: u32= 24;
+const SMALL_SIZE: u32=12;
+const INSTR_SIZE: u32=16;
 const HEADING_SIZE: u32 = 16;
 const EMAIL_SIZE: u32 = 10;
 const EVENTS_SIZE: u32 = 16;
@@ -72,8 +79,22 @@ impl Renderer {
         event_str
     }
 
-    pub fn display(&mut self, date: &DateTime<Local>, apps: &Appointments) -> Result<(), Error> {
-        let mut ops: Vec<Op> = Vec::with_capacity(apps.events.len() + 4);
+    pub fn display_user_code(&mut self, user_code: &str, expires_at: &DateTime<Local>, url: &str) -> Result<(), Error> {
+        let mut ops: Vec<Op> = Vec::with_capacity(5);
+        ops.push(Op::Clear);
+        ops.push(Op::AddText("Please enter the code:".to_string(), INSTR1_POS, INSTR_SIZE, "Instr1".to_string()));
+        ops.push(Op::AddText(user_code.to_string(), CODE_POS, LARGE_SIZE, "Code".to_string()));
+        ops.push(Op::AddText(format!("at {}", url), INSTR2_POS, SMALL_SIZE, "Instr2".to_string()));
+        ops.push(Op::AddText(format!("before {}", expires_at.format(TIME_FORMAT).to_string()), EXPIRY_POS, SMALL_SIZE, "Expiry".to_string()));
+        ops.push(Op::WriteAll);
+
+        self.pipe.send(ops.iter())?;
+
+        Ok(())
+    }
+    
+    pub fn display_events(&mut self, date: &DateTime<Local>, apps: &Appointments) -> Result<(), Error> {
+        let mut ops: Vec<Op> = Vec::with_capacity(5);
         ops.push(Op::Clear);
 
         let heading = date.format(DATE_FORMAT).to_string();
