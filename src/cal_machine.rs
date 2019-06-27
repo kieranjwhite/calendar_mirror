@@ -1,14 +1,17 @@
 mod retriever;
 
-use crate::display;
-use crate::err;
-use crate::stm;
 use crate::{
     cal_display::Renderer,
     cal_machine::{
         evs::Appointments,
         instant_types::{RefreshedAt, WaitingFrom},
     },
+    display, err,
+    papirus_in::{
+        self, button_stm, Button, Error as GPIO_Error, Machine::*, Pin, GPIO, SW1_GPIO, SW2_GPIO,
+        SW3_GPIO, SW4_GPIO,
+    },
+    stm,
 };
 use chrono::{format::ParseError, prelude::*};
 use retriever::*;
@@ -24,7 +27,7 @@ use std::{
 
 stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(WaitingFrom);
-    [Load, Wipe] => RequestCodes();
+    [Load, Wait] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
     [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
     [RequestCodes] => Poll(String, PeriodSeconds);
@@ -32,21 +35,21 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt);
     [Page] => Display(Authenticators, Appointments, RefreshedAt);
-    [Display] => Wait(Authenticators, RefreshedAt, WaitingFrom);
-    [Wait] => Wipe()
+    [Display] => Wait(Authenticators, RefreshedAt, WaitingFrom)
 });
 
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-const TWO_MINS_S: PeriodSeconds = 120;
+const FOUR_MINS_S: PeriodSeconds = 240;
 const REFRESH_PERIOD_S: PeriodSeconds = 300;
 
 err!(Error {
     Chrono(ParseError),
     Display(display::Error),
     IO(io::Error),
-    Reqwest(reqwest::Error)
+    Reqwest(reqwest::Error),
+    GPIO(GPIO_Error)
 });
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -85,9 +88,12 @@ impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
         match File::open(path) {
             Ok(file) => {
+                println!("opening token file");
                 let reader = BufReader::new(file);
                 let text: String = reader.lines().collect::<io::Result<String>>()?;
+                println!("read token file");
                 let credentials = serde_json::from_str(&text)?;
+                println!("deserialised token file");
                 Ok(Some(credentials))
             }
             Err(_error) => {
@@ -265,8 +271,16 @@ pub fn run() -> Result<(), Error> {
         const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
         const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
 
+        println!("before renderer");
         let mut renderer = Renderer::new()?;
-
+        println!("after renderer");
+        let mut gpio = GPIO::new()?;
+        println!("after gpio init");
+        let mut reset_button = Button {
+            pin: Pin(SW4_GPIO),
+            state: papirus_in::Machine::NotPressed(button_stm::NotPressed),
+        };
+        println!("after reset_button init");
         loop {
             mach = match mach {
                 Load(st) => match RefreshToken::load(config_file) {
@@ -287,8 +301,7 @@ pub fn run() -> Result<(), Error> {
                             println!("Body is next... {:?}", body);
                             renderer.display_user_code(
                                 &body.user_code,
-                                &(Local::now()
-                                    + chrono::Duration::seconds(body.expires_in)),
+                                &(Local::now() + chrono::Duration::seconds(body.expires_in)),
                                 &body.verification_url,
                             )?;
 
@@ -487,21 +500,25 @@ pub fn run() -> Result<(), Error> {
                     Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
                 }
                 Wait(st, credentials, refreshed_at, started_wait_at) => {
-                    let waiting_for = started_wait_at.instant().elapsed().as_secs();
-                    if waiting_for >= REFRESH_PERIOD_S {
-                        let elapsed_since_token_refresh =
-                            refreshed_at.instant().elapsed().as_secs();
-                        let expires_in = credentials.volatiles.expires_in;
-                        if expires_in < TWO_MINS_S
-                            || elapsed_since_token_refresh
-                                >= credentials.volatiles.expires_in - TWO_MINS_S
-                        {
-                            Refresh(st.into(), credentials.refresh_token)
-                        } else {
-                            ReadFirst(st.into(), credentials, refreshed_at)
-                        }
+                    if reset_button.long_press(&mut gpio) {
+                        RequestCodes(st.into())
                     } else {
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        let waiting_for = started_wait_at.instant().elapsed().as_secs();
+                        if waiting_for >= REFRESH_PERIOD_S {
+                            let elapsed_since_token_refresh =
+                                refreshed_at.instant().elapsed().as_secs();
+                            let expires_in = credentials.volatiles.expires_in;
+                            if expires_in < FOUR_MINS_S
+                                || elapsed_since_token_refresh
+                                    >= credentials.volatiles.expires_in - FOUR_MINS_S
+                            {
+                                Refresh(st.into(), credentials.refresh_token)
+                            } else {
+                                ReadFirst(st.into(), credentials, refreshed_at)
+                            }
+                        } else {
+                            Wait(st, credentials, refreshed_at, started_wait_at)
+                        }
                     }
                 }
                 ErrorWait(st, started_wait_at) => {
@@ -512,7 +529,6 @@ pub fn run() -> Result<(), Error> {
                         ErrorWait(st, started_wait_at)
                     }
                 }
-                Wipe(st) => Wipe(st),
                 DisplayError(st, message) => {
                     eprintln!("Error: {}", message);
                     ErrorWait(st.into(), WaitingFrom::now())

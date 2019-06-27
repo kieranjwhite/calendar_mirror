@@ -19,48 +19,74 @@ pub const X25_TABLE:X25_TABLE2,28
 pub const USB: u16 260,2838
 pub const USB_TABLE:USB_TABLE261,2866
 
-src/cal_machine.rs,1029
+src/cal_machine.rs,1109
 mod retriever;1,0
-use crate::cal_display::Renderer;3,16
-use crate::display;4,50
-use crate::err;5,70
-use crate::stm;6,86
-use chrono:chrono7,102
-use retriever:retriever8,148
-use serde:serde9,166
-use std:std10,203
-type PeriodSeconds 30,831
-type AuthTokens 31,857
-const LOOP_DELAY_S: PeriodSeconds 33,909
-pub struct VolatileAuthenticator 43,1108
-    pub access_token: String,44,1143
-    expires_in: u32,45,1173
-pub struct RefreshToken(String)49,1238
-pub struct Authenticators 76,2068
-    refresh_token: RefreshToken,77,2096
-    volatiles: VolatileAuthenticator,78,2129
-pub struct Event 106,2942
-    pub summary: String,107,2961
-    pub description: Option<Option108,2986
-    pub start: DateTime<DateTime109,3023
-    pub end: DateTime<DateTime110,3055
-fn add_events(received: &EventsResponse) -> Result<Result145,4051
-    use Machine:Machine156,4381
-    let today 158,4402
-    let config_file 159,4451
-    let retriever 160,4499
-    let mut renderer 161,4543
-    let mut mach: Machine 162,4584
+use crate:crate3,16
+use chrono:chrono13,244
+use retriever:retriever14,290
+use serde:serde15,308
+use std::time::Duration;16,345
+use std:std17,370
+stm!(cal_stm, Machine,25,507
+type PeriodSeconds 39,1162
+type AuthTokens 40,1188
+const TWO_MINS_S: PeriodSeconds 42,1240
+const REFRESH_PERIOD_S: PeriodSeconds 43,1279
+pub struct VolatileAuthenticator 53,1484
+    pub access_token: String,54,1519
+    expires_in: u64,55,1549
+pub struct RefreshToken(String)59,1614
+pub struct Authenticators 109,2870
+    refresh_token: RefreshToken,110,2898
+    volatiles: VolatileAuthenticator,111,2931
+pub struct Email(pub String)139,3744
+    pub struct Appointments 155,4117
+        pub events: Vec<Vec156,4147
+        state: Machine,157,4179
+pub struct Event 204,5735
+    pub summary: String,205,5754
+    pub description: Option<Option206,5779
+    pub start: DateTime<DateTime207,5816
+    pub end: DateTime<DateTime208,5848
+    use Machine:Machine244,6880
+    let today 246,6901
+    let config_file 247,6950
+    let retriever 248,6998
+    let mut mach: Machine 249,7042
 
-src/main.rs,122
+src/papirus_in.rs,618
+use crate:crate1,0
+use Machine:Machine2,23
+use memmap:memmap3,39
+use std:std4,72
+const BLOCK_SIZE: usize 12,198
+const MAX_PIN: usize 13,234
+const READ_REG_OFFSET: usize 14,261
+pub const SW1: Button 21,356
+pub const SW2: Button 25,457
+pub const SW3: Button 29,558
+pub const SW4: Button 33,659
+pub const SHORT_PRESS_DURATION: Duration 38,761
+pub const LONG_PRESS_DURATION: Duration 39,832
+stm!(button_stm, Machine,41,899
+pub struct Button 45,989
+    pin: Pin,46,1009
+    state: Machine,47,1023
+struct Pin(pub usize)100,2489
+pub struct GPIO 102,2513
+    map: Mmap,103,2531
+    snap:snap104,2546
+
+src/main.rs,145
 mod cal_machine;3,54
 mod cal_display;4,71
 mod display;5,88
 mod err;6,101
-mod stm;7,110
-use cal_machine::Error;9,120
+mod papirus_in;7,110
+mod stm;8,126
+use cal_machine::Error;10,136
 
-src/display.rs,658
+src/display.rs,720
 use crate::err;1,0
 use serde::Serialize;2,16
 use serde_json::error::Error as SerdeError;3,38
@@ -72,20 +98,22 @@ pub enum Operation 12,246
     AddText(13,267
     AddText(String,13,267
     AddText(String, Pos,13,267
-    AddText(String, Pos, Id)13,267
-    UpdateText(14,297
-    UpdateText(Id,14,297
-    UpdateText(Id, String)14,297
-    RemoveText(15,325
-    RemoveText(Id)15,325
-    Clear,16,345
-    WriteAll,17,356
-type Id 20,373
-pub struct Pos(pub u32, pub u32)23,413
-pub struct RenderPipeline 30,512
-    stream: BufWriter<BufWriter31,540
+    AddText(String, Pos, Size,13,267
+    AddText(String, Pos, Size, Id)13,267
+    UpdateText(14,303
+    UpdateText(Id,14,303
+    UpdateText(Id, String)14,303
+    RemoveText(15,331
+    RemoveText(Id)15,331
+    Clear,16,351
+    WriteAll,17,362
+type Id 20,379
+type Size 21,397
+pub struct Pos(pub u32, pub u32)24,436
+pub struct RenderPipeline 31,535
+    stream: BufWriter<BufWriter32,563
 
-src/cal_machine/retriever.rs,2441
+src/cal_machine/retriever.rs,2571
 use chrono::prelude:chrono::prelude1,0
 use reqwest:reqwest2,24
 use serde::Deserialize;3,63
@@ -120,35 +148,38 @@ pub struct EventRetriever 38,1569
     client: Client,39,1597
 pub struct DeviceUserCodeResponse 115,4227
     pub device_code: String,116,4263
-    user_code: String,117,4292
-    expires_in: u32,118,4315
-    pub interval: u32,119,4336
-    verification_url: String,120,4359
-pub const QUOTA_EXCEEDED_ERROR_CODE: &str str123,4392
-pub struct DeviceUserCodeErrorResponse 125,4489
-    pub error_code: String,126,4530
-pub struct PollResponse 130,4591
-    pub access_token: String,131,4617
-    pub refresh_token: String,132,4647
-    pub expires_in: u32,133,4678
-    pub token_type: String,134,4703
-pub struct RefreshResponse 138,4764
-    pub access_token: String,139,4793
-    pub expires_in: u32,140,4823
-    pub token_type: String,141,4848
-pub struct PollErrorResponse 145,4909
-    pub error: String,146,4940
-    pub error_description: String,147,4963
-pub struct DateTimeStamp 152,5066
-    pub date_time: String,154,5129
-pub struct Event 158,5189
-    pub summary: String,159,5208
-    pub description: Option<Option160,5233
-    pub start: DateTimeStamp,161,5270
-    pub end: DateTimeStamp,162,5300
-pub struct EventsResponse 167,5396
-    pub next_page_token: Option<Option168,5424
-    pub items: Vec<Vec169,5465
+    pub user_code: String,117,4292
+    pub expires_in: i64,118,4319
+    pub interval: u32,119,4344
+    pub verification_url: String,120,4367
+pub const QUOTA_EXCEEDED_ERROR_CODE: &str str123,4404
+pub struct DeviceUserCodeErrorResponse 125,4501
+    pub error_code: String,126,4542
+pub struct PollResponse 130,4603
+    pub access_token: String,131,4629
+    pub refresh_token: String,132,4659
+    pub expires_in: u64,133,4690
+    pub token_type: String,134,4715
+pub struct RefreshResponse 138,4776
+    pub access_token: String,139,4805
+    pub expires_in: u64,140,4835
+    pub token_type: String,141,4860
+pub struct PollErrorResponse 145,4921
+    pub error: String,146,4952
+    pub error_description: String,147,4975
+pub struct DateTimeStamp 152,5078
+    pub date_time: String,154,5141
+pub struct PersonalIdentifier 158,5216
+    pub email: String,159,5248
+pub struct Event 163,5304
+    pub summary: String,164,5323
+    pub description: Option<Option165,5348
+    pub creator: PersonalIdentifier,166,5385
+    pub start: DateTimeStamp,167,5422
+    pub end: DateTimeStamp,168,5452
+pub struct EventsResponse 173,5548
+    pub next_page_token: Option<Option174,5576
+    pub items: Vec<Vec175,5617
 
 src/err.rs,126
         pub enum $enum_name 14,486
@@ -156,23 +187,36 @@ src/err.rs,126
                 $var(16,531
                 $var($embedded)16,531
 
-src/cal_display.rs,550
+src/cal_display.rs,948
 use crate::display::Operation as Op;1,0
 use crate:crate2,37
-use chrono::prelude:chrono::prelude3,82
-pub struct Renderer 5,107
-    pipe: RenderPipeline,6,129
-const HEADING_ID: &str str9,158
-const EVENTS_ID: &str str10,194
-const HEADING_POS: Pos 12,229
-const EVENTS_POS: Pos 13,266
-const DATE_FORMAT: &str str15,302
-const TIME_FORMAT: &str str16,340
-const NO_EVENTS: &str str18,376
-const START_DELIMITER: &str str19,413
-const SUMMARY_DELIMITER: &str str20,450
-const DESC_DELIMITER: &str str21,488
-const TIME_LEN: usize 23,524
+use chrono::prelude:chrono::prelude6,121
+pub struct Renderer 8,146
+    pipe: RenderPipeline,9,168
+const HEADING_ID: &str str12,197
+const EMAIL_ID: &str str13,233
+const EVENTS_ID: &str str14,265
+const HEADING_POS: Pos 16,300
+const EMAIL_POS: Pos 17,336
+const EVENTS_POS: Pos 18,372
+const INSTR1_POS: Pos 19,408
+const CODE_POS: Pos 20,445
+const INSTR2_POS: Pos 21,480
+const EXPIRY_POS: Pos 22,518
+const LARGE_SIZE: u32=24,557
+const SMALL_SIZE: u32=25,584
+const INSTR_SIZE: u32=26,610
+const HEADING_SIZE: u32 27,636
+const EMAIL_SIZE: u32 28,666
+const EVENTS_SIZE: u32 29,694
+const DATE_FORMAT: &str str31,724
+const TIME_FORMAT: &str str32,759
+const NO_EMAIL: &str str34,795
+const NO_EVENTS: &str str35,839
+const START_DELIMITER: &str str36,876
+const END_DELIMITER: &str str37,911
+const SUMMARY_DELIMITER: &str str38,944
+const TIME_LEN: usize 41,1018
 
 src/stm.rs,0
 

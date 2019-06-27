@@ -10,13 +10,12 @@ digraph cal_stm {
     RequestCodes[label="RequestCodes"][shape="ellipse"];
     Save[label="Save"][shape="ellipse"];
     Wait[label="Wait"][shape="ellipse"];
-    Wipe[label="Wipe"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> Load[label=""];
     ErrorWait -> Load[label=""];
     DisplayError -> ErrorWait[label="WaitingFrom\n"];
     Load -> RequestCodes[label=""];
-    Wipe -> RequestCodes[label=""];
+    Wait -> RequestCodes[label=""];
     Load -> Refresh[label="RefreshToken\n"];
     Wait -> Refresh[label="RefreshToken\n"];
     Refresh -> ReadFirst[label="Authenticators\nRefreshedAt\n"];
@@ -33,5 +32,4 @@ digraph cal_stm {
     ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\n"];
     Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\n"];
     Display -> Wait[label="Authenticators\nRefreshedAt\nWaitingFrom\n"];
-    Wait -> Wipe[label=""];
 }
