@@ -8,8 +8,7 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, button_stm, Button, Error as GPIO_Error, Machine::*, Pin, GPIO, SW1_GPIO, SW2_GPIO,
-        SW3_GPIO, SW4_GPIO,
+        self, Button, Error as GPIO_Error, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
     stm,
 };
@@ -27,7 +26,7 @@ use std::{
 
 stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(WaitingFrom);
-    [Load, Wait] => RequestCodes();
+    [ErrorWait, Load, Wait] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
     [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
     [RequestCodes] => Poll(String, PeriodSeconds);
@@ -41,8 +40,10 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-const FOUR_MINS_S: PeriodSeconds = 240;
-const REFRESH_PERIOD_S: PeriodSeconds = 300;
+const FOUR_MINS: Duration=Duration::from_secs(240);
+const RECHECK_PERIOD: Duration=Duration::from_secs(300);
+const BUTTON_POLL_PERIOD: Duration=Duration::from_millis(75);
+
 
 err!(Error {
     Chrono(ParseError),
@@ -249,7 +250,7 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
 pub fn run() -> Result<(), Error> {
     use Machine::*;
 
-    let today = Local::today().and_hms(0, 0, 0);
+    let mut display_date = Local::today().and_hms(0, 0, 0);
     let config_file = Path::new("config.json");
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
@@ -258,9 +259,15 @@ pub fn run() -> Result<(), Error> {
         let mut f = File::create("docs/cal_machine.dot")?;
         Machine::render_to(&mut f);
         f.flush()?;
+
         f = File::create("docs/ev_stm.dot")?;
         evs::Machine::render_to(&mut f);
         f.flush()?;
+
+        f = File::create("docs/button_stm.dot")?;
+        papirus_in::Machine::render_to(&mut f);
+        f.flush()?;
+
         Ok(())
     } else {
         use reqwest::{Response, StatusCode};
@@ -276,10 +283,9 @@ pub fn run() -> Result<(), Error> {
         println!("after renderer");
         let mut gpio = GPIO::new()?;
         println!("after gpio init");
-        let mut reset_button = Button {
-            pin: Pin(SW4_GPIO),
-            state: papirus_in::Machine::NotPressed(button_stm::NotPressed),
-        };
+        let mut reset_button = Button::new(Pin(SW3_GPIO));
+        let mut back_button = Button::new(Pin(SW4_GPIO));
+        let mut next_button = Button::new(Pin(SW1_GPIO));
         println!("after reset_button init");
         loop {
             mach = match mach {
@@ -356,11 +362,7 @@ pub fn run() -> Result<(), Error> {
                             }
                         }
                         other_status => {
-                            let body: PollErrorResponse = resp.json()?;
-                            let err_msg = format!(
-                                "When refreshing status: {:?} body: {:?}",
-                                other_status, body
-                            );
+                            let err_msg = format!("When refreshing status: {:?}", other_status);
                             DisplayError(st.into(), err_msg)
                         }
                     }
@@ -385,39 +387,44 @@ pub fn run() -> Result<(), Error> {
                                 Save(st.into(), credentials_tokens.into())
                             }
                         }
-                        other_status => {
-                            let body: PollErrorResponse = resp.json()?;
-                            eprintln!("Error when polling: {:?}", body);
-                            match other_status {
-                                StatusCode::FORBIDDEN if body.error == ACCESS_DENIED_ERROR => {
-                                    DisplayError(st.into(), ACCESS_DENIED.to_string())
-                                }
-                                StatusCode::BAD_REQUEST
-                                    if body.error == AUTHORISATION_PENDING_ERROR =>
-                                {
-                                    Poll(st, device_code, delay_s)
-                                }
-                                StatusCode::PRECONDITION_REQUIRED
-                                    if body.error == AUTHORISATION_PENDING_ERROR =>
-                                {
-                                    Poll(st, device_code, delay_s)
-                                }
-                                StatusCode::TOO_MANY_REQUESTS
-                                    if body.error == POLLING_TOO_FREQUENTLY_ERROR =>
-                                {
-                                    Poll(st, device_code, delay_s * 2)
-                                }
-                                _otherwise => DisplayError(
-                                    st.into(),
-                                    format!(
-                                        "HTTP error: {}, {}, {}",
-                                        other_status.as_u16(),
-                                        body.error,
-                                        body.error_description
+                        other_status => match resp.json::<PollErrorResponse>() {
+                            Ok(body) => {
+                                eprintln!("Error when polling: {:?}", body);
+                                match other_status {
+                                    StatusCode::FORBIDDEN if body.error == ACCESS_DENIED_ERROR => {
+                                        DisplayError(st.into(), ACCESS_DENIED.to_string())
+                                    }
+                                    StatusCode::BAD_REQUEST
+                                        if body.error == AUTHORISATION_PENDING_ERROR =>
+                                    {
+                                        Poll(st, device_code, delay_s)
+                                    }
+                                    StatusCode::PRECONDITION_REQUIRED
+                                        if body.error == AUTHORISATION_PENDING_ERROR =>
+                                    {
+                                        Poll(st, device_code, delay_s)
+                                    }
+                                    StatusCode::TOO_MANY_REQUESTS
+                                        if body.error == POLLING_TOO_FREQUENTLY_ERROR =>
+                                    {
+                                        Poll(st, device_code, delay_s * 2)
+                                    }
+                                    _otherwise => DisplayError(
+                                        st.into(),
+                                        format!(
+                                            "HTTP error: {}, {}, {}",
+                                            other_status.as_u16(),
+                                            body.error,
+                                            body.error_description
+                                        ),
                                     ),
-                                ),
+                                }
                             }
-                        }
+                            Err(error) => DisplayError(
+                                st.into(),
+                                format!("HTTP error: {}, {:?}", other_status.as_u16(), error),
+                            ),
+                        },
                     }
                 }
                 Save(st, credentials) => {
@@ -427,8 +434,8 @@ pub fn run() -> Result<(), Error> {
                 ReadFirst(st, credentials_tokens, refreshed_at) => {
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
-                        &today,
-                        &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                        &display_date,
+                        &(display_date + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
                         &Option::<PageToken>::None,
                     )?;
                     let status = resp.status();
@@ -466,8 +473,9 @@ pub fn run() -> Result<(), Error> {
                     } else {
                         let mut resp: Response = retriever.read(
                             &format!("Bearer {}", credentials_tokens.volatiles.access_token),
-                            &today,
-                            &(today + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                            &display_date,
+                            &(display_date + chrono::Duration::days(1)
+                                - chrono::Duration::seconds(1)),
                             &page_token,
                         )?;
                         let status = resp.status();
@@ -496,35 +504,41 @@ pub fn run() -> Result<(), Error> {
                 }
                 Display(st, credentials, apps, refreshed_at) => {
                     println!("Retrieved events: {:?}", apps.events);
-                    renderer.display_events(&today, &apps)?;
+                    renderer.display_events(&display_date, &apps)?;
                     Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
                 }
                 Wait(st, credentials, refreshed_at, started_wait_at) => {
-                    if reset_button.long_press(&mut gpio) {
-                        RequestCodes(st.into())
+                    let waiting_for = started_wait_at.instant().elapsed();
+                    let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
+
+                    if (elapsed_since_token_refresh + FOUR_MINS).as_secs()
+                        >= credentials.volatiles.expires_in
+                    {
+                        Refresh(st.into(), credentials.refresh_token)
                     } else {
-                        let waiting_for = started_wait_at.instant().elapsed().as_secs();
-                        if waiting_for >= REFRESH_PERIOD_S {
-                            let elapsed_since_token_refresh =
-                                refreshed_at.instant().elapsed().as_secs();
-                            let expires_in = credentials.volatiles.expires_in;
-                            if expires_in < FOUR_MINS_S
-                                || elapsed_since_token_refresh
-                                    >= credentials.volatiles.expires_in - FOUR_MINS_S
-                            {
-                                Refresh(st.into(), credentials.refresh_token)
-                            } else {
-                                ReadFirst(st.into(), credentials, refreshed_at)
-                            }
+                        thread::sleep(BUTTON_POLL_PERIOD);
+                        //thread::sleep(Duration::from_millis(BUTTON_POLL_PERIOD));
+                        if reset_button.long_press(&mut gpio) {
+                            RequestCodes(st.into())
+                        } else if back_button.short_press(&mut gpio) {
+                            display_date = display_date - chrono::Duration::days(1);
+                            ReadFirst(st.into(), credentials, refreshed_at)
+                        } else if next_button.short_press(&mut gpio) {
+                            display_date = display_date + chrono::Duration::days(1);
+                            ReadFirst(st.into(), credentials, refreshed_at)
+                        } else if waiting_for >= RECHECK_PERIOD {
+                            ReadFirst(st.into(), credentials, refreshed_at)
                         } else {
                             Wait(st, credentials, refreshed_at, started_wait_at)
                         }
                     }
                 }
                 ErrorWait(st, started_wait_at) => {
-                    let waiting_for = started_wait_at.instant().elapsed().as_secs();
-                    if waiting_for >= REFRESH_PERIOD_S {
+                    let waiting_for = started_wait_at.instant().elapsed();
+                    if waiting_for >= RECHECK_PERIOD {
                         Load(st.into())
+                    } else if reset_button.long_press(&mut gpio) {
+                        RequestCodes(st.into())
                     } else {
                         ErrorWait(st, started_wait_at)
                     }

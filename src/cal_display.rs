@@ -31,7 +31,7 @@ const EVENTS_SIZE: u32 = 16;
 const DATE_FORMAT: &str = "%e %b";
 const TIME_FORMAT: &str = "%H:%M";
 
-const NO_EMAIL: &str = "Multiple accounts";
+const NO_EMAIL: &str = "Email unknown";
 const NO_EVENTS: &str = "No events";
 const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";

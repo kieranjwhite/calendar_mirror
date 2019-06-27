@@ -23,25 +23,6 @@ err!(Error {
     InvalidPin(Pin)
 });
 
-/*
-pub const SW1: Button = Button {
-    pin: Pin(16),
-    state: NotPressed(button_stm::NotPressed),
-};
-pub const SW2: Button = Button {
-    pin: Pin(26),
-    state: NotPressed(button_stm::NotPressed),
-};
-pub const SW3: Button = Button {
-    pin: Pin(20),
-    state: NotPressed(button_stm::NotPressed),
-};
-*/
-pub const SW4: Button = Button {
-    pin: Pin(21),
-    state: NotPressed(button_stm::NotPressed),
-};
-
 pub const SHORT_PRESS_DURATION: Duration = Duration::from_millis(150);
 pub const LONG_PRESS_DURATION: Duration = Duration::from_secs(4);
 
@@ -55,6 +36,13 @@ pub struct Button {
 }
 
 impl Button {
+    pub fn new(pin: Pin) -> Button {
+        Button {
+            pin,
+            state: Machine::NotPressed(button_stm::NotPressed),            
+        }
+    }
+    
     fn pressing_transition(&mut self) -> bool {
         println!("presssing transition");
         let mut result = true;
