@@ -43,7 +43,7 @@ type AuthTokens = (RefreshToken, RefreshResponse);
 
 const FOUR_MINS: Duration = Duration::from_secs(240);
 const RECHECK_PERIOD: Duration = Duration::from_secs(300);
-const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(50);
+const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
 
 err!(Error {
     Chrono(ParseError),
@@ -530,7 +530,7 @@ pub fn run() -> Result<(), Error> {
                             println!("full display refresh");
                             ReadFirst(st.into(), credentials, refreshed_at)
                         } else if back_button.short_press(&mut gpio)? == JustPressed
-                            || back_button.short_press(&mut gpio)? == AlreadyPressed
+//                            || back_button.short_press(&mut gpio)? == AlreadyPressed
                         {
                             display_date = display_date - chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
@@ -538,7 +538,7 @@ pub fn run() -> Result<(), Error> {
                             renderer.refresh_date(&display_date)?;
                             Wait(st, credentials, refreshed_at, started_wait_at)
                         } else if next_button.short_press(&mut gpio)? == JustPressed
-                            || next_button.short_press(&mut gpio)? == AlreadyPressed
+//                            || next_button.short_press(&mut gpio)? == AlreadyPressed
                         {
                             display_date = display_date + chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
