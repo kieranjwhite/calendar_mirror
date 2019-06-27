@@ -86,11 +86,24 @@ impl Renderer {
         ops.push(Op::AddText(user_code.to_string(), CODE_POS, LARGE_SIZE, "Code".to_string()));
         ops.push(Op::AddText(format!("at {}", url), INSTR2_POS, SMALL_SIZE, "Instr2".to_string()));
         ops.push(Op::AddText(format!("before {}", expires_at.format(TIME_FORMAT).to_string()), EXPIRY_POS, SMALL_SIZE, "Expiry".to_string()));
-        ops.push(Op::WriteAll);
+        ops.push(Op::WriteAll(PartialUpdate(false)));
 
         self.pipe.send(ops.iter())?;
 
         Ok(())
+    }
+
+    pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
+        let mut ops: Vec<Op> = Vec::with_capacity(5);
+
+        let heading = date.format(DATE_FORMAT).to_string();
+        ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
+
+        ops.push(Op::UpdateText(EMAIL_ID.to_string(), "".to_string()));
+        ops.push(Op::UpdateText(EVENTS_ID.to_string(), "".to_string()));
+        ops.push(Op::WriteAll(PartialUpdate(true)));
+        
+        self.pipe.send(ops.iter())
     }
     
     pub fn display_events(&mut self, date: &DateTime<Local>, apps: &Appointments) -> Result<(), Error> {
@@ -147,10 +160,8 @@ impl Renderer {
                 EVENTS_ID.to_string(),
             ));
         }
-        ops.push(Op::WriteAll);
+        ops.push(Op::WriteAll(PartialUpdate(false)));
 
-        self.pipe.send(ops.iter())?;
-
-        Ok(())
+        self.pipe.send(ops.iter())
     }
 }

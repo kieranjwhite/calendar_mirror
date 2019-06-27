@@ -14,11 +14,14 @@ pub enum Operation {
     UpdateText(Id, String),
     RemoveText(Id),
     Clear,
-    WriteAll,
+    WriteAll(PartialUpdate),
 }
 
 type Id = String;
 type Size = u32;
+
+#[derive(Serialize)]
+pub struct PartialUpdate(pub bool);
 
 #[derive(Serialize)]
 pub struct Pos(pub u32, pub u32);

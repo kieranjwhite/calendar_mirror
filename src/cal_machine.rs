@@ -8,7 +8,8 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, Button, Error as GPIO_Error, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
+        self, Button, ButtonCondition::*, Error as GPIO_Error, Pin, GPIO, SW1_GPIO, SW2_GPIO,
+        SW3_GPIO, SW4_GPIO,
     },
     stm,
 };
@@ -40,10 +41,9 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-const FOUR_MINS: Duration=Duration::from_secs(240);
-const RECHECK_PERIOD: Duration=Duration::from_secs(300);
-const BUTTON_POLL_PERIOD: Duration=Duration::from_millis(75);
-
+const FOUR_MINS: Duration = Duration::from_secs(240);
+const RECHECK_PERIOD: Duration = Duration::from_secs(300);
+const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(50);
 
 err!(Error {
     Chrono(ParseError),
@@ -517,17 +517,35 @@ pub fn run() -> Result<(), Error> {
                         Refresh(st.into(), credentials.refresh_token)
                     } else {
                         thread::sleep(BUTTON_POLL_PERIOD);
-                        //thread::sleep(Duration::from_millis(BUTTON_POLL_PERIOD));
-                        if reset_button.long_press(&mut gpio) {
+                        if reset_button.long_press(&mut gpio)? == JustPressed {
                             RequestCodes(st.into())
-                        } else if back_button.short_press(&mut gpio) {
+                        } else if reset_button.short_press(&mut gpio)? == JustPressed {
+                            println!("full display & date refresh");
+                            display_date = Local::today().and_hms(0, 0, 0);
+                            ReadFirst(st.into(), credentials, refreshed_at)
+                        } else if back_button.longish_release(&mut gpio)? == JustReleased
+                            || next_button.longish_release(&mut gpio)? == JustReleased
+                            || waiting_for >= RECHECK_PERIOD
+                        {
+                            println!("full display refresh");
+                            ReadFirst(st.into(), credentials, refreshed_at)
+                        } else if back_button.short_press(&mut gpio)? == JustPressed
+                            || back_button.short_press(&mut gpio)? == AlreadyPressed
+                        {
                             display_date = display_date - chrono::Duration::days(1);
-                            ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if next_button.short_press(&mut gpio) {
+                            //ReadFirst(st.into(), credentials, refreshed_at)
+                            println!("New date: {:?}", display_date);
+                            renderer.refresh_date(&display_date)?;
+                            Wait(st, credentials, refreshed_at, started_wait_at)
+                        } else if next_button.short_press(&mut gpio)? == JustPressed
+                            || next_button.short_press(&mut gpio)? == AlreadyPressed
+                        {
                             display_date = display_date + chrono::Duration::days(1);
-                            ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if waiting_for >= RECHECK_PERIOD {
-                            ReadFirst(st.into(), credentials, refreshed_at)
+                            //ReadFirst(st.into(), credentials, refreshed_at)
+                            renderer.refresh_date(&display_date)?;
+                            Wait(st, credentials, refreshed_at, started_wait_at)
+                        //} else if waiting_for >= RECHECK_PERIOD {
+                        //    ReadFirst(st.into(), credentials, refreshed_at)
                         } else {
                             Wait(st, credentials, refreshed_at, started_wait_at)
                         }
@@ -537,10 +555,13 @@ pub fn run() -> Result<(), Error> {
                     let waiting_for = started_wait_at.instant().elapsed();
                     if waiting_for >= RECHECK_PERIOD {
                         Load(st.into())
-                    } else if reset_button.long_press(&mut gpio) {
-                        RequestCodes(st.into())
                     } else {
-                        ErrorWait(st, started_wait_at)
+                        thread::sleep(BUTTON_POLL_PERIOD);
+                        if reset_button.long_press(&mut gpio)? == JustPressed {
+                            RequestCodes(st.into())
+                        } else {
+                            ErrorWait(st, started_wait_at)
+                        }
                     }
                 }
                 DisplayError(st, message) => {

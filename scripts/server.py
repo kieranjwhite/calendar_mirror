@@ -9,7 +9,7 @@ render_lookups={
     'UpdateText': lambda p, ident, new_text: p.UpdateText(ident, new_text),
     'RemoveText': lambda p, ident: p.RemoveText(ident),
     'Clear': lambda p: p.Clear(),
-    'WriteAll': lambda p: p.WriteAll(),
+    'WriteAll': lambda p, partial_update: p.WriteAll(partial_update),
 }
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -18,8 +18,14 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             render_lookups[op](page)
         else:
             enum_name=[*op][0]
-            render_lookups[enum_name](*([page]+op[enum_name]))
-            
+            if isinstance(op[enum_name], list):
+                #assumes we're receiving a tuple struct with multiple elements - the elements are serialised by serde as a list
+                render_lookups[enum_name](*([page]+op[enum_name]))
+            else:
+                #assumes we're receiving a tuple struct with one element - the element serialised by serde as a scalar
+                #import pdb; pdb.set_trace()
+                render_lookups[enum_name](page, op[enum_name])
+                
     def handle(self):
         page = PapirusTextPos(False)
         

@@ -1,5 +1,4 @@
 use crate::{err, stm};
-use Machine::*;
 use memmap::{Mmap, MmapOptions};
 use std::{
     cmp::Ordering,
@@ -8,27 +7,38 @@ use std::{
     ptr::read_volatile,
     time::{Duration, Instant},
 };
+use Machine::*;
 
 const BLOCK_SIZE: usize = 4 * 1024;
 const PIN_COUNT: usize = 28;
 const READ_REG_OFFSET: usize = 13;
 
-pub const SW1_GPIO: usize=16;
-pub const SW2_GPIO: usize=26;
-pub const SW3_GPIO: usize=20;
-pub const SW4_GPIO: usize=21;
+pub const SW1_GPIO: usize = 16;
+pub const SW2_GPIO: usize = 26;
+pub const SW3_GPIO: usize = 20;
+pub const SW4_GPIO: usize = 21;
 
 err!(Error {
     File(io::Error),
     InvalidPin(Pin)
 });
 
-pub const SHORT_PRESS_DURATION: Duration = Duration::from_millis(150);
-pub const LONG_PRESS_DURATION: Duration = Duration::from_secs(4);
+pub const SHORT_DURATION: Duration = Duration::from_millis(100);
+pub const LONGISH_DURATION: Duration = Duration::from_millis(1500);
+pub const LONG_DURATION: Duration = Duration::from_secs(4);
 
 stm!(button_stm, Machine, [Pressed] => NotPressed(), {
     [NotPressed] => Pressed()
 });
+
+#[derive(PartialEq,Eq)]
+pub enum ButtonCondition {
+    AlreadyPressed,
+    JustPressed,
+    AlreadyReleased,
+    JustReleased,
+    Pending
+}
 
 pub struct Button {
     pub pin: Pin,
@@ -39,18 +49,22 @@ impl Button {
     pub fn new(pin: Pin) -> Button {
         Button {
             pin,
-            state: Machine::NotPressed(button_stm::NotPressed),            
+            state: Machine::NotPressed(button_stm::NotPressed),
         }
     }
-    
+
     fn pressing_transition(&mut self) -> bool {
+        //returns true if the just the state can transition from NotPressed to Pressed (if it was already Pressed, or isn't currently pressed false is returned)
         println!("presssing transition");
         let mut result = true;
         use std::mem::replace;
         let mut state = replace(&mut self.state, NotPressed(button_stm::NotPressed));
 
         state = match state {
-            NotPressed(st) => {println!("first press detected"); Pressed(st.into())},
+            NotPressed(st) => {
+                println!("first press detected");
+                Pressed(st.into())
+            }
             Pressed(st) => {
                 result = false;
                 Pressed(st)
@@ -61,39 +75,77 @@ impl Button {
         result
     }
 
-    fn not_pressing_transition(&mut self) -> bool {
+    fn releasing_transition(&mut self) -> bool {
+        //returns true if the just the state can transition from Pressed to NotPressed (if it was already NotPressed, or is currently pressed false is returned)
+        let mut result = true;
         use std::mem::replace;
         let mut state = replace(&mut self.state, NotPressed(button_stm::NotPressed));
 
         state = match state {
-            NotPressed(st) => NotPressed(st),
-            Pressed(st) => NotPressed(st.into()),
+            NotPressed(st) => {
+                result = false;
+                NotPressed(st)
+            }
+            Pressed(st) => {
+                println!("button: {:?} just releasing now", self.pin);
+                NotPressed(st.into())
+            },
         };
 
         replace(&mut self.state, state);
-        false
+        result
     }
 
-    fn press_duration(&mut self, ports: &mut GPIO, min_duration: &Duration) -> bool {
-        match ports.pinin(&self.pin) {
-            Ok((true, press_duration)) if min_duration.cmp(&press_duration) == Ordering::Less => {
-                println!("press duration exceeded: min: {:?} pressed: {:?}", min_duration, press_duration);
-                self.pressing_transition()
+    fn press_duration(&mut self, ports: &mut GPIO, min_duration: &Duration) -> Result<ButtonCondition, Error> {
+        let pressing = ports.pinin(&self.pin)?;
+        match pressing {
+            (true, press_duration) if min_duration.cmp(&press_duration) == Ordering::Less => {
+                Ok(if self.pressing_transition() {
+                    ButtonCondition::JustPressed
+                } else {
+                    ButtonCondition::AlreadyPressed
+                })
             }
-            _ => self.not_pressing_transition(),
+            _ => {
+                Ok(ButtonCondition::Pending)
+            }
         }
     }
-    
-    pub fn short_press(&mut self, ports: &mut GPIO) -> bool {
-        self.press_duration(ports, &SHORT_PRESS_DURATION)
+
+    fn release_duration(&mut self, ports: &mut GPIO, min_duration: &Duration) -> Result<ButtonCondition, Error> {
+        let pressing = ports.pinin(&self.pin)?;
+        match pressing {
+            (false, release_duration) if min_duration.cmp(&release_duration) == Ordering::Less => {
+                //println!(
+                //    "release duration exceeded: min: {:?} released: {:?}",
+                //    min_duration, release_duration
+                //);
+                Ok(if self.releasing_transition() {
+                    ButtonCondition::JustReleased
+                } else {
+                    ButtonCondition::AlreadyReleased
+                })
+            },
+            _ => {
+                Ok(ButtonCondition::Pending)
+            }
+        }
     }
 
-    pub fn long_press(&mut self, ports: &mut GPIO) -> bool {
-        self.press_duration(ports, &LONG_PRESS_DURATION)
+    pub fn short_press(&mut self, ports: &mut GPIO) -> Result<ButtonCondition,Error> {
+        self.press_duration(ports, &SHORT_DURATION)
+    }
+
+    pub fn long_press(&mut self, ports: &mut GPIO) -> Result<ButtonCondition,Error> {
+        self.press_duration(ports, &LONG_DURATION)
+    }
+
+    pub fn longish_release(&mut self, ports: &mut GPIO) -> Result<ButtonCondition,Error> {
+        self.release_duration(ports, &LONGISH_DURATION)
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Pin(pub usize);
 
 pub struct GPIO {
@@ -104,9 +156,7 @@ pub struct GPIO {
 impl GPIO {
     pub fn new() -> Result<GPIO, Error> {
         let f = File::open("/dev/gpiomem")?;
-        let mmap = unsafe {
-            MmapOptions::new().len(BLOCK_SIZE).map(&f)?
-        };
+        let mmap = unsafe { MmapOptions::new().len(BLOCK_SIZE).map(&f)? };
 
         let t = Instant::now();
         let mut instance = GPIO {
@@ -115,9 +165,9 @@ impl GPIO {
         };
 
         let val = instance.value();
-        let mut gpio_num :usize= 0;
+        let mut gpio_num: usize = 0;
         while gpio_num < PIN_COUNT {
-            instance.snap[gpio_num] = (GPIO::bit(val, &Pin(gpio_num )), t.clone());
+            instance.snap[gpio_num] = (GPIO::bit(val, &Pin(gpio_num)), t.clone());
             gpio_num += 1;
         }
 
