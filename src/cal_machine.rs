@@ -8,8 +8,8 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent::*, LongPressButton,
-        LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
+        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongButtonEvent::*,
+        LongPressButton, LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
     stm,
 };
@@ -244,6 +244,13 @@ impl From<&retriever::Event> for Result<Event, ParseError> {
             start: ev.start.date_time.parse()?,
             end: ev.end.date_time.parse()?,
         })
+    }
+}
+
+fn opt_filter<T>(val: &Option<T>, pred: impl Fn(&T) -> bool) -> bool {
+    match val {
+        None => false,
+        Some(inner) => pred(inner),
     }
 }
 
@@ -535,43 +542,30 @@ pub fn run() -> Result<(), Error> {
                         let reset_event = reset_button.event(&mut gpio)?;
                         let back_event = back_button.event(&mut gpio)?;
                         let next_event = next_button.event(&mut gpio)?;
-                        if reset_event == Some(LongPress) {
+
+                        let short_check = |e: &LongButtonEvent| e.is_short_press();
+                        let release_check = |e: &LongButtonEvent| e.is_release();
+                        let long_check = |e: &LongButtonEvent| e.is_long_press();
+
+                        if opt_filter(&reset_event, long_check) {
                             RequestCodes(st.into())
-                        } else if match reset_event {
-                            Some(Pressed) => true,
-                            Some(PressAndRelease) => true,
-                            _ => false,
-                        } {
+                        } else if opt_filter(&reset_event, short_check) {
                             println!("full display & date refresh");
                             display_date = Local::today().and_hms(0, 0, 0);
                             ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if match back_event {
-                            Some(Release) => true,
-                            Some(PressAndRelease) => true,
-                            _ => false,
-                        } || match next_event {
-                            Some(Release) => true,
-                            Some(PressAndRelease) => true,
-                            _ => false,
-                        } || waiting_for >= RECHECK_PERIOD
+                        } else if opt_filter(&back_event, release_check)
+                            || opt_filter(&next_event, release_check)
+                            || waiting_for >= RECHECK_PERIOD
                         {
                             println!("full display refresh");
                             ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if match back_event {
-                            Some(Pressed) => true,
-                            Some(PressAndRelease) => true,
-                            _ => false,
-                        } {
+                        } else if opt_filter(&back_event, short_check) {
                             display_date = display_date - chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
                             println!("New date: {:?}", display_date);
                             renderer.refresh_date(&display_date)?;
                             Wait(st, credentials, refreshed_at, started_wait_at)
-                        } else if match next_event {
-                            Some(Pressed) => true,
-                            Some(PressAndRelease) => true,
-                            _ => false,
-                        } {
+                        } else if opt_filter(&next_event, short_check) {
                             display_date = display_date + chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
                             renderer.refresh_date(&display_date)?;
@@ -589,7 +583,8 @@ pub fn run() -> Result<(), Error> {
                         Load(st.into())
                     } else {
                         thread::sleep(BUTTON_POLL_PERIOD);
-                        if reset_button.event(&mut gpio)? == Some(LongPress) {
+                        let reset_event = reset_button.event(&mut gpio)?;
+                        if opt_filter(&reset_event, |e| e.is_long_press()) {
                             RequestCodes(st.into())
                         } else {
                             ErrorWait(st, started_wait_at)

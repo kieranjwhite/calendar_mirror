@@ -32,12 +32,37 @@ stm!(long_press_button_stm, LongPressMachine, [ReleasePending, PressedPending, L
     [NotPressed, ReleasePending, PressedPending]=>LongPressed()
 });
 
-#[derive(Eq,PartialEq)]
+#[derive(Eq, PartialEq)]
 pub enum LongButtonEvent {
     Pressed,
     LongPress,
     Release,
     PressAndRelease,
+}
+
+impl LongButtonEvent {
+    pub fn is_short_press(&self) -> bool {
+        match self {
+            LongButtonEvent::Pressed => true,
+            LongButtonEvent::PressAndRelease => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_long_press(&self) -> bool {
+        match self {
+            LongButtonEvent::LongPress => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_release(&self) -> bool {
+        match self {
+            LongButtonEvent::Release => true,
+            LongButtonEvent::PressAndRelease => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct DetectableDuration(pub Duration);
@@ -72,7 +97,10 @@ impl Button<LongButtonEvent> for LongPressButton {
         let (pressing, duration) = ports.pinin(&self.pin)?;
         let mut event: Option<LongButtonEvent> = None;
         use std::mem::replace;
-        let mut state = replace(&mut self.state, NotPressed(long_press_button_stm::NotPressed));
+        let mut state = replace(
+            &mut self.state,
+            NotPressed(long_press_button_stm::NotPressed),
+        );
         /*
                 if !pressing {
                     if duration<self.long_release_after {
