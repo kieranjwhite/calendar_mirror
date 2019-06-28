@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from collections import namedtuple
 from papirus import PapirusTextPos
 

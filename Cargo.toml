@@ -12,6 +12,7 @@ reqwest="0.9.18"
 chrono="0.4"
 dot = "0.1.4"
 memmap="0.7.0"
+nix = "0.14.1"
 
 [features]
 render_stm = [] # feature has no explicit dependencies

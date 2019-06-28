@@ -240,6 +240,14 @@ pub struct GPIO {
 impl GPIO {
     pub fn new() -> Result<GPIO, Error> {
         let f = File::open("/dev/gpiomem")?;
+
+        // Reason that map function is unsafe:
+        // its return type Mmap implements the trait deref<Target=[u8]> which exposes
+        // references to referents that can mutated without the
+        // knowledge of the
+        // borrow checker. By wrapping in an unsafe block we are committing to
+        // preventing exposure of these references. We do allow access to the underlying
+        // data via a copy type (bools) but this should be okay.
         let mmap = unsafe { MmapOptions::new().len(BLOCK_SIZE).map(&f)? };
 
         let t = Instant::now();
@@ -259,6 +267,17 @@ impl GPIO {
     }
 
     fn value(&self) -> u32 {
+        // The following block is unsafe because (1))) read_volatile
+        // dereferences a pointer, and undefined behaviour can arise
+        // if that pointer is not valid (see
+        // https://doc.rust-lang.org/std/ptr/index.html#safety) or
+        // improperly aligned. If the function's return type was
+        // mutable (wihtout being tagged mut) this would also break
+        // the borrow checker.
+        //
+        // By wrapping in an unsafe block we are guaranteeing that
+        // address will always be properly aligned and valid. The
+        // return value (u32) is an immutable copy type.
         unsafe {
             let base = (&self.map).as_ptr() as *const u32;
             let address = base.add(READ_REG_OFFSET);

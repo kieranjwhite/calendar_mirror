@@ -47,6 +47,10 @@ impl Renderer {
         })
     }
 
+    pub fn wait_for_server() -> Result<(),Error> {
+        RenderPipeline::wait_for_server()
+    }
+    
     fn format(event: &Event) -> String {
         let mut event_str = String::with_capacity(
             TIME_LEN

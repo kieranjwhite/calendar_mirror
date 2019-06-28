@@ -2,10 +2,13 @@ use crate::err;
 use serde::Serialize;
 use serde_json::error::Error as SerdeError;
 use std::io::{self, BufWriter, Write};
-use std::net::TcpStream;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::slice::Iter;
+use std::time::Duration;
+use std::thread;
 
-pub const DRIVER_PORT: u16 = 6029;
+const DRIVER_PORT: u16 = 6029;
+const SERVER_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
 
 #[allow(dead_code)]
 #[derive(Serialize)]
@@ -37,9 +40,34 @@ pub struct RenderPipeline {
 
 impl RenderPipeline {
     pub fn new() -> Result<RenderPipeline, Error> {
+        let addr = SocketAddr::new(IpAddr::V4(SERVER_ADDR), DRIVER_PORT);
         Ok(RenderPipeline {
-            stream: BufWriter::new(TcpStream::connect(("127.0.0.1", DRIVER_PORT))?),
+            stream: BufWriter::new(TcpStream::connect(addr)?),
         })
+    }
+
+    pub fn wait_for_server() -> Result<(), Error> {
+        const CONNECT_INTERVAL: Duration=Duration::from_secs(1);
+        
+        let addr = SocketAddr::new(IpAddr::V4(SERVER_ADDR), DRIVER_PORT);
+        let mut retries = 5;
+        thread::sleep(CONNECT_INTERVAL);
+        println!("attempt. retries remaining: {}", retries);
+        let mut connection = TcpStream::connect(&addr);
+        loop {
+            if let Err(error) = connection {
+                if retries == 0 {
+                    return Err(error.into());
+                }
+                retries -= 1;
+            } else {
+                break;
+            }
+            thread::sleep(CONNECT_INTERVAL);
+            println!("another attempt. retries remaining: {}", retries);
+            connection = TcpStream::connect(&addr);
+        }
+        Ok(())
     }
 
     pub fn send(&mut self, els: Iter<Operation>) -> Result<(), Error> {

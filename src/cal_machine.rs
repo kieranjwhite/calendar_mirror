@@ -8,7 +8,7 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongButtonEvent::*,
+        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent,
         LongPressButton, LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
     stm,
@@ -257,11 +257,6 @@ fn opt_filter<T>(val: &Option<T>, pred: impl Fn(&T) -> bool) -> bool {
 pub fn run() -> Result<(), Error> {
     use Machine::*;
 
-    let mut display_date = Local::today().and_hms(0, 0, 0);
-    let config_file = Path::new("config.json");
-    let retriever = EventRetriever::inst();
-    let mut mach: Machine = Load(cal_stm::Load);
-
     if cfg!(feature = "render_stm") {
         let mut f = File::create("docs/cal_machine.dot")?;
         Machine::render_to(&mut f);
@@ -288,11 +283,12 @@ pub fn run() -> Result<(), Error> {
         const LONGISH_DURATION: Duration = Duration::from_millis(3000);
         const LONG_DURATION: Duration = Duration::from_secs(4);
 
-        println!("before renderer");
+        let mut display_date = Local::today().and_hms(0, 0, 0);
+        let config_file = Path::new("config.json");
+        let retriever = EventRetriever::inst();
+        let mut mach: Machine = Load(cal_stm::Load);
         let mut renderer = Renderer::new()?;
-        println!("after renderer");
         let mut gpio = GPIO::new()?;
-        println!("after gpio init");
         let mut reset_button = LongPressButton::new(
             Pin(SW3_GPIO),
             DetectableDuration(LONG_DURATION),
