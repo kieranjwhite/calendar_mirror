@@ -1,13 +1,12 @@
 use crate::{err, stm};
 use memmap::{Mmap, MmapOptions};
 use std::{
-    cmp::Ordering,
     fs::File,
     io::{self, Write},
     ptr::read_volatile,
     time::{Duration, Instant},
 };
-use Machine::*;
+use LongPressMachine::*;
 
 const BLOCK_SIZE: usize = 4 * 1024;
 const PIN_COUNT: usize = 28;
@@ -23,33 +22,32 @@ err!(Error {
     InvalidPin(Pin)
 });
 
-pub const SHORT_DURATION: Duration = Duration::from_millis(50);
-pub const LONGISH_DURATION: Duration = Duration::from_millis(3000);
-pub const LONG_DURATION: Duration = Duration::from_secs(4);
-
 pub trait Button<E> {
-    fn event(&mut self, ports: &mut GPIO) -> Result<E, Error>;
+    fn event(&mut self, ports: &mut GPIO) -> Result<Option<E>, Error>;
 }
 
-stm!(long_press_button_stm, LongPressMachine, [ReleasedPending, Bouncing] => NotPressed(), {
-    [PressedPending, LongPressed]=>ReleasePending(),
-    [] => Bouncing(),
-    [] => PressedPending(),
-    []=>LongPressed()
+stm!(long_press_button_stm, LongPressMachine, [ReleasePending, PressedPending, LongPressed] => NotPressed(), {
+    [PressedPending, LongPressed] => ReleasePending();
+    [NotPressed, ReleasePending, LongPressed] => PressedPending();
+    [NotPressed, ReleasePending, PressedPending]=>LongPressed()
 });
 
+#[derive(Eq,PartialEq)]
 pub enum LongButtonEvent {
     Pressed,
     LongPress,
     Release,
+    PressAndRelease,
 }
 
-pub struct DetectableDuration(Duration);
-pub struct LongReleaseDuration(Duration);
+pub struct DetectableDuration(pub Duration);
+pub struct LongReleaseDuration(pub Duration);
 
+//A LongPressButton returns a short press if released within LongDuration or a long press immediately after a LongDuration press (without waiting for release)
+//It returns a release event after ReleaseDuration passed after button release
 pub struct LongPressButton {
     pin: Pin,
-    state: LongPresMachine,
+    state: LongPressMachine,
     detectable_after: DetectableDuration,
     long_release_after: LongReleaseDuration,
 }
@@ -70,12 +68,12 @@ impl LongPressButton {
 }
 
 impl Button<LongButtonEvent> for LongPressButton {
-    pub fn event(&mut self, ports: &mut GPIO) -> Result<LongButtonEvent, Error> {
+    fn event(&mut self, ports: &mut GPIO) -> Result<Option<LongButtonEvent>, Error> {
         let (pressing, duration) = ports.pinin(&self.pin)?;
-        let mut event:Option::<LongButtonEvent>=None;
+        let mut event: Option<LongButtonEvent> = None;
         use std::mem::replace;
-        let mut state = replace(&mut self.state, NotPressed(button_stm::NotPressed));
-
+        let mut state = replace(&mut self.state, NotPressed(long_press_button_stm::NotPressed));
+        /*
                 if !pressing {
                     if duration<self.long_release_after {
                         //add short pressed event if pending
@@ -89,114 +87,74 @@ impl Button<LongButtonEvent> for LongPressButton {
                         NotPressed
                     }
                 } else {
-                    if duration < SHORT_DURATION {
-                        if ReleasedPending || NotPressed {
-                            Bouncing(st.into())
-                        }
-                    } else if duration < self.detectable_after {
-                        if !LongPressed {
-                            //short press pending
-                            PressedPending(st)
-                        }
+                    if duration < self.detectable_after {
+                        PressedPending(st)
                     } else {
-                        //cancel short press pending
                         //add long pressed event if not already long pressed
                         event=Some(LongButtonEvent::LongPress);
                         LongPressed(st.into())
                     }
                 }
+        */
 
         state = match state {
             NotPressed(st) => {
                 if !pressing {
-                    if duration<self.long_release_after {
-                        NotPressed(st)
-                    } else {
-                    }
+                    NotPressed(st)
                 } else {
-                    if duration < SHORT_DURATION {
-                        Bouncing(st.into())
-                    } else if duration < self.detectable_after {
+                    if duration < self.detectable_after.0 {
                         PressedPending(st.into())
                     } else {
+                        event = Some(LongButtonEvent::LongPress);
                         LongPressed(st.into())
                     }
                 }
-            },
+            }
             ReleasePending(st) => {
                 if !pressing {
-                    if duration<self.long_release_after {
+                    if duration < self.long_release_after.0 {
                         ReleasePending(st)
                     } else {
-                        //add event
+                        event = Some(LongButtonEvent::Release);
                         NotPressed(st.into())
                     }
                 } else {
-                    if duration < SHORT_DURATION {
-                        Bouncing(st.into())
-                    } else if duration < self.detectable_after {
+                    if duration < self.detectable_after.0 {
                         PressedPending(st.into())
                     } else {
+                        event = Some(LongButtonEvent::LongPress);
                         LongPressed(st.into())
                     }
                 }
-            },
-            Bouncing(st) => {
-                if !pressing {
-                    NotPressed(st.into())
-                } else {
-                    if duration < SHORT_DURATION {
-                        Bouncing(st)
-                    } else if duration < self.detectable_after {
-                        PressedPending(st.into())
-                    } else {
-                        //add event
-                        event=Some(LongButtonEvent::LongPress);
-                        LongPressed(st.into())
-                    }
-                }
-            },
+            }
             PressedPending(st) => {
                 if !pressing {
-                    if duration<self.long_release_after {
-                        //add pressed event
-                        WasPressed(st.into())
-                    } else {
-                        //add pressed event
+                    if duration < self.long_release_after.0 {
+                        event = Some(LongButtonEvent::Pressed);
                         ReleasePending(st.into())
+                    } else {
+                        event = Some(LongButtonEvent::PressAndRelease);
+                        NotPressed(st.into())
                     }
                 } else {
-                    if duration < self.detectable_after {
+                    if duration < self.detectable_after.0 {
                         PressedPending(st)
                     } else {
-                        //add event
-                        event=Some(LongButtonEvent::LongPress);
+                        event = Some(LongButtonEvent::LongPress);
                         LongPressed(st.into())
                     }
                 }
-            },
-            WasPressed(st) => {
-                if !pressing {
-                    NotPressed(st.into())
-                } else {
-                    if duration < SHORT_DURATION {
-                        Bouncing(st.into())
-                    } else if duration < self.detectable_after {
-                        PressedPending(st.into())
-                    } else {
-                        //add event
-                        event=Some(LongButtonEvent::LongPress);
-                        LongPressed(st.into())
-                    }
-                }
-            },
+            }
             LongPressed(st) => {
                 if !pressing {
-                    NotPressed(st.into())
+                    if duration < self.long_release_after.0 {
+                        ReleasePending(st.into())
+                    } else {
+                        event = Some(LongButtonEvent::Release);
+                        NotPressed(st.into())
+                    }
                 } else {
-                    if duration < SHORT_DURATION {
-                        Bouncing(st.into())
-                    } else if duration < self.detectable_after {
+                    if duration < self.detectable_after.0 {
                         PressedPending(st.into())
                     } else {
                         LongPressed(st)
@@ -206,10 +164,10 @@ impl Button<LongButtonEvent> for LongPressButton {
         };
 
         replace(&mut self.state, state);
-        result
+        Ok(event)
     }
 }
-
+/*
 stm!(repeat_button_stm, RepeatableMachine, [Bouncing,Pressed] => NotPressed(), {
     [NotPressed] => Bouncing(),
     [Bouncing] => Pressed()
@@ -220,6 +178,8 @@ pub enum RepeatableButtonEvent {
     Release,
 }
 
+//A RepeatableButton returns a press event for each PressDuration that the button is pressed.
+//A relase event is returned immediately after button release
 pub struct RepeatableButton {
     pin: Pin,
     state: RepeatableMachine,
@@ -239,110 +199,7 @@ impl RepeatableButton {
 impl Button<RepeatableButtonEvent> for RepeatableButton {
     pub fn event(&mut self, ports: &mut GPIO) -> Result<RepeatableButtonEvent, Error> {}
 }
-
-/*
-fn pressing_transition(&mut self) -> bool {
-    //returns true if the just the state can transition from NotPressed to Pressed (if it was already Pressed, or isn't currently pressed false is returned)
-    println!("pressing transition");
-    let mut result = true;
-    use std::mem::replace;
-    let mut state = replace(&mut self.state, NotPressed(button_stm::NotPressed));
-
-    state = match state {
-        NotPressed(st) => {
-            println!("first press detected");
-            Pressed(st.into())
-        }
-        Pressed(st) => {
-            result = false;
-            Pressed(st)
-        }
-    };
-
-    replace(&mut self.state, state);
-    result
-}
-
-fn releasing_transition(&mut self) -> bool {
-    //returns true if the just the state can transition from Pressed to NotPressed (if it was already NotPressed, or is currently pressed false is returned)
-    println!("releasing transition");
-    let mut result = true;
-    use std::mem::replace;
-    let mut state = replace(&mut self.state, NotPressed(button_stm::NotPressed));
-
-    state = match state {
-        NotPressed(st) => {
-            result = false;
-            NotPressed(st)
-        }
-        Pressed(st) => {
-            println!("button: {:?} just releasing now", self.pin);
-            NotPressed(st.into())
-        },
-    };
-
-    replace(&mut self.state, state);
-    result
-}
-
-fn press_duration(&mut self, ports: &mut GPIO, min_duration: &Duration) -> Result<ButtonCondition, Error> {
-    let pressing = ports.pinin(&self.pin)?;
-    if let (true, press_duration)==pressing {
-    } else {
-
-    }
-    match pressing {
-        (true, press_duration) if min_duration.cmp(&press_duration) == Ordering::Less => {
-            Ok(if self.pressing_transition() {
-                ButtonCondition::JustPressed
-            } else {
-                ButtonCondition::AlreadyPressed
-            })
-        }
-        _ => {
-            Ok(ButtonCondition::Pending)
-        }
-    }
-}
-
-fn release_duration(&mut self, ports: &mut GPIO, min_duration: &Duration) -> Result<ButtonCondition, Error> {
-    let pressing = ports.pinin(&self.pin)?;
-    match pressing {
-        (false, release_duration) if min_duration.cmp(&release_duration) == Ordering::Less => {
-            //println!(
-            //    "release duration exceeded: min: {:?} released: {:?}",
-            //    min_duration, release_duration
-            //);
-            Ok(if self.releasing_transition() {
-                ButtonCondition::JustReleased
-            } else {
-                ButtonCondition::AlreadyReleased
-            })
-        },
-        _ => {
-            Ok(ButtonCondition::Pending)
-        }
-    }
-}
- */
-impl<E> Button {
-    pub fn event(&mut self, ports: &mut GPIO) -> Result<E, Error> {
-        let pressing = ports.pinin(&self.pin)?;
-    }
-
-    pub fn pressed(&mut self, ports: &mut GPIO) -> Result<ButtonCondition, Error> {
-        //for a repeat button this returns true each time the button press continues for PressDuration
-        //for a long press button this returns a short press if released within LongDuration or a long
-        //press immediately after a LongDuration press (without waiting for release)
-        self.press_duration(ports, &SHORT_DURATION)
-    }
-
-    pub fn released(&mut self, ports: &mut GPIO) -> Result<ButtonCondition, Error> {
-        //for a repeat button, returns true immediately upon release
-        //for a long press button returns true after a ReleaseDuration passed after button release
-        self.release_duration(ports, &LONGISH_DURATION)
-    }
-}
+*/
 
 #[derive(Clone, Debug)]
 pub struct Pin(pub usize);

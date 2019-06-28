@@ -8,8 +8,8 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, Button, ButtonCondition::*, Error as GPIO_Error, Pin, GPIO, SW1_GPIO, SW2_GPIO,
-        SW3_GPIO, SW4_GPIO,
+        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent::*, LongPressButton,
+        LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
     stm,
 };
@@ -265,7 +265,7 @@ pub fn run() -> Result<(), Error> {
         f.flush()?;
 
         f = File::create("docs/button_stm.dot")?;
-        papirus_in::Machine::render_to(&mut f);
+        papirus_in::LongPressMachine::render_to(&mut f);
         f.flush()?;
 
         Ok(())
@@ -277,15 +277,30 @@ pub fn run() -> Result<(), Error> {
         const QUOTA_EXCEEDED: &str = "Quota Exceeded";
         const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
         const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
+        //const SHORT_DURATION: Duration = Duration::from_millis(50);
+        const LONGISH_DURATION: Duration = Duration::from_millis(3000);
+        const LONG_DURATION: Duration = Duration::from_secs(4);
 
         println!("before renderer");
         let mut renderer = Renderer::new()?;
         println!("after renderer");
         let mut gpio = GPIO::new()?;
         println!("after gpio init");
-        let mut reset_button = Button::new(Pin(SW3_GPIO));
-        let mut back_button = Button::new(Pin(SW4_GPIO));
-        let mut next_button = Button::new(Pin(SW1_GPIO));
+        let mut reset_button = LongPressButton::new(
+            Pin(SW3_GPIO),
+            DetectableDuration(LONG_DURATION),
+            LongReleaseDuration(LONGISH_DURATION),
+        );
+        let mut back_button = LongPressButton::new(
+            Pin(SW4_GPIO),
+            DetectableDuration(LONG_DURATION),
+            LongReleaseDuration(LONGISH_DURATION),
+        );
+        let mut next_button = LongPressButton::new(
+            Pin(SW1_GPIO),
+            DetectableDuration(LONG_DURATION),
+            LongReleaseDuration(LONGISH_DURATION),
+        );
         println!("after reset_button init");
         loop {
             mach = match mach {
@@ -517,29 +532,46 @@ pub fn run() -> Result<(), Error> {
                         Refresh(st.into(), credentials.refresh_token)
                     } else {
                         thread::sleep(BUTTON_POLL_PERIOD);
-                        if reset_button.long_press(&mut gpio)? == JustPressed {
+                        let reset_event = reset_button.event(&mut gpio)?;
+                        let back_event = back_button.event(&mut gpio)?;
+                        let next_event = next_button.event(&mut gpio)?;
+                        if reset_event == Some(LongPress) {
                             RequestCodes(st.into())
-                        } else if reset_button.short_press(&mut gpio)? == JustPressed {
+                        } else if match reset_event {
+                            Some(Pressed) => true,
+                            Some(PressAndRelease) => true,
+                            _ => false,
+                        } {
                             println!("full display & date refresh");
                             display_date = Local::today().and_hms(0, 0, 0);
                             ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if back_button.longish_release(&mut gpio)? == JustReleased
-                            || next_button.longish_release(&mut gpio)? == JustReleased
-                            || waiting_for >= RECHECK_PERIOD
+                        } else if match back_event {
+                            Some(Release) => true,
+                            Some(PressAndRelease) => true,
+                            _ => false,
+                        } || match next_event {
+                            Some(Release) => true,
+                            Some(PressAndRelease) => true,
+                            _ => false,
+                        } || waiting_for >= RECHECK_PERIOD
                         {
                             println!("full display refresh");
                             ReadFirst(st.into(), credentials, refreshed_at)
-                        } else if back_button.short_press(&mut gpio)? == JustPressed
-//                            || back_button.short_press(&mut gpio)? == AlreadyPressed
-                        {
+                        } else if match back_event {
+                            Some(Pressed) => true,
+                            Some(PressAndRelease) => true,
+                            _ => false,
+                        } {
                             display_date = display_date - chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
                             println!("New date: {:?}", display_date);
                             renderer.refresh_date(&display_date)?;
                             Wait(st, credentials, refreshed_at, started_wait_at)
-                        } else if next_button.short_press(&mut gpio)? == JustPressed
-//                            || next_button.short_press(&mut gpio)? == AlreadyPressed
-                        {
+                        } else if match next_event {
+                            Some(Pressed) => true,
+                            Some(PressAndRelease) => true,
+                            _ => false,
+                        } {
                             display_date = display_date + chrono::Duration::days(1);
                             //ReadFirst(st.into(), credentials, refreshed_at)
                             renderer.refresh_date(&display_date)?;
@@ -557,7 +589,7 @@ pub fn run() -> Result<(), Error> {
                         Load(st.into())
                     } else {
                         thread::sleep(BUTTON_POLL_PERIOD);
-                        if reset_button.long_press(&mut gpio)? == JustPressed {
+                        if reset_button.event(&mut gpio)? == Some(LongPress) {
                             RequestCodes(st.into())
                         } else {
                             ErrorWait(st, started_wait_at)
