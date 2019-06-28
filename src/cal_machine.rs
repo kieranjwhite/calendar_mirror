@@ -264,7 +264,7 @@ pub fn run() -> Result<(), Error> {
         evs::Machine::render_to(&mut f);
         f.flush()?;
 
-        f = File::create("docs/button_stm.dot")?;
+        f = File::create("docs/long_press_button_stm.dot")?;
         papirus_in::LongPressMachine::render_to(&mut f);
         f.flush()?;
 

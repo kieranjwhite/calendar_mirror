@@ -1,0 +1,19 @@
+digraph long_press_button_stm {
+    LongPressed[label="LongPressed"][shape="ellipse"];
+    NotPressed[label="NotPressed"][shape="ellipse"];
+    PressedPending[label="PressedPending"][shape="ellipse"];
+    ReleasePending[label="ReleasePending"][shape="ellipse"];
+    _start[label="_start"][shape="point"];
+    _start -> NotPressed[label=""];
+    ReleasePending -> NotPressed[label=""];
+    PressedPending -> NotPressed[label=""];
+    LongPressed -> NotPressed[label=""];
+    PressedPending -> ReleasePending[label=""];
+    LongPressed -> ReleasePending[label=""];
+    NotPressed -> PressedPending[label=""];
+    ReleasePending -> PressedPending[label=""];
+    LongPressed -> PressedPending[label=""];
+    NotPressed -> LongPressed[label=""];
+    ReleasePending -> LongPressed[label=""];
+    PressedPending -> LongPressed[label=""];
+}
