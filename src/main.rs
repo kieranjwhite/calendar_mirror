@@ -35,13 +35,12 @@ fn main() -> Result<(), Error> {
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
                 let child_quitter = Arc::clone(&quitter);
+                println!("parent is waiting for child to start server...");
+                let mut renderer = Renderer::wait_for_server()?;
                 ctrlc::set_handler(move || {
                     child_quitter.store(true, AtomicOrdering::SeqCst);
                 })
                 .expect("Error setting Ctrl-C handler");
-
-                println!("parent is waiting for child to start server...");
-                let mut renderer = Renderer::wait_for_server()?;
                 renderer.disconnect_quits_server()?;
                 cal_machine::run(&mut renderer, quitter)?;
 

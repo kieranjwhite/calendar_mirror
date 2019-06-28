@@ -6,14 +6,21 @@ from papirus import PapirusTextPos
 import json
 import socketserver
 import sys
+import signal
+
+def signal_handler(sig, frame):
+    #client will handle SIGINT for us and send a QuitWhenDone message
+    pass
 
 SERVER_PREFIX="Server: "
 
 quit_flag=False
 def make_quittable():
-    log("setting quit flag")
     global quit_flag
-    quit_flag=True
+    if not(quit_flag):
+        log("setting quit flag")
+        quit_flag=True
+        signal.signal(signal.SIGINT, signal_handler)
 
 render_lookups={
     'AddText': lambda p, text, pos, size, ident: p.AddText(text, pos[0], pos[1], size, ident),
