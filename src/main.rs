@@ -11,8 +11,11 @@ use cal_display::Renderer;
 use cal_machine::Error as CalMachineError;
 use display::Error as DisplayError;
 use nix::{unistd::*, Error as NixError};
-use std::ffi::CString;
-
+use std::{
+    ffi::CString,
+    sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
+    sync::Arc,
+};
 err!(
     Error {
         CalMachineError(CalMachineError),
@@ -22,16 +25,27 @@ err!(
 );
 
 fn main() -> Result<(), Error> {
-    const PYTHON_NAME: &str = "/usr/bin/python3";
+    //const PYTHON_NAME: &str = "/usr/bin/python3";
     const SCRIPT_PATH: &str = "scripts/server.py";
+    let quitter = Arc::new(AtomicBool::new(false));
     if cfg!(feature = "render_stm") {
-        cal_machine::run()?;
+        let mut renderer = Renderer::wait_for_server()?;
+        cal_machine::run(&mut renderer, quitter)?;
     } else {
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
-                println!("parent is waiting for child to start server...");
-                Renderer::wait_for_server()?;
-                cal_machine::run()?;
+                let child_quitter = Arc::clone(&quitter);
+                ctrlc::set_handler(move || {
+                    child_quitter.store(true, AtomicOrdering::SeqCst);
+                })
+                .expect("Error setting Ctrl-C handler");
+                {
+                    println!("parent is waiting for child to start server...");
+                    let mut renderer = Renderer::wait_for_server()?;
+                    renderer.disconnect_quits_server()?;
+                    cal_machine::run(&mut renderer, quitter)?;
+                }
+                println!("finishing up");
             }
             ForkResult::Child => {
                 println!("child will now start server...");
@@ -39,10 +53,6 @@ fn main() -> Result<(), Error> {
                     &CString::new(SCRIPT_PATH).expect(&format!("Invalid CString: {}", SCRIPT_PATH)),
                     &[],
                 )?;
-                //execv(
-                //   &CString::new(PYTHON_NAME).expect(&format!("Invalid CString: {}", PYTHON_NAME)),
-                //   [&CString::new(SCRIPT_PATH).expect(&format!("Invalid CString: {}", SCRIPT_PATH))],
-                //)?;
             }
         }
     }

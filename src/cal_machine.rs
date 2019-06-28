@@ -8,8 +8,8 @@ use crate::{
     },
     display, err,
     papirus_in::{
-        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent,
-        LongPressButton, LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
+        self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
+        LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
     stm,
 };
@@ -22,6 +22,7 @@ use std::{
     fs::File,
     io::{self, BufRead, BufReader, BufWriter, Write},
     path::Path,
+    sync::{atomic::{Ordering as AtomicOrdering, AtomicBool}, Arc},
     thread,
 };
 
@@ -254,7 +255,7 @@ fn opt_filter<T>(val: &Option<T>, pred: impl Fn(&T) -> bool) -> bool {
     }
 }
 
-pub fn run() -> Result<(), Error> {
+pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Error> {
     use Machine::*;
 
     if cfg!(feature = "render_stm") {
@@ -269,8 +270,6 @@ pub fn run() -> Result<(), Error> {
         f = File::create("docs/long_press_button_stm.dot")?;
         papirus_in::LongPressMachine::render_to(&mut f);
         f.flush()?;
-
-        Ok(())
     } else {
         use reqwest::{Response, StatusCode};
 
@@ -279,15 +278,13 @@ pub fn run() -> Result<(), Error> {
         const QUOTA_EXCEEDED: &str = "Quota Exceeded";
         const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
         const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
-        //const SHORT_DURATION: Duration = Duration::from_millis(50);
-        const LONGISH_DURATION: Duration = Duration::from_millis(3000);
+        const LONGISH_DURATION: Duration = Duration::from_millis(2000);
         const LONG_DURATION: Duration = Duration::from_secs(4);
 
         let mut display_date = Local::today().and_hms(0, 0, 0);
         let config_file = Path::new("config.json");
         let retriever = EventRetriever::inst();
         let mut mach: Machine = Load(cal_stm::Load);
-        let mut renderer = Renderer::new()?;
         let mut gpio = GPIO::new()?;
         let mut reset_button = LongPressButton::new(
             Pin(SW3_GPIO),
@@ -304,8 +301,8 @@ pub fn run() -> Result<(), Error> {
             DetectableDuration(LONG_DURATION),
             LongReleaseDuration(LONGISH_DURATION),
         );
-        println!("after reset_button init");
-        loop {
+
+        while !quitter.load(AtomicOrdering::SeqCst) {
             mach = match mach {
                 Load(st) => match RefreshToken::load(config_file) {
                     Err(error_msg) => DisplayError(
@@ -594,4 +591,5 @@ pub fn run() -> Result<(), Error> {
             };
         }
     }
+    Ok(())
 }

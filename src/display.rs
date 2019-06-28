@@ -18,6 +18,7 @@ pub enum Operation {
     RemoveText(Id),
     Clear,
     WriteAll(PartialUpdate),
+    QuitWhenDone,
 }
 
 type Id = String;
@@ -50,7 +51,7 @@ impl RenderPipeline {
         const CONNECT_INTERVAL: Duration=Duration::from_secs(1);
         
         let addr = SocketAddr::new(IpAddr::V4(SERVER_ADDR), DRIVER_PORT);
-        let mut retries = 5;
+        let mut retries = 10;
         thread::sleep(CONNECT_INTERVAL);
         println!("attempt. retries remaining: {}", retries);
         let mut connection = TcpStream::connect(&addr);
@@ -80,3 +81,4 @@ impl RenderPipeline {
         Ok(())
     }
 }
+
