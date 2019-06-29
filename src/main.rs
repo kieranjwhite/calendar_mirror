@@ -106,10 +106,10 @@ fn installation(
         let num_dirs = package_install_dir.read_dir()?.count();
         if num_dirs == 1 {
             if bin_path.exists() {
-                if runnable_exe_path.exists() {
+                if let Ok(_)=fs::read_link(&runnable_exe_path) {
                     fs::remove_file(&runnable_exe_path)?;
                 }
-                if runnable_script_path.exists() {
+                if let Ok(_)=fs::read_link(&runnable_script_path) {
                     fs::remove_file(&runnable_script_path)?;
                 }
                 
@@ -151,6 +151,8 @@ const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> Result<(), Error> {
+    println!("path: {:?}", env!("PATH"));
+
     let args: Vec<String> = env::args().collect();
     let dest_base: &Path = Path::new("/opt/");
     for arg in args.iter() {
