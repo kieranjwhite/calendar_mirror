@@ -547,17 +547,13 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                             ReadFirst(st.into(), credentials, refreshed_at)
                         } else if opt_filter(&back_event, short_check) {
                             display_date = display_date - chrono::Duration::days(1);
-                            //ReadFirst(st.into(), credentials, refreshed_at)
                             println!("New date: {:?}", display_date);
                             renderer.refresh_date(&display_date)?;
                             Wait(st, credentials, refreshed_at, started_wait_at)
                         } else if opt_filter(&next_event, short_check) {
                             display_date = display_date + chrono::Duration::days(1);
-                            //ReadFirst(st.into(), credentials, refreshed_at)
                             renderer.refresh_date(&display_date)?;
                             Wait(st, credentials, refreshed_at, started_wait_at)
-                        //} else if waiting_for >= RECHECK_PERIOD {
-                        //    ReadFirst(st.into(), credentials, refreshed_at)
                         } else {
                             Wait(st, credentials, refreshed_at, started_wait_at)
                         }

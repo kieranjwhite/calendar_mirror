@@ -68,8 +68,14 @@ impl LongButtonEvent {
 pub struct DetectableDuration(pub Duration);
 pub struct LongReleaseDuration(pub Duration);
 
-//A LongPressButton returns a short press if released within LongDuration or a long press immediately after a LongDuration press (without waiting for release)
-//It returns a release event after ReleaseDuration passed after button release
+// A RepeatableButton (not implemented) would return a press event for
+// each PressDuration that the button is pressed.  A relase event
+// would be returned immediately after button release.
+
+// A LongPressButton returns a short press if released within
+// LongDuration or a long press immediately after a LongDuration press
+// (without waiting for release). It returns a release event after
+// ReleaseDuration passed after button release
 pub struct LongPressButton {
     pin: Pin,
     state: LongPressMachine,
@@ -101,29 +107,6 @@ impl Button<LongButtonEvent> for LongPressButton {
             &mut self.state,
             NotPressed(long_press_button_stm::NotPressed),
         );
-        /*
-                if !pressing {
-                    if duration<self.long_release_after {
-                        //add short pressed event if pending
-                        if short press pending or long pressed or ReleasePending{
-                            ReleasePending()
-                        } else {
-                            NotPressed
-                        }
-                    } else {
-                        //add short pressed event if pending and released events if previously pressed (short or long)
-                        NotPressed
-                    }
-                } else {
-                    if duration < self.detectable_after {
-                        PressedPending(st)
-                    } else {
-                        //add long pressed event if not already long pressed
-                        event=Some(LongButtonEvent::LongPress);
-                        LongPressed(st.into())
-                    }
-                }
-        */
 
         state = match state {
             NotPressed(st) => {
@@ -195,39 +178,6 @@ impl Button<LongButtonEvent> for LongPressButton {
         Ok(event)
     }
 }
-/*
-stm!(repeat_button_stm, RepeatableMachine, [Bouncing,Pressed] => NotPressed(), {
-    [NotPressed] => Bouncing(),
-    [Bouncing] => Pressed()
-});
-
-pub enum RepeatableButtonEvent {
-    Pressed,
-    Release,
-}
-
-//A RepeatableButton returns a press event for each PressDuration that the button is pressed.
-//A relase event is returned immediately after button release
-pub struct RepeatableButton {
-    pin: Pin,
-    state: RepeatableMachine,
-    repeating_duration: Duration,
-}
-
-impl RepeatableButton {
-    pub fn new(pin: Pin, repeating_duration: Duration) -> RepeatableButton {
-        RepeatableButton {
-            pin,
-            repeating_duration,
-            state: RepeatableMachine::NotPressed(repeat_button_stm::NotPressed),
-        }
-    }
-}
-
-impl Button<RepeatableButtonEvent> for RepeatableButton {
-    pub fn event(&mut self, ports: &mut GPIO) -> Result<RepeatableButtonEvent, Error> {}
-}
-*/
 
 #[derive(Clone, Debug)]
 pub struct Pin(pub usize);
@@ -267,7 +217,7 @@ impl GPIO {
     }
 
     fn value(&self) -> u32 {
-        // The following block is unsafe because (1))) read_volatile
+        // The following block is unsafe because (1) read_volatile
         // dereferences a pointer, and undefined behaviour can arise
         // if that pointer is not valid (see
         // https://doc.rust-lang.org/std/ptr/index.html#safety) or
