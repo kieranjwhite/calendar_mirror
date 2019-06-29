@@ -90,12 +90,10 @@ impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
         match File::open(path) {
             Ok(file) => {
-                println!("opening token file");
                 let reader = BufReader::new(file);
                 let text: String = reader.lines().collect::<io::Result<String>>()?;
-                println!("read token file");
                 let credentials = serde_json::from_str(&text)?;
-                println!("deserialised token file");
+                println!("after token file load");
                 Ok(Some(credentials))
             }
             Err(_error) => {
@@ -105,7 +103,7 @@ impl RefreshToken {
     }
 
     pub fn save(&self, path: &Path) -> io::Result<()> {
-        println!("before file ");
+        println!("before token file save");
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         let serialised = serde_json::to_string(self)?;
@@ -317,7 +315,6 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                     let status = resp.status();
                     match status {
                         StatusCode::OK => {
-                            println!("Headers: {:#?}", resp.headers());
                             let body: DeviceUserCodeResponse = resp.json()?;
                             println!("Body is next... {:?}", body);
                             renderer.display_user_code(
@@ -359,7 +356,6 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                     let status = resp.status();
                     match status {
                         StatusCode::OK => {
-                            println!("Headers: {:#?}", resp.headers());
                             let credentials_tokens: RefreshResponse = resp.json()?;
 
                             let token_type = credentials_tokens.token_type.clone();
@@ -388,7 +384,6 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                     let status = resp.status();
                     match status {
                         StatusCode::OK => {
-                            println!("Headers: {:#?}", resp.headers());
                             let credentials_tokens: PollResponse = resp.json()?;
 
                             let token_type = credentials_tokens.token_type.clone();
@@ -456,7 +451,6 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                     let status = resp.status();
                     match status {
                         StatusCode::OK => {
-                            println!("Event Headers: {:#?}", resp.headers());
                             let events_resp: EventsResponse = resp.json()?;
                             let mut new_events = evs::Appointments::new();
                             new_events.add(&events_resp)?;
@@ -496,7 +490,6 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                         let status = resp.status();
                         match status {
                             StatusCode::OK => {
-                                println!("Event Headers: {:#?}", resp.headers());
                                 let events_resp: EventsResponse = resp.json()?;
                                 events.add(&events_resp)?;
                                 let page_token = match events_resp.next_page_token {

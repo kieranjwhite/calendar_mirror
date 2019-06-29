@@ -45,7 +45,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 render_lookups[enum_name](*([page]+op[enum_name]))
             else:
                 #assumes we're receiving a tuple struct with one element - the element serialised by serde as a scalar
-                #import pdb; pdb.set_trace()
                 render_lookups[enum_name](page, op[enum_name])
                 
     def handle(self):
@@ -55,8 +54,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         while line!=b'':
             log("line: "+repr(line))
             op=json.loads(line.decode('utf-8'))
-            #op=json.loads(line.decode('utf-8'), object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
-            log("op: "+repr(op)+" type: "+str(type(op)))
             #import pdb; pdb.set_trace()
             self.invokeop(page, op)
             line=self.rfile.readline()
