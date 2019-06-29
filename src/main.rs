@@ -43,7 +43,7 @@ fn installation(
     package_install_dir: &Path,
     version: &str,
 ) -> Result<(), io::Error> {
-    let script_rel_path: &Path = Path::new(SCRIPT_REL_PATH_NAME);
+    let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
     let exe_link: &Path = Path::new("/proc/self/exe");
     let bin_dir: &Path = Path::new("bin");
 
@@ -137,15 +137,16 @@ fn installation(
             fs::copy(&script_path, &version_script)?;
         }
 
-        symlink(&exe_path, &runnable_exe_path)?;
-        symlink(&script_path, &runnable_script_path)?;
+        symlink(&version_exe, &runnable_exe_path)?;
+        symlink(&version_script, &runnable_script_path)?;
         println!("end install");
     }
 
     Ok(())
 }
 
-const SCRIPT_REL_PATH_NAME: &str = "scripts/cal_server.py";
+const SCRIPTS_DIR: &str = "scripts";
+const SCRIPT_NAME: &str = "cal_server.py";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -189,8 +190,8 @@ fn main() -> Result<(), Error> {
             ForkResult::Child => {
                 println!("child will now start server...");
                 execv(
-                    &CString::new(SCRIPT_REL_PATH_NAME)
-                        .expect(&format!("Invalid CString: {}", SCRIPT_REL_PATH_NAME)),
+                    &CString::new(SCRIPT_NAME)
+                        .expect(&format!("Invalid CString: {}", SCRIPT_NAME)),
                     &[],
                 )?;
             }
