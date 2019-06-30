@@ -111,19 +111,19 @@ fn installation(
     println!("version_path is gone {:?}", version_path);
 
     if package_install_dir.exists() {
-        let num_dirs = package_install_dir.read_dir()?.count();
-        if num_dirs == 1 {
-            if bin_path.exists() {
-                if let Ok(_) = fs::read_link(&runnable_exe_path) {
-                    fs::remove_file(&runnable_exe_path)?;
-                }
-                if let Ok(_) = fs::read_link(&runnable_script_path) {
-                    fs::remove_file(&runnable_script_path)?;
-                }
-
-                fs::remove_dir(&bin_path)?;
+        if bin_path.exists() {
+            if let Ok(_) = fs::read_link(&runnable_exe_path) {
+                fs::remove_file(&runnable_exe_path)?;
+            }
+            if let Ok(_) = fs::read_link(&runnable_script_path) {
+                fs::remove_file(&runnable_script_path)?;
             }
 
+            fs::remove_dir(&bin_path)?;
+        }
+
+        let num_dirs = package_install_dir.read_dir()?.count();
+        if num_dirs == 0 {
             fs::remove_dir(&package_install_dir)?;
         }
     }
