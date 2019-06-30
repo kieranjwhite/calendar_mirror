@@ -18,7 +18,7 @@ use std::{
     io,
     os::unix::fs::symlink,
     path::Path,
-    process,
+    process::{self, Command},
     sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
     sync::Arc,
 };
@@ -44,6 +44,7 @@ fn installation(
     version: &str,
 ) -> Result<(), io::Error> {
     let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
+    let systemd_rel_path: &Path = &Path::new(SYSTEMD_DIR).join(Path::new(UNIT_NAME));
     let exe_link: &Path = Path::new("/proc/self/exe");
     let bin_dir: &Path = Path::new("bin");
 
@@ -73,22 +74,25 @@ fn installation(
     }
 
     let script_path = project_dir.join(script_rel_path);
-    let script_name = if let Some(script_name) = script_path.file_name() {
-        script_name
-    } else {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "failed to identify filename of script",
-        ));
-    };
+    let script_name = Path::new(SCRIPT_NAME);
+    let systemd_path = project_dir.join(systemd_rel_path);
+    let unit_name = Path::new(UNIT_NAME);
 
     let runnable_script_path = bin_path.join(script_name);
     let version_path = package_install_dir.join(version);
     let version_exe = version_path.join(exe_name);
     let version_script = version_path.join(script_name);
+    let version_unit = version_path.join(unit_name);
 
     println!("begin uninstall");
     //always begin with an uninstall
+
+    Command::new("systemctl")
+        .arg("disable")
+        .arg("calendar_mirror")
+        .arg("--now")
+        .output()?;
+
     if version_exe.exists() {
         fs::remove_file(&version_exe)?;
     }
@@ -97,6 +101,10 @@ fn installation(
         fs::remove_file(&version_script)?;
     }
     println!("script is gone {:?}", version_script);
+    if version_unit.exists() {
+        fs::remove_file(&version_unit)?;
+    }
+    println!("unit is gone {:?}", version_unit);
     if version_path.exists() {
         fs::remove_dir(&version_path)?;
     }
@@ -127,8 +135,8 @@ fn installation(
             version_path, bin_path
         );
         println!(
-            "copying exe: from {:?} to {:?}. script: from {:?} to {:?} ",
-            exe_path, version_exe, script_path, version_script
+            "copying exe: from {:?} to {:?}. script: from {:?} to {:?}, unit: from {:?} to {:?} ",
+            exe_path, version_exe, script_path, version_script, systemd_path, version_unit
         );
         println!(
             "links: exe {:?} script {:?}",
@@ -146,8 +154,24 @@ fn installation(
             fs::copy(&script_path, &version_script)?;
         }
 
+        if systemd_path != version_unit {
+            fs::copy(&systemd_path, &version_unit)?;
+        }
+
         symlink(&version_exe, &runnable_exe_path)?;
         symlink(&version_script, &runnable_script_path)?;
+
+        Command::new("systemctl")
+            .arg("link")
+            .arg(version_unit)
+            .output()?;
+
+        Command::new("systemctl")
+            .arg("enable")
+            .arg("calendar_mirror")
+            .arg("--now")
+            .output()?;
+
         println!("end install");
     }
 
@@ -155,7 +179,9 @@ fn installation(
 }
 
 const SCRIPTS_DIR: &str = "scripts";
+const SYSTEMD_DIR: &str = "systemd";
 const SCRIPT_NAME: &str = "calendar_mirror_server.py";
+const UNIT_NAME: &str = "calendar_mirror.service";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
