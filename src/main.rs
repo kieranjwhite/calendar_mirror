@@ -209,6 +209,15 @@ fn main() -> Result<(), Error> {
     } else {
         Path::new(DEFAULT_VAR_DIR)
     };
+
+    let path_opt = var_os("PATH");
+    let paths = if let Some(ref val) = path_opt {
+        val.clone().into_string().expect("invalid path")
+    } else {
+        "".to_string()
+    };    
+    println!("path: {}", paths);
+    
     let config_file = var_dir.join(Path::new("refresh.json"));
 
     //const PYTHON_NAME: &str = "/usr/bin/python3";
