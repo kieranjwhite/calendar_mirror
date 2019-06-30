@@ -22,19 +22,24 @@ def make_quittable():
         quit_flag=True
         signal.signal(signal.SIGINT, signal_handler)
 
-render_lookups={
-    'AddText': lambda p, text, pos, size, ident: p.AddText(text, pos[0], pos[1], size, ident),
-    'UpdateText': lambda p, ident, new_text: p.UpdateText(ident, new_text),
-    'RemoveText': lambda p, ident: p.RemoveText(ident),
-    'Clear': lambda p: p.Clear(),
-    'WriteAll': lambda p, partial_update: p.WriteAll(partial_update),
-    'QuitWhenDone': lambda p: make_quittable(),
-}
-
 def log(msg):
     print(SERVER_PREFIX+msg)
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
+    self.render_lookups={
+        'AddText': lambda p, text, pos, size, ident: p.AddText(text, pos[0], pos[1], size, ident),
+        'UpdateText': lambda p, ident, new_text: p.UpdateText(ident, new_text),
+        'RemoveText': lambda p, ident: p.RemoveText(ident),
+        'Clear': lambda p: p.Clear(),
+        'WriteAll': lambda p, partial_update: p.WriteAll(partial_update),
+        'Sync': lambda p: self.send_line(),
+        'QuitWhenDone': lambda p: make_quittable(),
+    }
+
+    def send_line(self):
+        self.wfile.write("\n")
+        self.wfile.flush()
+    
     def invokeop(self, page, op):
         if isinstance(op, str):
             render_lookups[op](page)

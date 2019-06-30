@@ -14,6 +14,7 @@ use crate::{
     stm,
 };
 use chrono::{format::ParseError, prelude::*};
+use nix::Error as NixError;
 use retriever::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -54,7 +55,8 @@ err!(Error {
     Display(display::Error),
     IO(io::Error),
     Reqwest(reqwest::Error),
-    GPIO(GPIO_Error)
+    GPIO(GPIO_Error),
+    Nix(NixError)
 });
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -271,10 +273,11 @@ pub fn render_stms() -> Result<(), Error> {
     Ok(())
 }
 
+//    loader: impl Fn() -> io::Result<Option<RefreshToken>>,
 pub fn run(
     renderer: &mut Renderer,
     quitter: Arc<AtomicBool>,
-    loader: impl Fn() -> io::Result<Option<RefreshToken>>,
+    config_file: &Path,
     saver: impl Fn(&RefreshToken, &mut Renderer) -> Result<(), Error>,
 ) -> Result<(), Error> {
     use Machine::*;
@@ -311,8 +314,8 @@ pub fn run(
 
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
-            //Load(st) => match loader(&config_file) RefreshToken::load(&config_file) {
-            Load(st) => match loader() {
+            Load(st) => match RefreshToken::load(&config_file) {
+            //Load(st) => match loader() {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),

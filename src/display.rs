@@ -1,7 +1,7 @@
 use crate::err;
 use serde::Serialize;
 use serde_json::error::Error as SerdeError;
-use std::io::{self, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::slice::Iter;
 use std::time::Duration;
@@ -18,6 +18,7 @@ pub enum Operation {
     RemoveText(Id),
     Clear,
     WriteAll(PartialUpdate),
+    Sync,
     QuitWhenDone,
 }
 
@@ -36,14 +37,18 @@ err!(Error {
 });
 
 pub struct RenderPipeline {
-    stream: BufWriter<TcpStream>,
+    r_stream: BufReader<TcpStream>,
+    w_stream: BufWriter<TcpStream>,
 }
 
 impl RenderPipeline {
     pub fn new() -> Result<RenderPipeline, Error> {
         let addr = SocketAddr::new(IpAddr::V4(SERVER_ADDR), DRIVER_PORT);
+        let r_connection=TcpStream::connect(addr)?;
+        let w_connection=r_connection.try_clone()?;
         Ok(RenderPipeline {
-            stream: BufWriter::new(TcpStream::connect(addr)?),
+            r_stream: BufReader::new(r_connection),
+            w_stream: BufWriter::new(w_connection),
         })
     }
 
@@ -71,13 +76,21 @@ impl RenderPipeline {
         Ok(())
     }
 
-    pub fn send(&mut self, els: Iter<Operation>) -> Result<(), Error> {
+    pub fn send(&mut self, els: Iter<Operation>, sync: bool) -> Result<(), Error> {
         for el in els {
             let serialised = serde_json::to_string(el)?;
             println!("sending: {}", serialised);
-            write!(self.stream, "{}\n", serialised)?;
+            write!(self.w_stream, "{}\n", serialised)?;
         }
-        self.stream.flush()?;
+        let serialised = serde_json::to_string(&Operation::Sync)?;
+        write!(self.w_stream, "{}\n", serialised)?;
+        self.w_stream.flush()?;
+
+        if sync {
+            let mut line=String::new();
+            self.r_stream.read_line(&mut line)?;
+        }
+        
         Ok(())
     }
 }

@@ -55,7 +55,7 @@ impl Renderer {
     pub fn disconnect_quits_server(&mut self) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::QuitWhenDone);
-        self.pipe.send(ops.iter())?;
+        self.pipe.send(ops.iter(), false)?;
 
         Ok(())
     }
@@ -95,7 +95,7 @@ impl Renderer {
     pub fn clear(&mut self) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
-        self.pipe.send(ops.iter())?;
+        self.pipe.send(ops.iter(), false)?;
         Ok(())
     }
     
@@ -122,7 +122,7 @@ impl Renderer {
         ));
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
-        self.pipe.send(ops.iter())?;
+        self.pipe.send(ops.iter(), true)?;
         Ok(())
     }
     
@@ -160,7 +160,7 @@ impl Renderer {
         ));
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
-        self.pipe.send(ops.iter())?;
+        self.pipe.send(ops.iter(), false)?;
 
         Ok(())
     }
@@ -175,7 +175,7 @@ impl Renderer {
         ops.push(Op::UpdateText(EVENTS_ID.to_string(), "".to_string()));
         ops.push(Op::WriteAll(PartialUpdate(true)));
 
-        self.pipe.send(ops.iter())
+        self.pipe.send(ops.iter(), false)
     }
 
     pub fn display_events(
@@ -238,7 +238,7 @@ impl Renderer {
         }
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
-        self.pipe.send(ops.iter())
+        self.pipe.send(ops.iter(), false)
     }
 }
 
