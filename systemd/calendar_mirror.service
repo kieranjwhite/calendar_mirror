@@ -1,0 +1,11 @@
+[Unit]
+Description=Calendar mirror
+After=network.target
+
+[Service]
+Type=simple
+Restart=no
+ExecStart=/opt/calendar_mirror/bin/calendar_mirror
+
+[Install]
+WantedBy=multi-user.target

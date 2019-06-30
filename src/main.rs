@@ -12,7 +12,7 @@ use cal_machine::Error as CalMachineError;
 use display::Error as DisplayError;
 use nix::{unistd::*, Error as NixError};
 use std::{
-    env,
+    env::{self, var_os},
     ffi::CString,
     fs::{self, create_dir_all},
     io,
@@ -149,10 +149,9 @@ const SCRIPTS_DIR: &str = "scripts";
 const SCRIPT_NAME: &str = "calendar_mirror_server.py";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const DEFAULT_VAR_DIR: &str=".";
 
 fn main() -> Result<(), Error> {
-    println!("path: {:?}", env!("PATH"));
-
     let args: Vec<String> = env::args().collect();
     let dest_base: &Path = Path::new("/opt/");
     for arg in args.iter() {
@@ -169,11 +168,18 @@ fn main() -> Result<(), Error> {
         }
     }
 
+    let var_dir_opt=var_os("CALENDAR_MIRROR_VAR");
+    let var_dir=if let Some(ref val)=var_dir_opt {
+        Path::new(val)
+    } else {
+        Path::new(DEFAULT_VAR_DIR)
+    };
+
     //const PYTHON_NAME: &str = "/usr/bin/python3";
     let quitter = Arc::new(AtomicBool::new(false));
     if cfg!(feature = "render_stm") {
         let mut renderer = Renderer::wait_for_server()?;
-        cal_machine::run(&mut renderer, quitter)?;
+        cal_machine::run(&mut renderer, quitter, var_dir)?;
     } else {
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
@@ -185,7 +191,7 @@ fn main() -> Result<(), Error> {
                 })
                 .expect("Error setting Ctrl-C handler");
                 renderer.disconnect_quits_server()?;
-                cal_machine::run(&mut renderer, quitter)?;
+                cal_machine::run(&mut renderer, quitter, var_dir)?;
 
                 println!("finishing up");
             }

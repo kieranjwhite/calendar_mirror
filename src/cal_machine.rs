@@ -253,7 +253,7 @@ fn opt_filter<T>(val: &Option<T>, pred: impl Fn(&T) -> bool) -> bool {
     }
 }
 
-pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Error> {
+pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>, var_dir: &Path) -> Result<(), Error> {
     use Machine::*;
 
     if cfg!(feature = "render_stm") {
@@ -280,7 +280,7 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
         const LONG_DURATION: Duration = Duration::from_secs(4);
 
         let mut display_date = Local::today().and_hms(0, 0, 0);
-        let config_file = Path::new("config.json");
+        let config_file = var_dir.join(Path::new("refresh.json"));
         let retriever = EventRetriever::inst();
         let mut mach: Machine = Load(cal_stm::Load);
         let mut gpio = GPIO::new()?;
@@ -302,7 +302,7 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
 
         while !quitter.load(AtomicOrdering::SeqCst) {
             mach = match mach {
-                Load(st) => match RefreshToken::load(config_file) {
+                Load(st) => match RefreshToken::load(&config_file) {
                     Err(error_msg) => DisplayError(
                         st.into(),
                         format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
@@ -438,7 +438,7 @@ pub fn run(renderer: &mut Renderer, quitter: Arc<AtomicBool>) -> Result<(), Erro
                     }
                 }
                 Save(st, credentials) => {
-                    credentials.refresh_token.save(config_file)?;
+                    credentials.refresh_token.save(&config_file)?;
                     ReadFirst(st.into(), credentials, RefreshedAt::now())
                 }
                 ReadFirst(st, credentials_tokens, refreshed_at) => {
