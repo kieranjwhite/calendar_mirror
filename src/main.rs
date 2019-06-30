@@ -146,7 +146,7 @@ fn installation(
 }
 
 const SCRIPTS_DIR: &str = "scripts";
-const SCRIPT_NAME: &str = "cal_server.py";
+const SCRIPT_NAME: &str = "calendar_mirror_server.py";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -191,10 +191,10 @@ fn main() -> Result<(), Error> {
             }
             ForkResult::Child => {
                 println!("child will now start server...");
-                execv(
+                execvp(
                     &CString::new(SCRIPT_NAME)
                         .expect(&format!("Invalid CString: {}", SCRIPT_NAME)),
-                    &[],
+                    &[]
                 )?;
             }
         }
