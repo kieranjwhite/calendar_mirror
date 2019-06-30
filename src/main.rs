@@ -215,9 +215,9 @@ fn main() -> Result<(), Error> {
         val.clone().into_string().expect("invalid path")
     } else {
         "".to_string()
-    };    
+    };
     println!("path: {}", paths);
-    
+
     let config_file = var_dir.join(Path::new("refresh.json"));
 
     //const PYTHON_NAME: &str = "/usr/bin/python3";
@@ -228,18 +228,26 @@ fn main() -> Result<(), Error> {
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
                 let simple_loader = || RefreshToken::load(&config_file);
-                let simple_saver = |refresh_token: &RefreshToken| refresh_token.save(&config_file);
+                let simple_saver = |refresh_token: &RefreshToken, renderer: &mut Renderer| {
+                    renderer.display_save_warning()?;
+                    refresh_token.save(&config_file)?;
+                    Ok(())
+                };
 
-                let child_quitter = Arc::clone(&quitter);
-                println!("parent is waiting for child to start server...");
-                let mut renderer = Renderer::wait_for_server()?;
-                ctrlc::set_handler(move || {
-                    child_quitter.store(true, AtomicOrdering::SeqCst);
-                })
-                .expect("Error setting Ctrl-C handler");
-                renderer.disconnect_quits_server()?;
-                cal_machine::run(&mut renderer, quitter, simple_loader, simple_saver)?;
-
+                {
+                    let child_quitter = Arc::clone(&quitter);
+                    println!("parent is waiting for child to start server...");
+                    let mut renderer = Renderer::wait_for_server()?;
+                    ctrlc::set_handler(move || {
+                        child_quitter.store(true, AtomicOrdering::SeqCst);
+                    })
+                    .expect("Error setting Ctrl-C handler");
+                    renderer.disconnect_quits_server()?;
+                    if let Err(error) = cal_machine::run(&mut renderer, quitter, simple_loader, simple_saver) {
+                        renderer.clear()?;
+                        return Err(error.into());
+                    }
+                }
                 println!("finishing up");
             }
             ForkResult::Child => {

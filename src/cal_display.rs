@@ -92,13 +92,47 @@ impl Renderer {
         event_str
     }
 
+    pub fn clear(&mut self) -> Result<(), Error> {
+        let mut ops: Vec<Op> = Vec::with_capacity(1);
+        ops.push(Op::Clear);
+        self.pipe.send(ops.iter())?;
+        Ok(())
+    }
+    
+    pub fn display_save_warning(&mut self) -> Result<(), Error> {
+        let mut ops: Vec<Op> = Vec::with_capacity(4);
+        ops.push(Op::Clear);
+        //ops.push(Op::AddText(
+        //    "Warning...".to_string(),
+        //    INSTR1_POS,
+        //    INSTR_SIZE,
+        //    "Instr1".to_string(),
+        //));
+        ops.push(Op::AddText(
+            "SAVING!".to_string(),
+            CODE_POS,
+            LARGE_SIZE,
+            "Code".to_string(),
+        ));
+        ops.push(Op::AddText(
+            "Do not disconnect power.".to_string(),
+            INSTR2_POS,
+            SMALL_SIZE,
+            "Instr2".to_string(),
+        ));
+        ops.push(Op::WriteAll(PartialUpdate(false)));
+
+        self.pipe.send(ops.iter())?;
+        Ok(())
+    }
+    
     pub fn display_user_code(
         &mut self,
         user_code: &str,
         expires_at: &DateTime<Local>,
         url: &str,
     ) -> Result<(), Error> {
-        let mut ops: Vec<Op> = Vec::with_capacity(5);
+        let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
         ops.push(Op::AddText(
             "Please enter the code:".to_string(),

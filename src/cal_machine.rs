@@ -275,7 +275,7 @@ pub fn run(
     renderer: &mut Renderer,
     quitter: Arc<AtomicBool>,
     loader: impl Fn() -> io::Result<Option<RefreshToken>>,
-    saver: impl Fn(&RefreshToken) -> io::Result<()>,
+    saver: impl Fn(&RefreshToken, &mut Renderer) -> Result<(), Error>,
 ) -> Result<(), Error> {
     use Machine::*;
 
@@ -448,7 +448,7 @@ pub fn run(
             }
             Save(st, credentials) => {
                 //credentials.refresh_token.save(&config_file)?;
-                saver(&credentials.refresh_token)?;
+                saver(&credentials.refresh_token, renderer)?;
                 ReadFirst(st.into(), credentials, RefreshedAt::now())
             }
             ReadFirst(st, credentials_tokens, refreshed_at) => {
