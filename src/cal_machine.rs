@@ -14,12 +14,13 @@ use crate::{
     stm,
 };
 use chrono::{format::ParseError, prelude::*};
-use nix::Error as NixError;
+use nix::{unistd::*, Error as NixError};
 use retriever::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{
     cmp::{Ord, Ordering},
+    ffi::CString,
     fs::File,
     io::{self, BufRead, BufReader, BufWriter, Write},
     path::Path,
@@ -273,6 +274,12 @@ pub fn render_stms() -> Result<(), Error> {
     Ok(())
 }
 
+fn shutdown() -> Result<(), NixError> {
+    println!("shutting down...");
+    execvp(&CString::new("halt").expect("Invalid CString: halt"), &[])?;
+    Ok(())
+}
+
 //    loader: impl Fn() -> io::Result<Option<RefreshToken>>,
 pub fn run(
     renderer: &mut Renderer,
@@ -308,6 +315,11 @@ pub fn run(
     );
     let mut next_button = LongPressButton::new(
         Pin(SW1_GPIO),
+        DetectableDuration(LONG_DURATION),
+        LongReleaseDuration(LONGISH_DURATION),
+    );
+    let mut scroll_button = LongPressButton::new(
+        Pin(SW2_GPIO),
         DetectableDuration(LONG_DURATION),
         LongReleaseDuration(LONGISH_DURATION),
     );
@@ -546,6 +558,7 @@ pub fn run(
                     let reset_event = reset_button.event(&mut gpio)?;
                     let back_event = back_button.event(&mut gpio)?;
                     let next_event = next_button.event(&mut gpio)?;
+                    let scroll_event = scroll_button.event(&mut gpio)?;
 
                     let short_check = |e: &LongButtonEvent| e.is_short_press();
                     let release_check = |e: &LongButtonEvent| e.is_release();
@@ -554,6 +567,9 @@ pub fn run(
                     if opt_filter(&reset_event, long_check) {
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
+                        shutdown()?;
+                        Wait(st, credentials, refreshed_at, started_wait_at)
+                    } else if opt_filter(&scroll_event, long_check) {
                         println!("full display & date refresh");
                         display_date = Local::today().and_hms(0, 0, 0);
                         ReadFirst(st.into(), credentials, refreshed_at)
@@ -586,6 +602,9 @@ pub fn run(
                     let reset_event = reset_button.event(&mut gpio)?;
                     if opt_filter(&reset_event, |e| e.is_long_press()) {
                         RequestCodes(st.into())
+                    } else if opt_filter(&reset_event, |e| e.is_short_press()) {
+                        shutdown()?;
+                        ErrorWait(st, started_wait_at)
                     } else {
                         ErrorWait(st, started_wait_at)
                     }
