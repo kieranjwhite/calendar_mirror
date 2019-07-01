@@ -22,6 +22,7 @@ def make_quittable():
         log("setting quit flag")
         quit_flag=True
         signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
 def log(msg):
     print(SERVER_PREFIX+msg)

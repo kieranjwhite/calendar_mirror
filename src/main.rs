@@ -187,8 +187,20 @@ const UNIT_NAME: &str = "calendar_mirror.service";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
+const VAR_DIR_DEV: &str = "/dev/mmcblk0p8";
+const VAR_DIR_FS_TYPE: &str = "ext4";
+const CALENDAR_MIRROR_VAR: &str="CALENDAR_MIRROR_VAR";
+const CALENDAR_MIRROR_DEV: &str="CALENDAR_MIRROR_DEV";
 
 fn main() -> Result<(), Error> {
+    let path_opt = var_os("PATH");
+    let paths = if let Some(ref val) = path_opt {
+        val.clone().into_string().expect("invalid path")
+    } else {
+        "".to_string()
+    };
+    println!("path: {}", paths);
+
     let args: Vec<String> = env::args().collect();
     let dest_base: &Path = Path::new("/opt/");
     for arg in args.iter() {
@@ -205,34 +217,6 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    let var_dir_opt = var_os("CALENDAR_MIRROR_VAR");
-    let var_dir_os = &var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
-    let var_dir: &Path = Path::new(var_dir_os);
-
-    let path_opt = var_os("PATH");
-    let paths = if let Some(ref val) = path_opt {
-        val.clone().into_string().expect("invalid path")
-    } else {
-        "".to_string()
-    };
-    println!("path: {}", paths);
-
-    let mut ro_flags = MsFlags::empty();
-    ro_flags.insert(MsFlags::MS_REMOUNT);
-    ro_flags.insert(MsFlags::MS_RDONLY);
-    let ro_flags = ro_flags;
-    if var_dir_opt.is_some() {
-        mount(
-            Option::<&Path>::None,
-            var_dir,
-            Option::<&Path>::None,
-            ro_flags,
-            Option::<&Path>::None,
-        )?;
-    }
-
-    let config_file = var_dir.join(Path::new("refresh.json"));
-
     //const PYTHON_NAME: &str = "/usr/bin/python3";
     let quitter = Arc::new(AtomicBool::new(false));
 
@@ -241,13 +225,64 @@ fn main() -> Result<(), Error> {
     } else {
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
+                let child_quitter = Arc::clone(&quitter);
+                println!("parent is waiting for child to start server...");
+                let mut renderer = Renderer::wait_for_server()?;
+                ctrlc::set_handler(move || {
+                    child_quitter.store(true, AtomicOrdering::SeqCst);
+                })
+                .expect("Error setting Ctrl-C handler");
+                renderer.disconnect_quits_server()?;
+                //if let Err(error) = cal_machine::run(&mut renderer, quitter, &config_file, simple_saver) {
+                //      renderer.clear()?;
+                //       return Err(error.into());
+                //}
+                let var_dir_opt = var_os(CALENDAR_MIRROR_VAR);
+                let var_dir_os = &var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
+                let var_dir: &Path = Path::new(var_dir_os);
+
+                let var_dir_dev_opt=var_os(CALENDAR_MIRROR_DEV);
+                let var_dir_dev_os= &var_dir_dev_opt.clone().expect(format!("If the var mount point is specified by the environment so too must a block device using the {} environment variable", CALENDAR_MIRROR_DEV).as_str());
+                let var_dir_dev: &Path = Path::new(var_dir_dev_os);
+                
+                let var_dir_fs_type: &Path = Path::new(VAR_DIR_FS_TYPE);
+                let mut base_flags = MsFlags::empty();
+                base_flags.insert(MsFlags::MS_NOATIME);
+                base_flags.insert(MsFlags::MS_NOSUID);
+                base_flags.insert(MsFlags::MS_NODEV);
+
+                let mut ro_flags = base_flags.clone();
+                ro_flags.insert(MsFlags::MS_RDONLY);
+
+                if var_dir_opt.is_some() {
+                    create_dir_all(var_dir)?;
+                    println!(
+                        "before mount: {:?} flags: {:?} dev: {:?} fs type: {:?}",
+                        var_dir.display(),
+                        ro_flags,
+                        var_dir_dev,
+                        var_dir_fs_type
+                    );
+                    mount(
+                        Option::<&Path>::Some(var_dir_dev),
+                        var_dir,
+                        Option::<&Path>::Some(var_dir_fs_type),
+                        ro_flags,
+                        Option::<&Path>::None,
+                    )?;
+                    println!("after mount");
+                }
+                base_flags.insert(MsFlags::MS_REMOUNT);
+                let rw_flags = base_flags;
+                ro_flags.insert(MsFlags::MS_REMOUNT);
+                let ro_flags = ro_flags;
+
+                let config_file = var_dir.join(Path::new("refresh.json"));
+
                 let simple_saver = |refresh_token: &RefreshToken, renderer: &mut Renderer| {
                     renderer.display_save_warning()?;
                     if var_dir_opt.is_some() {
                         println!("remounting rw and saving refresh token");
-                        let mut rw_flags = MsFlags::empty();
-                        rw_flags.insert(MsFlags::MS_REMOUNT);
-                        let rw_flags = rw_flags;
                         mount(
                             Option::<&Path>::None,
                             var_dir,
@@ -271,35 +306,27 @@ fn main() -> Result<(), Error> {
                     Ok(())
                 };
 
-                {
-                    let child_quitter = Arc::clone(&quitter);
-                    println!("parent is waiting for child to start server...");
-                    let mut renderer = Renderer::wait_for_server()?;
-                    ctrlc::set_handler(move || {
-                        child_quitter.store(true, AtomicOrdering::SeqCst);
-                    })
-                    .expect("Error setting Ctrl-C handler");
-                    renderer.disconnect_quits_server()?;
-                    //if let Err(error) = cal_machine::run(&mut renderer, quitter, &config_file, simple_saver) {
-                    //      renderer.clear()?;
-                    //       return Err(error.into());
-                    //}
-                    loop {
-                        match cal_machine::run(&mut renderer, &quitter, &config_file, simple_saver)
-                        {
-                            Err(cal_machine::Error::Reqwest(_)) => {
-                                thread::sleep(Duration::from_secs(5));
-                            }
-                            Err(error) => {
-                                renderer.clear()?;
-                                return Err(error.into());
-                            }
-                            Ok(()) => {
-                                break;
-                            }
+                loop {
+                    match cal_machine::run(&mut renderer, &quitter, &config_file, simple_saver) {
+                        Err(cal_machine::Error::Reqwest(_)) => {
+                            thread::sleep(Duration::from_secs(5));
+                        }
+                        Err(error) => {
+                            renderer.clear()?;
+                            return Err(error.into());
+                        }
+                        Ok(()) => {
+                            break;
                         }
                     }
                 }
+
+                if var_dir_opt.is_some() {
+                    println!("before umount: {:?}", var_dir.display(),);
+                    umount(var_dir)?;
+                    println!("after umount");
+                }
+
                 println!("finishing up");
             }
             ForkResult::Child => {
