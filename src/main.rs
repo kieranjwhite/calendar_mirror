@@ -187,7 +187,6 @@ const UNIT_NAME: &str = "calendar_mirror.service";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
-const VAR_DIR_DEV: &str = "/dev/mmcblk0p8";
 const VAR_DIR_FS_TYPE: &str = "ext4";
 const CALENDAR_MIRROR_VAR: &str="CALENDAR_MIRROR_VAR";
 const CALENDAR_MIRROR_DEV: &str="CALENDAR_MIRROR_DEV";
@@ -241,10 +240,6 @@ fn main() -> Result<(), Error> {
                 let var_dir_os = &var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
                 let var_dir: &Path = Path::new(var_dir_os);
 
-                let var_dir_dev_opt=var_os(CALENDAR_MIRROR_DEV);
-                let var_dir_dev_os= &var_dir_dev_opt.clone().expect(format!("If the var mount point is specified by the environment so too must a block device using the {} environment variable", CALENDAR_MIRROR_DEV).as_str());
-                let var_dir_dev: &Path = Path::new(var_dir_dev_os);
-                
                 let var_dir_fs_type: &Path = Path::new(VAR_DIR_FS_TYPE);
                 let mut base_flags = MsFlags::empty();
                 base_flags.insert(MsFlags::MS_NOATIME);
@@ -255,6 +250,10 @@ fn main() -> Result<(), Error> {
                 ro_flags.insert(MsFlags::MS_RDONLY);
 
                 if var_dir_opt.is_some() {
+                    let var_dir_dev_opt=var_os(CALENDAR_MIRROR_DEV);
+                    let var_dir_dev_os= &var_dir_dev_opt.clone().expect(format!("If the var mount point is specified by the environment so too must a block device using the {} environment variable", CALENDAR_MIRROR_DEV).as_str());
+                    let var_dir_dev: &Path = Path::new(var_dir_dev_os);
+                
                     create_dir_all(var_dir)?;
                     println!(
                         "before mount: {:?} flags: {:?} dev: {:?} fs type: {:?}",
