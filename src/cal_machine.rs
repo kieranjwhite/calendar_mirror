@@ -315,7 +315,7 @@ pub fn run(
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
             Load(st) => match RefreshToken::load(&config_file) {
-            //Load(st) => match loader() {
+                //Load(st) => match loader() {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
@@ -536,6 +536,12 @@ pub fn run(
                 {
                     Refresh(st.into(), credentials.refresh_token)
                 } else {
+                    renderer.heartbeat(if (elapsed_since_token_refresh.as_secs() & 1) == 1 {
+                        true
+                    } else {
+                        false
+                    })?;
+
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
                     let back_event = back_button.event(&mut gpio)?;

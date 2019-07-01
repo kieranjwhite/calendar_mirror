@@ -7,14 +7,17 @@ use chrono::prelude::*;
 
 pub struct Renderer {
     pipe: RenderPipeline,
+    pulse_on: bool,
 }
 
 const HEADING_ID: &str = "heading";
+const PULSE_ID: &str = "pulse";
 const EMAIL_ID: &str = "email";
 const EVENTS_ID: &str = "events";
 
-const HEADING_POS: Pos = Pos(0, 0);
-const EMAIL_POS: Pos = Pos(100, 4);
+const HEADING_POS: Pos = Pos(8, 0);
+const PULSE_POS: Pos = Pos(0, 0);
+const EMAIL_POS: Pos = Pos(108, 4);
 const EVENTS_POS: Pos = Pos(0, 24);
 const INSTR1_POS: Pos = Pos(24, 24);
 const CODE_POS: Pos = Pos(64, 48);
@@ -25,6 +28,7 @@ const LARGE_SIZE: u32 = 24;
 const SMALL_SIZE: u32 = 12;
 const INSTR_SIZE: u32 = 16;
 const HEADING_SIZE: u32 = 16;
+const PULSE_SIZE: u32 = 16;
 const EMAIL_SIZE: u32 = 10;
 const EVENTS_SIZE: u32 = 16;
 
@@ -44,6 +48,7 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
+            pulse_on: false,
         })
     }
 
@@ -59,7 +64,7 @@ impl Renderer {
 
         Ok(())
     }
-    
+
     fn format(event: &Event) -> String {
         let mut event_str = String::with_capacity(
             TIME_LEN
@@ -98,7 +103,31 @@ impl Renderer {
         self.pipe.send(ops.iter(), false)?;
         Ok(())
     }
-    
+
+    fn pulse_repr(&self) -> &'static str {
+        if self.pulse_on {
+            "!"
+        } else {
+            " "
+        }
+    }
+
+    pub fn heartbeat(&mut self, on: bool) -> Result<(), Error> {
+        if on==self.pulse_on {
+            return Ok(())
+        }
+        self.pulse_on=on;
+        
+        let mut ops: Vec<Op> = Vec::with_capacity(3);
+        ops.push(Op::UpdateText(
+            PULSE_ID.to_string(),
+            self.pulse_repr().to_string(),
+        ));
+        ops.push(Op::WriteAll(PartialUpdate(true)));
+
+        self.pipe.send(ops.iter(), false)
+    }
+
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(4);
         ops.push(Op::Clear);
@@ -125,7 +154,7 @@ impl Renderer {
         self.pipe.send(ops.iter(), true)?;
         Ok(())
     }
-    
+
     pub fn display_user_code(
         &mut self,
         user_code: &str,
@@ -183,7 +212,7 @@ impl Renderer {
         date: &DateTime<Local>,
         apps: &Appointments,
     ) -> Result<(), Error> {
-        let mut ops: Vec<Op> = Vec::with_capacity(5);
+        let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -192,6 +221,13 @@ impl Renderer {
             HEADING_POS,
             HEADING_SIZE,
             HEADING_ID.to_string(),
+        ));
+
+        ops.push(Op::AddText(
+            self.pulse_repr().to_string(),
+            PULSE_POS,
+            PULSE_SIZE,
+            PULSE_ID.to_string(),
         ));
 
         if let Some(Email(email_address)) = apps.email() {
@@ -241,4 +277,3 @@ impl Renderer {
         self.pipe.send(ops.iter(), false)
     }
 }
-
