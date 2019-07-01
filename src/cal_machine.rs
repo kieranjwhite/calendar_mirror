@@ -277,6 +277,7 @@ pub fn render_stms() -> Result<(), Error> {
 fn shutdown() -> Result<(), NixError> {
     println!("shutting down...");
     execvp(&CString::new("halt").expect("Invalid CString: halt"), &[])?;
+    println!("shutdown failed");
     Ok(())
 }
 
