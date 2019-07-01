@@ -10,7 +10,7 @@ mod stm;
 use cal_display::Renderer;
 use cal_machine::{Error as CalMachineError, RefreshToken};
 use display::Error as DisplayError;
-use nix::{unistd::*, Error as NixError, mount::*};
+use nix::{mount::*, unistd::*, Error as NixError};
 use std::{
     env::{self, var_os},
     ffi::CString,
@@ -21,6 +21,8 @@ use std::{
     process::{self, Command},
     sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
     sync::Arc,
+    thread,
+    time::Duration,
 };
 
 err!(
@@ -204,7 +206,7 @@ fn main() -> Result<(), Error> {
     }
 
     let var_dir_opt = var_os("CALENDAR_MIRROR_VAR");
-    let var_dir_os=&var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
+    let var_dir_os = &var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
     let var_dir: &Path = Path::new(var_dir_os);
 
     let path_opt = var_os("PATH");
@@ -215,15 +217,25 @@ fn main() -> Result<(), Error> {
     };
     println!("path: {}", paths);
 
-    let mut ro_flags=MsFlags::empty();
+    let mut ro_flags = MsFlags::empty();
     ro_flags.insert(MsFlags::MS_REMOUNT);
     ro_flags.insert(MsFlags::MS_RDONLY);
-    let ro_flags=ro_flags;
-    mount(Option::<&Path>::None, var_dir, Option::<&Path>::None, ro_flags, Option::<&Path>::None)?;
+    let ro_flags = ro_flags;
+    if var_dir_opt.is_some() {
+        mount(
+            Option::<&Path>::None,
+            var_dir,
+            Option::<&Path>::None,
+            ro_flags,
+            Option::<&Path>::None,
+        )?;
+    }
+
     let config_file = var_dir.join(Path::new("refresh.json"));
 
     //const PYTHON_NAME: &str = "/usr/bin/python3";
     let quitter = Arc::new(AtomicBool::new(false));
+
     if cfg!(feature = "render_stm") {
         cal_machine::render_stms()?;
     } else {
@@ -232,13 +244,28 @@ fn main() -> Result<(), Error> {
                 let simple_saver = |refresh_token: &RefreshToken, renderer: &mut Renderer| {
                     renderer.display_save_warning()?;
                     if var_dir_opt.is_some() {
-                        let mut rw_flags=MsFlags::empty();
+                        println!("remounting rw and saving refresh token");
+                        let mut rw_flags = MsFlags::empty();
                         rw_flags.insert(MsFlags::MS_REMOUNT);
-                        let rw_flags=rw_flags;
-                        mount(Option::<&Path>::None, var_dir, Option::<&Path>::None, rw_flags, Option::<&Path>::None)?;
+                        let rw_flags = rw_flags;
+                        mount(
+                            Option::<&Path>::None,
+                            var_dir,
+                            Option::<&Path>::None,
+                            rw_flags,
+                            Option::<&Path>::None,
+                        )?;
                         refresh_token.save(&config_file)?;
-                        mount(Option::<&Path>::None, var_dir, Option::<&Path>::None, ro_flags, Option::<&Path>::None)?;
+                        mount(
+                            Option::<&Path>::None,
+                            var_dir,
+                            Option::<&Path>::None,
+                            ro_flags,
+                            Option::<&Path>::None,
+                        )?;
+                        println!("remounting ro");
                     } else {
+                        println!("saving refresh token");
                         refresh_token.save(&config_file)?;
                     }
                     Ok(())
@@ -253,9 +280,24 @@ fn main() -> Result<(), Error> {
                     })
                     .expect("Error setting Ctrl-C handler");
                     renderer.disconnect_quits_server()?;
-                    if let Err(error) = cal_machine::run(&mut renderer, quitter, &config_file, simple_saver) {
-                        renderer.clear()?;
-                        return Err(error.into());
+                    //if let Err(error) = cal_machine::run(&mut renderer, quitter, &config_file, simple_saver) {
+                    //      renderer.clear()?;
+                    //       return Err(error.into());
+                    //}
+                    loop {
+                        match cal_machine::run(&mut renderer, &quitter, &config_file, simple_saver)
+                        {
+                            Err(cal_machine::Error::Reqwest(_)) => {
+                                thread::sleep(Duration::from_secs(5));
+                            }
+                            Err(error) => {
+                                renderer.clear()?;
+                                return Err(error.into());
+                            }
+                            Ok(()) => {
+                                break;
+                            }
+                        }
                     }
                 }
                 println!("finishing up");

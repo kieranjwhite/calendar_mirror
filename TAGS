@@ -1,66 +1,178 @@
 
-src/cal_display.rs,948
-use crate::display::Operation as Op;1,0
-use crate:crate2,37
-use chrono::prelude:chrono::prelude6,121
-pub struct Renderer 8,146
-    pipe: RenderPipeline,9,168
-const HEADING_ID: &str str12,197
-const EMAIL_ID: &str str13,233
-const EVENTS_ID: &str str14,265
-const HEADING_POS: Pos 16,300
-const EMAIL_POS: Pos 17,336
-const EVENTS_POS: Pos 18,372
-const INSTR1_POS: Pos 19,408
-const CODE_POS: Pos 20,445
-const INSTR2_POS: Pos 21,480
-const EXPIRY_POS: Pos 22,518
-const LARGE_SIZE: u32 24,557
-const SMALL_SIZE: u32 25,585
-const INSTR_SIZE: u32 26,613
-const HEADING_SIZE: u32 27,641
-const EMAIL_SIZE: u32 28,671
-const EVENTS_SIZE: u32 29,699
-const DATE_FORMAT: &str str31,729
-const TIME_FORMAT: &str str32,764
-const NO_EMAIL: &str str34,800
-const NO_EVENTS: &str str35,840
-const START_DELIMITER: &str str36,877
-const END_DELIMITER: &str str37,912
-const SUMMARY_DELIMITER: &str str38,945
-const TIME_LEN: usize 41,1019
-
-src/cal_machine.rs,1022
+src/cal_machine.rs,1839
 mod retriever;1,0
 use crate:crate3,16
 use chrono:chrono16,392
-use retriever:retriever17,438
-use serde:serde18,456
-use std::time::Duration;19,493
-use std:std20,518
-stm!(cal_stm, Machine,29,722
-type PeriodSeconds 42,1366
-type AuthTokens 43,1392
-const FOUR_MINS: Duration 45,1444
-const RECHECK_PERIOD: Duration 46,1498
-const BUTTON_POLL_PERIOD: Duration 47,1557
-pub struct VolatileAuthenticator 58,1803
-    pub access_token: String,59,1838
-    expires_in: u64,60,1868
-pub struct RefreshToken(String)64,1933
-pub struct Authenticators 115,3250
-    refresh_token: RefreshToken,116,3278
-    volatiles: VolatileAuthenticator,117,3311
-pub struct Email(pub String)145,4124
-    pub struct Appointments 161,4497
-        pub events: Vec<Vec162,4527
-        state: Machine,163,4559
-pub struct Event 210,6115
-    pub summary: String,211,6134
-    pub description: Option<Option212,6159
-    pub start: DateTime<DateTime213,6196
-    pub end: DateTime<DateTime214,6228
-    use Machine:Machine257,7480
+use nix::Error as NixError;17,438
+use retriever:retriever18,466
+use serde:serde19,484
+use std::time::Duration;20,521
+use std:std21,546
+stm!(cal_stm, Machine,33,773
+type PeriodSeconds 46,1417
+type AuthTokens 47,1443
+const FOUR_MINS: Duration 49,1495
+const RECHECK_PERIOD: Duration 50,1549
+const BUTTON_POLL_PERIOD: Duration 51,1608
+pub struct VolatileAuthenticator 63,1873
+    pub access_token: String,64,1908
+    expires_in: u64,65,1938
+pub struct RefreshToken(String)69,2003
+pub struct Authenticators 120,3320
+    refresh_token: RefreshToken,121,3348
+    volatiles: VolatileAuthenticator,122,3381
+pub struct Email(pub String)150,4194
+    pub struct Appointments 166,4567
+        pub events: Vec<Vec167,4597
+        state: Machine,168,4629
+pub struct Event 215,6185
+    pub summary: String,216,6204
+    pub description: Option<Option217,6229
+    pub start: DateTime<DateTime218,6266
+    pub end: DateTime<DateTime219,6298
+    let mut f 262,7493
+    Machine::render_to(&mut f)263,7548
+    f 266,7597
+    evs::Machine::render_to(&mut f)267,7639
+    f 270,7693
+    papirus_in::LongPressMachine::render_to(&mut f)271,7750
+    use Machine:Machine283,8085
+    use reqwest:reqwest285,8106
+    const HTTP_ERROR: &str str287,8148
+    const LOAD_FAILED: &str str288,8191
+    const QUOTA_EXCEEDED: &str str289,8251
+    const ACCESS_DENIED: &str str290,8302
+    const UNRECOGNISED_TOKEN_TYPE: &str str291,8387
+    const LONGISH_DURATION: Duration 292,8456
+    const LONG_DURATION: Duration 293,8524
+    let mut display_date 295,8585
+    let retriever 296,8645
+    let mut mach: Machine 297,8689
+    let mut gpio 298,8738
+    let mut reset_button 299,8771
+    let mut back_button 304,8940
+    let mut next_button 309,9108
+
+src/papirus_in.rs,932
+use crate:crate1,0
+use memmap:memmap2,23
+use std:std3,56
+use LongPressMachine:LongPressMachine9,162
+const BLOCK_SIZE: usize 11,188
+const PIN_COUNT: usize 12,224
+const READ_REG_OFFSET: usize 13,253
+pub const SW1_GPIO: usize 15,289
+pub const SW2_GPIO: usize 16,321
+pub const SW3_GPIO: usize 17,353
+pub const SW4_GPIO: usize 18,385
+stm!(long_press_button_stm, LongPressMachine,29,573
+pub enum LongButtonEvent 36,900
+    Pressed,37,927
+    LongPress,38,940
+    Release,39,955
+    PressAndRelease,40,968
+pub struct DetectableDuration(pub Duration)68,1575
+pub struct LongReleaseDuration(pub Duration)69,1620
+pub struct LongPressButton 79,2107
+    pin: Pin,80,2136
+    state: LongPressMachine,81,2150
+    detectable_after: DetectableDuration,82,2179
+    long_release_after: LongReleaseDuration,83,2221
+pub struct Pin(pub usize)183,5630
+pub struct GPIO 185,5658
+    map: Mmap,186,5676
+    snap:snap187,5691
+
+src/main.rs,1756
+mod cal_display;3,54
+mod cal_machine;4,71
+mod display;5,88
+mod err;6,101
+mod papirus_in;7,110
+mod stm;8,126
+use cal_display::Renderer;10,136
+use cal_machine:cal_machine11,163
+use display::Error as DisplayError;12,222
+use nix:nix13,258
+use std:std14,309
+enum PackageAction 36,741
+    Install,37,762
+    Uninstall,38,775
+    let script_rel_path: &Path Path46,917
+    let systemd_rel_path: &Path Path47,1004
+    let exe_link: &Path Path48,1090
+    let bin_dir: &Path Path49,1145
+    let bin_path 51,1189
+    let exe_path 52,1243
+    let exe_name 53,1288
+    let runnable_exe_path 62,1543
+    let mut project_dir 63,1596
+    let script_path 76,1941
+    let script_name 77,1998
+    let systemd_path 78,2044
+    let unit_name 79,2103
+    let runnable_script_path 81,2146
+    let version_path 82,2205
+    let version_exe 83,2263
+    let version_script 84,2314
+    let version_unit 85,2371
+    println!("exe is gone {:?}", version_exe)99,2701
+    println!("script is gone {:?}", version_script)103,2830
+    println!("unit is gone {:?}", version_unit)107,2961
+    println!("version_path is gone {:?}", version_path)111,3087
+const SYSTEMD_DIR: &str str182,5090
+const SCRIPT_NAME: &str str183,5127
+const UNIT_NAME: &str str184,5182
+const PKG_NAME: &str str185,5233
+const VERSION: &str str186,5280
+const DEFAULT_VAR_DIR: &str str187,5329
+    let args: Vec<Vec190,5398
+    let dest_base: &Path Path191,5449
+    let var_dir_opt 206,5931
+    let var_dir_os=207,5984
+    let var_dir: &Path Path208,6059
+    let path_opt 210,6108
+    let paths 211,6143
+    println!("path: {}", paths)216,6293
+    let mut ro_flags=218,6327
+    let ro_flags=221,6449
+    let config_file 223,6576
+    let quitter 226,6692
+
+src/display.rs,1054
+use crate::err;1,0
+use serde::Serialize;2,16
+use serde_json::error::Error as SerdeError;3,38
+use std::io::{self, BufRead, BufReader, BufWriter, Write}Write4,82
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream}TcpStream5,141
+use std::slice::Iter;6,198
+use std::time::Duration;7,220
+use std::thread;8,245
+const DRIVER_PORT: u16 10,263
+const SERVER_ADDR: Ipv4Addr 11,294
+pub enum Operation 15,395
+    AddText(16,416
+    AddText(String,16,416
+    AddText(String, Pos,16,416
+    AddText(String, Pos, Size,16,416
+    AddText(String, Pos, Size, Id)16,416
+    UpdateText(17,452
+    UpdateText(Id,17,452
+    UpdateText(Id, String)17,452
+    RemoveText(18,480
+    RemoveText(Id)18,480
+    Clear,19,500
+    WriteAll(20,511
+    WriteAll(PartialUpdate)20,511
+    Sync,21,540
+    QuitWhenDone,22,550
+type Id 25,571
+type Size 26,589
+pub struct PartialUpdate(pub bool)29,628
+pub struct Pos(pub u32, pub u32)32,686
+pub struct RenderPipeline 39,785
+    r_stream: BufReader<BufReader40,813
+    w_stream: BufWriter<BufWriter41,849
 
 src/cal_machine/retriever.rs,2571
 use chrono::prelude:chrono::prelude1,0
@@ -136,109 +248,35 @@ src/err.rs,126
                 $var(16,531
                 $var($embedded)16,531
 
-src/main.rs,1283
-mod cal_display;3,54
-mod cal_machine;4,71
-mod display;5,88
-mod err;6,101
-mod papirus_in;7,110
-mod stm;8,126
-use cal_display::Renderer;10,136
-use cal_machine::Error as CalMachineError;11,163
-use display::Error as DisplayError;12,206
-use nix:nix13,242
-use std:std14,283
-enum PackageAction 36,698
-    Install,37,719
-    Uninstall,38,732
-    let script_rel_path: &Path Path46,874
-    let exe_link: &Path Path47,961
-    let bin_dir: &Path Path48,1016
-    let bin_path 50,1060
-    let exe_path 51,1114
-    let exe_name 52,1159
-    let runnable_exe_path 61,1414
-    let mut project_dir 62,1467
-    let script_path 75,1812
-    let script_name 76,1869
-    let runnable_script_path 85,2122
-    let version_path 86,2181
-    let version_exe 87,2239
-    let version_script 88,2290
-    println!("exe is gone {:?}", version_exe)95,2494
-    println!("script is gone {:?}", version_script)99,2623
-    println!("version_path is gone {:?}", version_path)103,2753
-const SCRIPT_NAME: &str str149,4299
-const PKG_NAME: &str str150,4354
-const VERSION: &str str151,4401
-const DEFAULT_VAR_DIR: &str=str152,4450
-    let args: Vec<Vec155,4517
-    let dest_base: &Path Path156,4568
-    let var_dir_opt=171,5050
-    let var_dir=172,5101
-    let quitter 179,5283
-
-src/papirus_in.rs,992
-use crate::{err, stm}stm1,0
-use memmap::{Mmap, MmapOptions}MmapOptions2,23
-    time::{Duration, Instant}Instant7,128
-use LongPressMachine:LongPressMachine9,162
-const BLOCK_SIZE: usize 11,188
-const PIN_COUNT: usize 12,224
-const READ_REG_OFFSET: usize 13,253
-pub const SW1_GPIO: usize 15,289
-pub const SW2_GPIO: usize 16,321
-pub const SW3_GPIO: usize 17,353
-pub const SW4_GPIO: usize 18,385
-stm!(long_press_button_stm, LongPressMachine,29,573
-pub enum LongButtonEvent 36,900
-    Pressed,37,927
-    LongPress,38,940
-    Release,39,955
-    PressAndRelease,40,968
-pub struct DetectableDuration(pub Duration)68,1575
-pub struct LongReleaseDuration(pub Duration)69,1620
-pub struct LongPressButton 79,2107
-    pin: Pin,80,2136
-    state: LongPressMachine,81,2150
-    detectable_after: DetectableDuration,82,2179
-    long_release_after: LongReleaseDuration,83,2221
-pub struct Pin(pub usize)183,5630
-pub struct GPIO 185,5658
-    map: Mmap,186,5676
-    snap:snap187,5691
-
-src/display.rs,907
-use crate::err;1,0
-use serde::Serialize;2,16
-use serde_json::error::Error as SerdeError;3,38
-use std::io:std::io4,82
-use std::net:std::net5,121
-use std::slice::Iter;6,178
-use std::time::Duration;7,200
-use std::thread;8,225
-const DRIVER_PORT: u16 10,243
-const SERVER_ADDR: Ipv4Addr 11,274
-pub enum Operation 15,375
-    AddText(16,396
-    AddText(String,16,396
-    AddText(String, Pos,16,396
-    AddText(String, Pos, Size,16,396
-    AddText(String, Pos, Size, Id)16,396
-    UpdateText(17,432
-    UpdateText(Id,17,432
-    UpdateText(Id, String)17,432
-    RemoveText(18,460
-    RemoveText(Id)18,460
-    Clear,19,480
-    WriteAll(20,491
-    WriteAll(PartialUpdate)20,491
-    QuitWhenDone,21,520
-type Id 24,541
-type Size 25,559
-pub struct PartialUpdate(pub bool)28,598
-pub struct Pos(pub u32, pub u32)31,656
-pub struct RenderPipeline 38,755
-    stream: BufWriter<BufWriter39,783
+src/cal_display.rs,948
+use crate::display::Operation as Op;1,0
+use crate:crate2,37
+use chrono::prelude:chrono::prelude6,121
+pub struct Renderer 8,146
+    pipe: RenderPipeline,9,168
+const HEADING_ID: &str str12,197
+const EMAIL_ID: &str str13,233
+const EVENTS_ID: &str str14,265
+const HEADING_POS: Pos 16,300
+const EMAIL_POS: Pos 17,336
+const EVENTS_POS: Pos 18,372
+const INSTR1_POS: Pos 19,408
+const CODE_POS: Pos 20,445
+const INSTR2_POS: Pos 21,480
+const EXPIRY_POS: Pos 22,518
+const LARGE_SIZE: u32 24,557
+const SMALL_SIZE: u32 25,585
+const INSTR_SIZE: u32 26,613
+const HEADING_SIZE: u32 27,641
+const EMAIL_SIZE: u32 28,671
+const EVENTS_SIZE: u32 29,699
+const DATE_FORMAT: &str str31,729
+const TIME_FORMAT: &str str32,764
+const NO_EMAIL: &str str34,800
+const NO_EVENTS: &str str35,840
+const START_DELIMITER: &str str36,877
+const END_DELIMITER: &str str37,912
+const SUMMARY_DELIMITER: &str str38,945
+const TIME_LEN: usize 41,1019
 
 src/stm.rs,0

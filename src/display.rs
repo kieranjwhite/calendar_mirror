@@ -56,7 +56,7 @@ impl RenderPipeline {
         const CONNECT_INTERVAL: Duration=Duration::from_secs(1);
         
         let addr = SocketAddr::new(IpAddr::V4(SERVER_ADDR), DRIVER_PORT);
-        let mut retries = 10;
+        let mut retries = 20;
         thread::sleep(CONNECT_INTERVAL);
         println!("attempt. retries remaining: {}", retries);
         let mut connection = TcpStream::connect(&addr);
@@ -82,15 +82,16 @@ impl RenderPipeline {
             println!("sending: {}", serialised);
             write!(self.w_stream, "{}\n", serialised)?;
         }
-        let serialised = serde_json::to_string(&Operation::Sync)?;
-        write!(self.w_stream, "{}\n", serialised)?;
-        self.w_stream.flush()?;
-
         if sync {
+            let serialised = serde_json::to_string(&Operation::Sync)?;
+            write!(self.w_stream, "{}\n", serialised)?;
+            self.w_stream.flush()?;
+
             let mut line=String::new();
             self.r_stream.read_line(&mut line)?;
+        } else {
+            self.w_stream.flush()?;
         }
-        
         Ok(())
     }
 }

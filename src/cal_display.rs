@@ -110,13 +110,13 @@ impl Renderer {
         //));
         ops.push(Op::AddText(
             "SAVING!".to_string(),
-            CODE_POS,
+            Pos(78, 48),
             LARGE_SIZE,
             "Code".to_string(),
         ));
         ops.push(Op::AddText(
             "Do not disconnect power.".to_string(),
-            INSTR2_POS,
+            Pos(40, 108),
             SMALL_SIZE,
             "Instr2".to_string(),
         ));

@@ -276,7 +276,7 @@ pub fn render_stms() -> Result<(), Error> {
 //    loader: impl Fn() -> io::Result<Option<RefreshToken>>,
 pub fn run(
     renderer: &mut Renderer,
-    quitter: Arc<AtomicBool>,
+    quitter: &Arc<AtomicBool>,
     config_file: &Path,
     saver: impl Fn(&RefreshToken, &mut Renderer) -> Result<(), Error>,
 ) -> Result<(), Error> {
