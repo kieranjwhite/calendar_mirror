@@ -536,7 +536,7 @@ pub fn run(
                 {
                     Refresh(st.into(), credentials.refresh_token)
                 } else {
-                    renderer.heartbeat(if (elapsed_since_token_refresh.as_secs() & 1) == 1 {
+                    renderer.heartbeat(if (elapsed_since_token_refresh.as_secs() & 2) == 2 {
                         true
                     } else {
                         false
