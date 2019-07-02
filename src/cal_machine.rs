@@ -276,7 +276,10 @@ pub fn render_stms() -> Result<(), Error> {
 
 fn shutdown() -> Result<(), NixError> {
     println!("shutting down...");
-    execvp(&CString::new("halt").expect("Invalid CString: halt"), &[CString::new("--halt").expect("invalid arg")])?;
+    execvp(
+        &CString::new("halt").expect("Invalid CString: halt"),
+        &[CString::new("--halt").expect("invalid arg")],
+    )?;
     println!("shutdown failed");
     Ok(())
 }
@@ -300,7 +303,8 @@ pub fn run(
     const LONGISH_DURATION: Duration = Duration::from_millis(2000);
     const LONG_DURATION: Duration = Duration::from_secs(4);
 
-    let mut display_date = Local::today().and_hms(0, 0, 0);
+    let mut today = Local::today().and_hms(0, 0, 0);
+    let mut display_date = today;
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
     let mut gpio = GPIO::new()?;
@@ -565,14 +569,19 @@ pub fn run(
                     let release_check = |e: &LongButtonEvent| e.is_release();
                     let long_check = |e: &LongButtonEvent| e.is_long_press();
 
+                    let new_today=Local::today().and_hms(0, 0, 0);
+                    
                     if opt_filter(&reset_event, long_check) {
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
                         Wait(st, credentials, refreshed_at, started_wait_at)
-                    } else if opt_filter(&scroll_event, long_check) {
+                    } else if today.date() != new_today.date()
+                        || opt_filter(&scroll_event, long_check)
+                    {
                         println!("full display & date refresh");
-                        display_date = Local::today().and_hms(0, 0, 0);
+                        today = new_today;
+                        display_date = today;
                         ReadFirst(st.into(), credentials, refreshed_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
