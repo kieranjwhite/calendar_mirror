@@ -4,7 +4,7 @@ mod cal_display;
 mod cal_machine;
 mod display;
 mod err;
-mod papirus_in;
+mod gpio_in;
 mod stm;
 
 use cal_display::Renderer;

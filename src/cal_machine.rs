@@ -7,7 +7,7 @@ use crate::{
         instant_types::{RefreshedAt, WaitingFrom},
     },
     display, err,
-    papirus_in::{
+    gpio_in::{
         self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
         LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
     },
@@ -269,7 +269,7 @@ pub fn render_stms() -> Result<(), Error> {
     f.flush()?;
 
     f = File::create("docs/long_press_button_stm.dot")?;
-    papirus_in::LongPressMachine::render_to(&mut f);
+    gpio_in::LongPressMachine::render_to(&mut f);
     f.flush()?;
     Ok(())
 }
