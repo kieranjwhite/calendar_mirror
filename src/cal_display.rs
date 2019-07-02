@@ -5,8 +5,6 @@ use crate::{
 };
 use chrono::prelude::*;
 
-pub struct VertPos(pub i32);
-
 pub struct Renderer {
     pipe: RenderPipeline,
     pulse_on: bool,
@@ -270,7 +268,7 @@ impl Renderer {
 
             ops.push(Op::AddText(
                 all_events,
-                EVENTS_POS,
+                &EVENTS_POS+&pos,
                 EVENTS_SIZE,
                 EVENTS_ID.to_string(),
             ));

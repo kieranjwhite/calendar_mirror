@@ -1,12 +1,12 @@
 mod retriever;
 
 use crate::{
-    cal_display::{Renderer, VertPos},
+    cal_display::{Renderer},
     cal_machine::{
         evs::Appointments,
-        instant_types::{RefreshedAt, WaitingFrom},
+        instant_types::{RefreshedAt, DownloadedAt},
     },
-    display, err,
+    display::{self, VertPos}, err,
     gpio_in::{
         self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
         LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
@@ -32,16 +32,16 @@ use std::{
 };
 
 stm!(cal_stm, Machine, [ErrorWait] => Load(), {
-    [DisplayError] => ErrorWait(WaitingFrom);
+    [DisplayError] => ErrorWait(DownloadedAt);
     [ErrorWait, Load, Wait] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
     [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
-    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt);
-    [Page] => Display(Authenticators, Appointments, RefreshedAt);
-    [Display] => Wait(Authenticators, RefreshedAt, WaitingFrom)
+    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
+    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, VertPos);
+    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, VertPos)
 });
 
 type PeriodSeconds = u64;
@@ -89,7 +89,7 @@ macro_rules! instant {
 mod instant_types {
     use std::time::Instant;
     instant!(RefreshedAt);
-    instant!(WaitingFrom);
+    instant!(DownloadedAt);
 }
 
 impl RefreshToken {
@@ -331,7 +331,6 @@ pub fn run(
         DetectableDuration(LONG_DURATION),
         LongReleaseDuration(LONGISH_DURATION),
     );
-    let mut pos = VertPos(0);
 
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
@@ -497,7 +496,7 @@ pub fn run(
                             credentials_tokens,
                             page_token,
                             new_events,
-                            refreshed_at,
+                            refreshed_at, DownloadedAt::now()
                         )
                     }
                     _other_status => {
@@ -510,9 +509,9 @@ pub fn run(
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token, mut events, refreshed_at) => {
+            Page(st, credentials_tokens, page_token, mut events, refreshed_at, downloaded_at) => {
                 if let None = page_token {
-                    Display(st.into(), credentials_tokens, events, refreshed_at)
+                    Display(st.into(), credentials_tokens, events, refreshed_at, downloaded_at, VertPos(0))
                 } else {
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
@@ -530,7 +529,7 @@ pub fn run(
                                 Some(next_page) => Some(PageToken(next_page)),
                             };
 
-                            Page(st, credentials_tokens, page_token, events, refreshed_at)
+                            Page(st, credentials_tokens, page_token, events, refreshed_at, downloaded_at)
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
@@ -543,12 +542,12 @@ pub fn run(
                     }
                 }
             }
-            Display(st, credentials, apps, refreshed_at) => {
+            Display(st, credentials, apps, refreshed_at, downloaded_at, v_pos) => {
                 println!("Retrieved events: {:?}", apps.events);
-                renderer.display_events(&display_date, &apps, &pos)?;
-                Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
+                renderer.display_events(&display_date, &apps, &v_pos)?;
+                Wait(st.into(), credentials, apps, refreshed_at, downloaded_at, v_pos)
             }
-            Wait(st, credentials, refreshed_at, started_wait_at) => {
+            Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
@@ -579,7 +578,7 @@ pub fn run(
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
                     } else if today.date() != new_today.date()
                         || opt_filter(&scroll_event, long_check)
                     {
@@ -587,6 +586,8 @@ pub fn run(
                         today = new_today;
                         display_date = today;
                         ReadFirst(st.into(), credentials, refreshed_at)
+                    } else if opt_filter(&scroll_event, short_check) {
+                        Display(st.into(), credentials, apps, refreshed_at, started_wait_at, VertPos(v_pos.0+40))
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                         || waiting_for >= RECHECK_PERIOD
@@ -597,13 +598,13 @@ pub fn run(
                         display_date = display_date - chrono::Duration::days(1);
                         println!("New date: {:?}", display_date);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
                     } else if opt_filter(&next_event, short_check) {
                         display_date = display_date + chrono::Duration::days(1);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
                     } else {
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
                     }
                 }
             }
@@ -626,7 +627,7 @@ pub fn run(
             }
             DisplayError(st, message) => {
                 eprintln!("Error: {}", message);
-                ErrorWait(st.into(), WaitingFrom::now())
+                ErrorWait(st.into(), DownloadedAt::now())
             }
         };
     }
