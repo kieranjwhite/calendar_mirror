@@ -216,6 +216,33 @@ impl Renderer {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
 
+        if apps.events.len() == 0 {
+            ops.push(Op::AddText(
+                NO_EVENTS.to_string(),
+                EVENTS_POS,
+                EVENTS_SIZE,
+                EVENTS_ID.to_string(),
+            ));
+        } else {
+            let mut events = apps.events.clone();
+            events.sort();
+
+            let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
+            let ev_ref_strs = &ev_strs;
+            let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
+            let mut all_events = String::with_capacity(event_len);
+            for ev in ev_strs {
+                all_events.push_str(&ev);
+            }
+
+            ops.push(Op::AddText(
+                all_events,
+                &EVENTS_POS+&pos,
+                EVENTS_SIZE,
+                EVENTS_ID.to_string(),
+            ));
+        }
+
         let heading = date.format(DATE_FORMAT).to_string();
         ops.push(Op::AddText(
             heading,
@@ -247,32 +274,6 @@ impl Renderer {
             ));
         }
 
-        if apps.events.len() == 0 {
-            ops.push(Op::AddText(
-                NO_EVENTS.to_string(),
-                EVENTS_POS,
-                EVENTS_SIZE,
-                EVENTS_ID.to_string(),
-            ));
-        } else {
-            let mut events = apps.events.clone();
-            events.sort();
-
-            let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
-            let ev_ref_strs = &ev_strs;
-            let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
-            let mut all_events = String::with_capacity(event_len);
-            for ev in ev_strs {
-                all_events.push_str(&ev);
-            }
-
-            ops.push(Op::AddText(
-                all_events,
-                &EVENTS_POS+&pos,
-                EVENTS_SIZE,
-                EVENTS_ID.to_string(),
-            ));
-        }
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
         self.pipe.send(ops.iter(), false)

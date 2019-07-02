@@ -33,13 +33,13 @@ pub struct PartialUpdate(pub bool);
 pub struct VertPos(pub i32);
 
 #[derive(Serialize)]
-pub struct Pos(pub i32, pub u32);
+pub struct Pos(pub u32, pub i32);
 
 impl Add<&VertPos> for &Pos {
     type Output=Pos;
 
     fn add(self, rhs: &VertPos) -> Pos {
-        Pos(self.0+rhs.0, self.1)
+        Pos(self.0, self.1-rhs.0)
     }
 }
 
