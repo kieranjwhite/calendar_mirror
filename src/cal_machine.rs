@@ -1,7 +1,7 @@
 mod retriever;
 
 use crate::{
-    cal_display::Renderer,
+    cal_display::{Renderer, VertPos},
     cal_machine::{
         evs::Appointments,
         instant_types::{RefreshedAt, WaitingFrom},
@@ -278,7 +278,11 @@ fn shutdown() -> Result<(), NixError> {
     println!("shutting down...");
     execvp(
         &CString::new("halt").expect("Invalid CString: halt"),
-        &[CString::new("--halt").expect("invalid arg")],
+        &[
+            CString::new("-f").expect("invalid arg -f"),
+            CString::new("-f").expect("invalid arg -f (2)"),
+            CString::new("-n").expect("invalid arg -n"),
+        ],
     )?;
     println!("shutdown failed");
     Ok(())
@@ -328,6 +332,7 @@ pub fn run(
         DetectableDuration(LONG_DURATION),
         LongReleaseDuration(LONGISH_DURATION),
     );
+    let mut pos = VertPos(0);
 
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
@@ -541,7 +546,7 @@ pub fn run(
             }
             Display(st, credentials, apps, refreshed_at) => {
                 println!("Retrieved events: {:?}", apps.events);
-                renderer.display_events(&display_date, &apps)?;
+                renderer.display_events(&display_date, &apps, &pos)?;
                 Wait(st.into(), credentials, refreshed_at, WaitingFrom::now())
             }
             Wait(st, credentials, refreshed_at, started_wait_at) => {
@@ -569,8 +574,8 @@ pub fn run(
                     let release_check = |e: &LongButtonEvent| e.is_release();
                     let long_check = |e: &LongButtonEvent| e.is_long_press();
 
-                    let new_today=Local::today().and_hms(0, 0, 0);
-                    
+                    let new_today = Local::today().and_hms(0, 0, 0);
+
                     if opt_filter(&reset_event, long_check) {
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {

@@ -5,6 +5,8 @@ use crate::{
 };
 use chrono::prelude::*;
 
+pub struct VertPos(pub i32);
+
 pub struct Renderer {
     pipe: RenderPipeline,
     pulse_on: bool,
@@ -211,6 +213,7 @@ impl Renderer {
         &mut self,
         date: &DateTime<Local>,
         apps: &Appointments,
+        pos: &VertPos
     ) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
