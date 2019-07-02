@@ -3,7 +3,7 @@ Description=Calendar mirror
 After=network.target
 After=network-online.target
 After=epd-fuse.target
-After=ntp.foo
+After=ntp.target
 Wants=network-online.target
 
 [Service]
