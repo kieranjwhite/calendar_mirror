@@ -278,7 +278,10 @@ fn shutdown() -> Result<(), NixError> {
     println!("shutting down...");
     execvp(
         &CString::new("halt").expect("Invalid CString: halt"),
-        &[CString::new("-ffn").expect("invalid arg -ffn")],
+        &[
+            CString::new("--halt").expect("invalid arg --halt"),
+            CString::new("-ffn").expect("invalid arg -ffn"),
+        ],
     )?;
     println!("shutdown failed");
     Ok(())
