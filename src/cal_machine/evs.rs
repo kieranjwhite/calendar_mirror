@@ -1,10 +1,17 @@
 use crate::{
     cal_machine::retriever::{self, EventsResponse},
-    copyable, err, stm,
+    cloneable, copyable, err, stm,
 };
-use chrono::{Duration,format::ParseError, prelude::*};
+use chrono::{format::ParseError, offset::LocalResult, prelude::*, Duration};
 use std::{cmp::Ordering, ops::Add};
 use Machine::*;
+
+err!(Error {
+    Chrono(ParseError),
+    MissingDateTime(MissingDateTimeError),
+    TimeZoneInvalid(TimeZoneInvalidError),
+    TimeZoneAmbiguous(TimeZoneAmbiguousError)
+    });
 
 stm!(ev_stm, Machine, [] => Uninitialised(), {
         [Uninitialised] => OneCreator(Email);
@@ -13,8 +20,8 @@ stm!(ev_stm, Machine, [] => Uninitialised(), {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PeriodMarker {
-    Start(Duration),
-    End(Duration),
+    Start(NaiveTime),
+    End(NaiveTime),
 }
 
 impl PeriodMarker {
@@ -23,31 +30,40 @@ impl PeriodMarker {
         date_time: &Option<String>,
         date: &Option<String>,
     ) -> Result<DateTime<Local>, Error> {
-        let offset = match self {
-            PeriodMarker::Start(duration) => duration,
-            PeriodMarker::End(duration) => duration,
+        let time = match self {
+            PeriodMarker::Start(time) => time,
+            PeriodMarker::End(time) => time,
         };
 
         if let Some(inner_date_time) = date_time {
             Ok(inner_date_time.parse()?)
         } else if let Some(inner_date) = date {
             println!("inner_date: {:?}", inner_date);
-            let date_only :DateTime<FixedOffset>= DateTime::parse_from_str(inner_date, "%Y-%m-%d")?;
-            println!("date_only: {:?}", date_only);
-            let date_and_time=date_only.with_timezone(&Local) + *offset;
-            Ok(date_and_time)
+
+            let date_only =
+                NaiveDate::parse_from_str(inner_date, "%Y-%m-%d").expect("failed to parse");
+            println!("{}", date_only);
+            let date_time = NaiveDateTime::new(date_only, *time);
+            let date_time_tz: DateTime<Local> = match Local.from_local_datetime(&date_time) {
+                LocalResult::None => Err(TimeZoneInvalidError())?,
+                LocalResult::Single(dt) => dt,
+                LocalResult::Ambiguous(dt_1, dt_2) => Err(TimeZoneAmbiguousError((dt_1, dt_2)))?,
+            };
+            println!("date: {:?}", date_time_tz);
+
+            Ok(date_time_tz)
         } else {
             Err(MissingDateTimeError(*self).into())
         }
     }
 }
 
+type TwoDateTimes=(DateTime<Local>,DateTime<Local>);
 copyable!(MissingDateTimeError, PeriodMarker);
+cloneable!(TimeZoneAmbiguousError, TwoDateTimes);
 
-err!(Error {
-        Chrono(ParseError),
-        MissingDateTime(MissingDateTimeError)
-    });
+#[derive(Debug)]
+pub struct TimeZoneInvalidError();
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Email(pub String);
@@ -86,9 +102,9 @@ impl From<&retriever::Event> for Result<Event, Error> {
         Ok(Event {
             summary: ev.summary.to_string(),
             description: ev.description.clone(),
-            start: PeriodMarker::Start(Duration::days(0))
+            start: PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
                 .select(&ev.start.date_time, &ev.start.date)?,
-            end: PeriodMarker::End(Duration::days(1))
+            end: PeriodMarker::End(NaiveTime::from_hms(24, 0, 0))
                 .select(&ev.end.date_time, &ev.end.date)?,
         })
     }
