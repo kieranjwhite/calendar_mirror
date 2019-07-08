@@ -31,8 +31,11 @@ impl PeriodMarker {
         if let Some(inner_date_time) = date_time {
             Ok(inner_date_time.parse()?)
         } else if let Some(inner_date) = date {
+            println!("inner_date: {:?}", inner_date);
             let date_only :DateTime<FixedOffset>= DateTime::parse_from_str(inner_date, "%Y-%m-%d")?;
-            Ok(date_only.with_timezone(&Local) + *offset)
+            println!("date_only: {:?}", date_only);
+            let date_and_time=date_only.with_timezone(&Local) + *offset;
+            Ok(date_and_time)
         } else {
             Err(MissingDateTimeError(*self).into())
         }
