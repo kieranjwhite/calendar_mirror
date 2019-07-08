@@ -1,6 +1,6 @@
 use crate::display::Operation as Op;
 use crate::{
-    cal_machine::{evs::Appointments, Email, Event},
+    cal_machine::{evs::{Appointments,Event, Email}},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
     formatter::{self, Dims, GlyphRow, LeftFormatter},
