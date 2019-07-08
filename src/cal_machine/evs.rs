@@ -2,8 +2,8 @@ use crate::{
     cal_machine::retriever::{self, EventsResponse},
     copyable, err, stm,
 };
-use chrono::{format::ParseError, prelude::*};
-use std::cmp::Ordering;
+use chrono::{Duration,format::ParseError, prelude::*};
+use std::{cmp::Ordering, ops::Add};
 use Machine::*;
 
 stm!(ev_stm, Machine, [] => Uninitialised(), {
@@ -13,8 +13,8 @@ stm!(ev_stm, Machine, [] => Uninitialised(), {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PeriodMarker {
-    Start,
-    End,
+    Start(Duration),
+    End(Duration),
 }
 
 impl PeriodMarker {
@@ -23,10 +23,16 @@ impl PeriodMarker {
         date_time: &Option<String>,
         date: &Option<String>,
     ) -> Result<DateTime<Local>, Error> {
+        let offset = match self {
+            PeriodMarker::Start(duration) => duration,
+            PeriodMarker::End(duration) => duration,
+        };
+
         if let Some(inner_date_time) = date_time {
             Ok(inner_date_time.parse()?)
         } else if let Some(inner_date) = date {
-            Ok(inner_date.parse()?)
+            let date_only :DateTime<FixedOffset>= DateTime::parse_from_str(inner_date, "%Y-%m-%d")?;
+            Ok(date_only.with_timezone(&Local) + *offset)
         } else {
             Err(MissingDateTimeError(*self).into())
         }
@@ -77,8 +83,10 @@ impl From<&retriever::Event> for Result<Event, Error> {
         Ok(Event {
             summary: ev.summary.to_string(),
             description: ev.description.clone(),
-            start: PeriodMarker::Start.select(&ev.start.date_time, &ev.start.date)?,
-            end: PeriodMarker::End.select(&ev.end.date_time, &ev.end.date)?,
+            start: PeriodMarker::Start(Duration::days(0))
+                .select(&ev.start.date_time, &ev.start.date)?,
+            end: PeriodMarker::End(Duration::days(1))
+                .select(&ev.end.date_time, &ev.end.date)?,
         })
     }
 }
