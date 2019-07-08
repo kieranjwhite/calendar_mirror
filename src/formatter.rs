@@ -9,7 +9,7 @@ pub enum Error {
     TokenTooLong,
     IllegalState,
 }
-
+/*
 pub struct Dims(pub usize, pub usize);
 
 impl Dims {
@@ -17,7 +17,7 @@ impl Dims {
         self.0
     }
 }
-
+*/
 const BREAKABLE: &str = "-_";
 const SPACES: &str = " \t";
 
@@ -145,10 +145,6 @@ impl Pending {
         }
     }
 
-    pub fn started(&self) -> bool {
-        self.value.len()>0
-    }
-    
     pub fn consume(&mut self, c: GlyphCol) -> ConsumptionState {
         //returns none when the token won't fit
         if c.is_line_start() {
@@ -226,12 +222,12 @@ stm!(tokenising_stm, Machine, []=> Empty(), {
 });
 
 pub struct LeftFormatter {
-    size: Dims,
+    size: GlyphWidth,
     all_splitters: String,
 }
 
 impl LeftFormatter {
-    pub fn new(size: Dims) -> LeftFormatter {
+    pub fn new(size: GlyphWidth) -> LeftFormatter {
         LeftFormatter {
             size,
             all_splitters: BREAKABLE.to_string() + SPACES,
@@ -290,7 +286,7 @@ impl LeftFormatter {
                 let mut mach = Empty(tokenising_stm::Empty);
                 let mut col = GlyphCol(0);
                 let mut output = None;
-                let mut pending = Pending::new(GlyphWidth(self.size.width()));
+                let mut pending = Pending::new(self.size);
 
                 //let mut line_graphemes_cnt: usize = 0;
                 //let mut pending_length: usize = 0;

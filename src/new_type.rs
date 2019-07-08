@@ -15,7 +15,7 @@ macro_rules! non_copyable {
 macro_rules! copyable {
     ($outer_type:ident, $inner_type: ident) => {
         #[derive(Copy,Clone,Debug,PartialEq)]
-        pub struct $outer_type($inner_type);
+        pub struct $outer_type(pub $inner_type);
     }
 }
 
@@ -23,7 +23,7 @@ macro_rules! copyable {
 macro_rules! cloneable {
     ($outer_type:ident, $inner_type: ident) => {
         #[derive(Clone,Debug)]
-        pub struct $outer_type($inner_type);
+        pub struct $outer_type(pub $inner_type);
     }
 }
 

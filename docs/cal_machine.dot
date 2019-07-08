@@ -13,7 +13,7 @@ digraph cal_stm {
     _start[label="_start"][shape="point"];
     _start -> Load[label=""];
     ErrorWait -> Load[label=""];
-    DisplayError -> ErrorWait[label="WaitingFrom\n"];
+    DisplayError -> ErrorWait[label="DownloadedAt\n"];
     ErrorWait -> RequestCodes[label=""];
     Load -> RequestCodes[label=""];
     Wait -> RequestCodes[label=""];
@@ -30,7 +30,8 @@ digraph cal_stm {
     Refresh -> DisplayError[label="String\n"];
     RequestCodes -> DisplayError[label="String\n"];
     Poll -> Save[label="Authenticators\n"];
-    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\n"];
-    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\n"];
-    Display -> Wait[label="Authenticators\nRefreshedAt\nWaitingFrom\n"];
+    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\n"];
+    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nVertPos\n"];
+    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nVertPos\n"];
+    Display -> Wait[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nVertPos\n"];
 }

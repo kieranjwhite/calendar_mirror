@@ -3,7 +3,7 @@ use crate::{
     cal_machine::{evs::Appointments, Email, Event},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline, VertPos},
     err,
-    formatter::{self, Dims, LeftFormatter},
+    formatter::{self, GlyphWidth, LeftFormatter},
 };
 use chrono::prelude::*;
 
@@ -57,7 +57,7 @@ impl Renderer {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
             pulse_on: false,
-            formatter: LeftFormatter::new(Dims(25, 10)),
+            formatter: LeftFormatter::new(GlyphWidth(15)),
         })
     }
 
