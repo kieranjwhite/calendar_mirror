@@ -5,9 +5,13 @@ mod cal_machine;
 mod display;
 mod err;
 mod gpio_in;
+mod formatter;
+#[macro_use]
+mod new_type;
 mod stm;
+//mod yielder;
 
-use cal_display::Renderer;
+use cal_display::{Renderer, Error as CalDisplayError};
 use cal_machine::{Error as CalMachineError, RefreshToken};
 use display::Error as DisplayError;
 use nix::{mount::*, unistd::*, Error as NixError};
@@ -29,6 +33,7 @@ err!(
     Error {
         CalMachineError(CalMachineError),
         DisplayError(DisplayError),
+        CalDisplayError(CalDisplayError),
         NixError(NixError),
         IOError(io::Error)
     }

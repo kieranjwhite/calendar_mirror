@@ -2,7 +2,7 @@ use crate::{err, stm};
 use memmap::{Mmap, MmapOptions};
 use std::{
     fs::File,
-    io::{self, Write},
+    io,
     ptr::read_volatile,
     time::{Duration, Instant},
 };

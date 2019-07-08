@@ -1,13 +1,16 @@
 use crate::display::Operation as Op;
 use crate::{
     cal_machine::{evs::Appointments, Email, Event},
-    display::*,
+    display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline, VertPos},
+    err,
+    formatter::{self, Dims, LeftFormatter},
 };
 use chrono::prelude::*;
 
 pub struct Renderer {
     pipe: RenderPipeline,
     pulse_on: bool,
+    formatter: LeftFormatter,
 }
 
 const HEADING_ID: &str = "heading";
@@ -44,11 +47,17 @@ const SUMMARY_DELIMITER: &str = "";
 
 const TIME_LEN: usize = 5;
 
+err!(Error {
+    Display(DisplayError),
+    Format(formatter::Error)
+});
+
 impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
             pulse_on: false,
+            formatter: LeftFormatter::new(Dims(25, 10)),
         })
     }
 
@@ -113,11 +122,11 @@ impl Renderer {
     }
 
     pub fn heartbeat(&mut self, on: bool) -> Result<(), Error> {
-        if on==self.pulse_on {
-            return Ok(())
+        if on == self.pulse_on {
+            return Ok(());
         }
-        self.pulse_on=on;
-        
+        self.pulse_on = on;
+
         let mut ops: Vec<Op> = Vec::with_capacity(3);
         ops.push(Op::UpdateText(
             PULSE_ID.to_string(),
@@ -125,7 +134,8 @@ impl Renderer {
         ));
         ops.push(Op::WriteAll(PartialUpdate(true)));
 
-        self.pipe.send(ops.iter(), false)
+        self.pipe.send(ops.iter(), false)?;
+        Ok(())
     }
 
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
@@ -204,14 +214,15 @@ impl Renderer {
         ops.push(Op::UpdateText(EVENTS_ID.to_string(), "".to_string()));
         ops.push(Op::WriteAll(PartialUpdate(true)));
 
-        self.pipe.send(ops.iter(), false)
+        self.pipe.send(ops.iter(), false)?;
+        Ok(())
     }
 
     pub fn display_events(
         &mut self,
         date: &DateTime<Local>,
         apps: &Appointments,
-        pos: &VertPos
+        _pos: &VertPos,
     ) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
@@ -235,9 +246,11 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
+            let justified_events = self.formatter.just(&all_events)?;
+
             ops.push(Op::AddText(
-                all_events,
-                &EVENTS_POS+&pos,
+                justified_events,
+                EVENTS_POS,
                 EVENTS_SIZE,
                 EVENTS_ID.to_string(),
             ));
@@ -276,6 +289,7 @@ impl Renderer {
 
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
-        self.pipe.send(ops.iter(), false)
+        self.pipe.send(ops.iter(), false)?;
+        Ok(())
     }
 }

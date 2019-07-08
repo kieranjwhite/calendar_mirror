@@ -1,12 +1,13 @@
 mod retriever;
 
 use crate::{
-    cal_display::{Renderer},
+    cal_display::{Error as CalDisplayError, Renderer},
     cal_machine::{
         evs::Appointments,
-        instant_types::{RefreshedAt, DownloadedAt},
+        instant_types::{DownloadedAt, RefreshedAt},
     },
-    display::{self, VertPos}, err,
+    display::{self, VertPos},
+    err, formatter,
     gpio_in::{
         self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
         LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
@@ -53,6 +54,7 @@ const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
 
 err!(Error {
     Chrono(ParseError),
+    CalDisplayError(CalDisplayError),
     Display(display::Error),
     IO(io::Error),
     Reqwest(reqwest::Error),
@@ -118,6 +120,7 @@ impl RefreshToken {
     }
 }
 
+#[derive(Debug)]
 pub struct Authenticators {
     refresh_token: RefreshToken,
     volatiles: VolatileAuthenticator,
@@ -156,7 +159,6 @@ pub mod evs {
         stm,
     };
     use chrono::format::ParseError;
-    use std::io::Write;
     use Machine::*;
 
     stm!(ev_stm, Machine, [] => Uninitialised(), {
@@ -271,6 +273,11 @@ pub fn render_stms() -> Result<(), Error> {
     f = File::create("docs/long_press_button_stm.dot")?;
     gpio_in::LongPressMachine::render_to(&mut f);
     f.flush()?;
+
+    f = File::create("docs/tokenising_stm.dot")?;
+    formatter::Machine::render_to(&mut f);
+    f.flush()?;
+
     Ok(())
 }
 
@@ -496,7 +503,8 @@ pub fn run(
                             credentials_tokens,
                             page_token,
                             new_events,
-                            refreshed_at, DownloadedAt::now()
+                            refreshed_at,
+                            DownloadedAt::now(),
                         )
                     }
                     _other_status => {
@@ -511,7 +519,14 @@ pub fn run(
             }
             Page(st, credentials_tokens, page_token, mut events, refreshed_at, downloaded_at) => {
                 if let None = page_token {
-                    Display(st.into(), credentials_tokens, events, refreshed_at, downloaded_at, VertPos(0))
+                    Display(
+                        st.into(),
+                        credentials_tokens,
+                        events,
+                        refreshed_at,
+                        downloaded_at,
+                        VertPos(0),
+                    )
                 } else {
                     let mut resp: Response = retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
@@ -529,7 +544,14 @@ pub fn run(
                                 Some(next_page) => Some(PageToken(next_page)),
                             };
 
-                            Page(st, credentials_tokens, page_token, events, refreshed_at, downloaded_at)
+                            Page(
+                                st,
+                                credentials_tokens,
+                                page_token,
+                                events,
+                                refreshed_at,
+                                downloaded_at,
+                            )
                         }
                         _other_status => {
                             println!("Event Headers: {:#?}", resp.headers());
@@ -545,7 +567,14 @@ pub fn run(
             Display(st, credentials, apps, refreshed_at, downloaded_at, v_pos) => {
                 println!("Retrieved events: {:?}", apps.events);
                 renderer.display_events(&display_date, &apps, &v_pos)?;
-                Wait(st.into(), credentials, apps, refreshed_at, downloaded_at, v_pos)
+                Wait(
+                    st.into(),
+                    credentials,
+                    apps,
+                    refreshed_at,
+                    downloaded_at,
+                    v_pos,
+                )
             }
             Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos) => {
                 let waiting_for = started_wait_at.instant().elapsed();
@@ -587,7 +616,14 @@ pub fn run(
                         display_date = today;
                         ReadFirst(st.into(), credentials, refreshed_at)
                     } else if opt_filter(&scroll_event, short_check) {
-                        Display(st.into(), credentials, apps, refreshed_at, started_wait_at, VertPos(v_pos.0+40))
+                        Display(
+                            st.into(),
+                            credentials,
+                            apps,
+                            refreshed_at,
+                            started_wait_at,
+                            VertPos(v_pos.0 + 40),
+                        )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                         || waiting_for >= RECHECK_PERIOD

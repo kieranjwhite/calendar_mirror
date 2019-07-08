@@ -4,6 +4,7 @@ macro_rules! stm {
 
         pub mod $mod_name
         {
+            #[derive(Debug)]
             pub struct $start;
 
             $(
@@ -17,6 +18,7 @@ macro_rules! stm {
             )*
 
             $(
+                #[derive(Debug)]
                 pub struct $node {
                     _secret: ()
                 }
@@ -130,9 +132,8 @@ macro_rules! stm {
         }
 
         impl $enum_name {
-
             #[allow(unused_variables)]
-            pub fn render_to<W: Write>(output: &mut W) {
+            pub fn render_to<W: std::io::Write>(output: &mut W) {
                 #[cfg(feature = "render_stm")]
                 {
                     let mut edge_vec=Vec::new();

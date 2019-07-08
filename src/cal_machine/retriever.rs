@@ -33,6 +33,7 @@ pub const ACCESS_DENIED_ERROR: &str = "access_denied";
 pub const AUTHORISATION_PENDING_ERROR: &str = "authorization_pending";
 pub const POLLING_TOO_FREQUENTLY_ERROR: &str = "slow_down";
 
+#[derive(Debug)]
 pub struct PageToken(pub String);
 
 pub struct EventRetriever {
