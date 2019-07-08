@@ -6,8 +6,8 @@ use crate::{
         evs::Appointments,
         instant_types::{DownloadedAt, RefreshedAt},
     },
-    display::{self, VertPos},
-    err, formatter,
+    display::{self},
+    err, formatter::{self, GlyphRow},
     gpio_in::{
         self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
         LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
@@ -41,8 +41,8 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
-    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, VertPos);
-    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, VertPos)
+    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphRow);
+    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphRow)
 });
 
 type PeriodSeconds = u64;
@@ -525,7 +525,7 @@ pub fn run(
                         events,
                         refreshed_at,
                         downloaded_at,
-                        VertPos(0),
+                        GlyphRow(0),
                     )
                 } else {
                     let mut resp: Response = retriever.read(
@@ -622,7 +622,7 @@ pub fn run(
                             apps,
                             refreshed_at,
                             started_wait_at,
-                            VertPos(v_pos.0 + 40),
+                            GlyphRow(v_pos.0 + 2),
                         )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)

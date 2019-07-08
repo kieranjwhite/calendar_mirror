@@ -9,7 +9,7 @@ pub enum Error {
     TokenTooLong,
     IllegalState,
 }
-/*
+
 pub struct Dims(pub usize, pub usize);
 
 impl Dims {
@@ -17,12 +17,13 @@ impl Dims {
         self.0
     }
 }
-*/
+
 const BREAKABLE: &str = "-_";
 const SPACES: &str = " \t";
 
 copyable!(ByteWidth, usize);
 const ZERO_BYTES: ByteWidth = ByteWidth(0);
+copyable!(GlyphRow, usize);
 copyable!(GlyphCol, usize);
 const ZERO_GLYPHS: GlyphCol = GlyphCol(0);
 copyable!(GlyphWidth, usize);
@@ -96,7 +97,7 @@ impl GlyphLayout {
             GlyphWidth(self.last_line_offset.0)
         }
     }
-    
+
     pub fn fits(&self, c: GlyphCol) -> bool {
         if c.is_line_start() {
             true
@@ -133,7 +134,7 @@ enum ConsumptionState {
 
 enum Placement {
     Assigned(ConsumptionState, GlyphCol),
-    Invalid
+    Invalid,
 }
 
 impl Pending {
@@ -157,8 +158,8 @@ impl Pending {
             let total_len = GlyphCol(self.layout.next_length().0 + num_spaces);
             if ZERO_GLYPHS == total_len {
                 return ConsumptionState::Empty;
-            } else if self.layout.fits(GlyphCol(c.0+num_spaces)) {
-                let result=ConsumptionState::Consumed(SizedString {
+            } else if self.layout.fits(GlyphCol(c.0 + num_spaces)) {
+                let result = ConsumptionState::Consumed(SizedString {
                     val: self.starting_spaces.to_string() + &self.value,
                     len: GlyphWidth(self.layout.partial_width().0 + num_spaces),
                 });
@@ -222,12 +223,12 @@ stm!(tokenising_stm, Machine, []=> Empty(), {
 });
 
 pub struct LeftFormatter {
-    size: GlyphWidth,
+    size: Dims,
     all_splitters: String,
 }
 
 impl LeftFormatter {
-    pub fn new(size: GlyphWidth) -> LeftFormatter {
+    pub fn new(size: Dims) -> LeftFormatter {
         LeftFormatter {
             size,
             all_splitters: BREAKABLE.to_string() + SPACES,
@@ -241,11 +242,14 @@ impl LeftFormatter {
     ) -> Result<(), Error> {
         let mut new_col = *col;
 
-        while let Placement::Assigned(ConsumptionState::Consumed(SizedString {
-            val: tok,
-            len: width,
-        }), placement_col) = match pending.consume(new_col) {
-            consumed@ConsumptionState::Consumed(_) => Placement::Assigned(consumed,new_col),
+        while let Placement::Assigned(
+            ConsumptionState::Consumed(SizedString {
+                val: tok,
+                len: width,
+            }),
+            placement_col,
+        ) = match pending.consume(new_col) {
+            consumed @ ConsumptionState::Consumed(_) => Placement::Assigned(consumed, new_col),
             ConsumptionState::TooLarge => {
                 if new_col != ZERO_GLYPHS {
                     let start_line_token = pending.consume(ZERO_GLYPHS);
@@ -253,10 +257,13 @@ impl LeftFormatter {
                         ConsumptionState::Consumed(SizedString {
                             val: tok,
                             len: width,
-                        }) => Placement::Assigned(ConsumptionState::Consumed(SizedString {
-                            val: "\n".to_owned() + &tok,
-                            len: width,
-                        }), ZERO_GLYPHS),
+                        }) => Placement::Assigned(
+                            ConsumptionState::Consumed(SizedString {
+                                val: "\n".to_owned() + &tok,
+                                len: width,
+                            }),
+                            ZERO_GLYPHS,
+                        ),
                         ConsumptionState::Empty => Placement::Invalid,
                         ConsumptionState::TooLarge => Err(Error::TokenTooLong)?,
                     }
@@ -265,7 +272,6 @@ impl LeftFormatter {
                 }
             }
             ConsumptionState::Empty => Placement::Invalid,
-
         } {
             *output = if let Some(ref orig) = *output {
                 Some(orig.to_owned() + &tok)
@@ -279,76 +285,85 @@ impl LeftFormatter {
         Ok(())
     }
 
+    pub fn just_lines(&self, unformatted: &str) -> Result<Vec<String>, Error> {
+        Ok(
+            unformatted
+                .lines()
+                .map(|l| {
+                    let mut mach = Empty(tokenising_stm::Empty);
+                    let mut col = GlyphCol(0);
+                    let mut output = None;
+                    let mut pending = Pending::new(GlyphWidth(self.size.width()));
+
+                    //let mut line_graphemes_cnt: usize = 0;
+                    //let mut pending_length: usize = 0;
+                    let graphemes = l.graphemes(true).collect::<Vec<&str>>();
+                    for grapheme in graphemes {
+                        while {
+                            mach = match mach {
+                                Empty(st) => {
+                                    col = GlyphCol(0);
+                                    if self.all_splitters.contains(grapheme) {
+                                        TokenComplete(st.into())
+                                    } else {
+                                        pending.add_glyph(grapheme)?; //pending start
+                                        StartedBuildingNonBreakable(st.into())
+                                    }
+                                }
+                                BuildingBreakable(st) => TokenComplete(st.into()),
+                                StartedBuildingNonBreakable(st) => {
+                                    if self.all_splitters.contains(grapheme) {
+                                        TokenComplete(st.into())
+                                    } else {
+                                        pending.add_glyph(grapheme)?; //pending start
+                                        StartedBuildingNonBreakable(st)
+                                    }
+                                }
+                                NotStartedBuildingNonBreakable(st) => {
+                                    pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
+                                    if SPACES.contains(grapheme) {
+                                        NotStartedBuildingNonBreakable(st)
+                                    } else {
+                                        StartedBuildingNonBreakable(st.into())
+                                    }
+                                }
+                                TokenComplete(st) => {
+                                    LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
+                                    pending.add_glyph(grapheme)?; //pending start
+                                    if BREAKABLE.contains(grapheme) {
+                                        BuildingBreakable(st.into())
+                                    } else if SPACES.contains(grapheme) {
+                                        NotStartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
+                                    } else {
+                                        StartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
+                                    }
+                                }
+                            };
+                            if let &TokenComplete(_) = &mach {
+                                true
+                            } else {
+                                false
+                            }
+                        } {}
+                    }
+                    LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
+
+                    if let Some(inner) = output {
+                        Ok(inner)
+                    } else {
+                        Ok(String::new())
+                    }
+                })
+                .collect::<Result<Vec<String>, Error>>()?
+                .iter()
+                .map(|string_ref| string_ref.to_string())
+                //.filter(|opt_str| (*opt_str).expect("none should never be returned from just"))
+                .collect::<Vec<String>>()
+        )        
+    }
+
     pub fn just(&self, unformatted: &str) -> Result<String, Error> {
-        Ok(unformatted
-            .lines()
-            .map(|l| {
-                let mut mach = Empty(tokenising_stm::Empty);
-                let mut col = GlyphCol(0);
-                let mut output = None;
-                let mut pending = Pending::new(self.size);
-
-                //let mut line_graphemes_cnt: usize = 0;
-                //let mut pending_length: usize = 0;
-                let graphemes = l.graphemes(true).collect::<Vec<&str>>();
-                for grapheme in graphemes {
-                    while {
-                        mach = match mach {
-                            Empty(st) => {
-                                col = GlyphCol(0);
-                                if self.all_splitters.contains(grapheme) {
-                                    TokenComplete(st.into())
-                                } else {
-                                    pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(st.into())
-                                }
-                            }
-                            BuildingBreakable(st) => {
-                                TokenComplete(st.into())
-                            }
-                            StartedBuildingNonBreakable(st) => {
-                                if self.all_splitters.contains(grapheme) {
-                                    TokenComplete(st.into())
-                                } else {
-                                    pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(st)
-                                }
-                            }
-                            NotStartedBuildingNonBreakable(st) => {
-                                pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
-                                if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(st)
-                                } else {
-                                    StartedBuildingNonBreakable(st.into())
-                                }
-                            }
-                            TokenComplete(st) => {
-                                LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
-                                pending.add_glyph(grapheme)?; //pending start
-                                if BREAKABLE.contains(grapheme) {
-                                    BuildingBreakable(st.into())
-                                } else if SPACES.contains(grapheme) { 
-                                    NotStartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
-                                } else {
-                                    StartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
-                                }
-                            }
-                        };
-                        if let &TokenComplete(_) = &mach {
-                            true
-                        } else {
-                            false
-                        }
-                    } {}
-                }
-                LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
-
-                Ok(output)
-            })
-            .collect::<Result<Vec<Option<String>>, Error>>()?
-            .iter()
-            .filter_map(|opt_str| opt_str.as_ref())
-            .fold("".to_string(), |c, l| c + &l + "\n"))
+        Ok(self.just_lines(unformatted)?.join("\n"))
     }
 }
 
@@ -358,21 +373,69 @@ mod tests {
     #[test]
     fn just() {
         let f = LeftFormatter::new(Dims(5, 15));
-        assert_eq!(f.just("foo blah"), Ok("foo\nblah\n".to_string()));
-        assert_eq!(f.just("foo bla-h"), Ok("foo\nbla-h\n".to_string()));
-        assert_eq!(f.just("foo bla h"), Ok("foo\nbla h\n".to_string()));
-        assert_eq!(f.just("foo bl--h"), Ok("foo\nbl--h\n".to_string()));
-        assert_eq!(f.just("foo bl  h"), Ok("foo\nbl  h\n".to_string()));
-        assert_eq!(f.just("fo bl123456h"), Ok("fo\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo  bl123456h"), Ok("fo\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo-bl123456h"), Ok("fo-\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo--bl123456h"), Ok("fo--\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just(" bl123456h"), Ok("bl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo----bl123456h"), Ok("fo---\n-\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo-bl123456hfar"), Ok("fo-\nbl123\n456hf\nar\n".to_string()));
-        assert_eq!(f.just("     bl123456h"), Ok("bl123\n456h\n".to_string()));
-        assert_eq!(f.just("abc -52 123456"), Ok("abc\n-52\n12345\n6\n".to_string()));
-        assert_eq!(f.just(" -52456 123456"), Ok("-5245\n6\n12345\n6\n".to_string()));
+        assert_eq!(f.just("foo blah"), Ok("foo\nblah".to_string()));
+        assert_eq!(f.just("foo bla-h"), Ok("foo\nbla-h".to_string()));
+        assert_eq!(f.just("foo bla h"), Ok("foo\nbla h".to_string()));
+        assert_eq!(f.just("foo bl--h"), Ok("foo\nbl--h".to_string()));
+        assert_eq!(f.just("foo bl  h"), Ok("foo\nbl  h".to_string()));
+        assert_eq!(f.just("fo bl123456h"), Ok("fo\nbl123\n456h".to_string()));
+        assert_eq!(f.just("fo  bl123456h"), Ok("fo\nbl123\n456h".to_string()));
+        assert_eq!(f.just("fo-bl123456h"), Ok("fo-\nbl123\n456h".to_string()));
+        assert_eq!(f.just("fo--bl123456h"), Ok("fo--\nbl123\n456h".to_string()));
+        assert_eq!(f.just(" bl123456h"), Ok("bl123\n456h".to_string()));
+        assert_eq!(
+            f.just("fo----bl123456h"),
+            Ok("fo---\n-\nbl123\n456h".to_string())
+        );
+        assert_eq!(
+            f.just("fo-bl123456hfar"),
+            Ok("fo-\nbl123\n456hf\nar".to_string())
+        );
+        assert_eq!(f.just("     bl123456h"), Ok("bl123\n456h".to_string()));
+        assert_eq!(
+            f.just("abc -52 123456"),
+            Ok("abc\n-52\n12345\n6".to_string())
+        );
+        assert_eq!(
+            f.just(" -52456 123456"),
+            Ok("-5245\n6\n12345\n6".to_string())
+        );
+        assert_eq!(f.just(""), Ok("".to_string()));
+        assert_eq!(f.just(" "), Ok("".to_string()));
+        assert_eq!(f.just("  "), Ok("".to_string()));
+        assert_eq!(f.just("     "), Ok("".to_string()));
+        assert_eq!(f.just("      "), Ok("".to_string()));
+        assert_eq!(f.just("     a"), Ok("a".to_string()));
+        assert_eq!(f.just("      a"), Ok("a".to_string()));
+        assert_eq!(f.just("ab     a"), Ok("ab\na".to_string()));
+        assert_eq!(f.just("ab      a"), Ok("ab\na".to_string()));
+        assert_eq!(f.just("     abcdef"), Ok("abcde\nf".to_string()));
+        assert_eq!(f.just("      abcdef"), Ok("abcde\nf".to_string()));
+        assert_eq!(f.just("ab     abcdef"), Ok("ab\nabcde\nf".to_string()));
+        assert_eq!(f.just("ab      abcdef"), Ok("ab\nabcde\nf".to_string()));
+        assert_eq!(f.just("     a"), Ok("a".to_string()));
+        assert_eq!(f.just("      a"), Ok("a".to_string()));
+        assert_eq!(f.just("abcdef     a"), Ok("abcde\nf\na".to_string()));
+        assert_eq!(f.just("abcdef      a"), Ok("abcde\nf\na".to_string()));
+        assert_eq!(f.just("-"), Ok("-".to_string()));
+        assert_eq!(f.just("--"), Ok("--".to_string()));
+        assert_eq!(f.just("-----"), Ok("-----".to_string()));
+        assert_eq!(f.just("------"), Ok("-----\n-".to_string()));
+        assert_eq!(f.just("-----a"), Ok("-----\na".to_string()));
+        assert_eq!(f.just("------a"), Ok("-----\n-a".to_string()));
+        assert_eq!(f.just("ab-----a"), Ok("ab---\n--a".to_string()));
+        assert_eq!(f.just("ab------a"), Ok("ab---\n---a".to_string()));
+        assert_eq!(f.just("-----abcdef"), Ok("-----\nabcde\nf".to_string()));
+        assert_eq!(f.just("------abcdef"), Ok("-----\n-\nabcde\nf".to_string()));
+        assert_eq!(f.just("ab-----abcdef"), Ok("ab---\n--\nabcde\nf".to_string()));
+        assert_eq!(
+            f.just("ab------abcdef"),
+            Ok("ab---\n---\nabcde\nf".to_string())
+        );
+        assert_eq!(f.just("-----a"), Ok("-----\na".to_string()));
+        assert_eq!(f.just("------a"), Ok("-----\n-a".to_string()));
+        assert_eq!(f.just("abcdef-----a"), Ok("abcde\nf----\n-a".to_string()));
+        assert_eq!(f.just("abcdef------a"), Ok("abcde\nf----\n--a".to_string()));
 
         assert_eq!(
             f.just(
@@ -385,7 +448,11 @@ fo bl123456h
 fo  bl123456h
 fo-bl123456h
 fo--bl123456h
- bl123456h"
+ bl123456h
+
+ 
+     
+      "
             ),
             Ok("foo
 blah
@@ -410,8 +477,12 @@ fo--
 bl123
 456h
 bl123
-456h\n"
-                .to_string())
+456h
+
+
+
+"
+            .to_string())
         );
     }
 }

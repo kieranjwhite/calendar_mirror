@@ -312,7 +312,8 @@ fn main() -> Result<(), Error> {
 
                 loop {
                     match cal_machine::run(&mut renderer, &quitter, &config_file, simple_saver) {
-                        Err(cal_machine::Error::Reqwest(_)) => {
+                        Err(cal_machine::Error::Reqwest(error)) => {
+                            eprintln!("reqwest error: {:?}", error);
                             thread::sleep(Duration::from_secs(5));
                         }
                         Err(error) => {

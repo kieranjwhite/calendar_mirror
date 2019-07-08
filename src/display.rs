@@ -2,7 +2,6 @@ use crate::err;
 use serde::Serialize;
 use serde_json::error::Error as SerdeError;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::ops::Add;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::slice::Iter;
 use std::time::Duration;
@@ -30,18 +29,7 @@ type Size = u32;
 pub struct PartialUpdate(pub bool);
 
 #[derive(Serialize)]
-pub struct VertPos(pub i32);
-
-#[derive(Serialize)]
 pub struct Pos(pub u32, pub i32);
-
-impl Add<&VertPos> for &Pos {
-    type Output=Pos;
-
-    fn add(self, rhs: &VertPos) -> Pos {
-        Pos(self.0, self.1-rhs.0)
-    }
-}
 
 err!(Error {
     Network(io::Error),

@@ -1,9 +1,9 @@
 use crate::display::Operation as Op;
 use crate::{
     cal_machine::{evs::Appointments, Email, Event},
-    display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline, VertPos},
+    display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
-    formatter::{self, GlyphWidth, LeftFormatter},
+    formatter::{self, Dims, GlyphRow, LeftFormatter},
 };
 use chrono::prelude::*;
 
@@ -18,9 +18,9 @@ const PULSE_ID: &str = "pulse";
 const EMAIL_ID: &str = "email";
 const EVENTS_ID: &str = "events";
 
-const HEADING_POS: Pos = Pos(8, 0);
+const HEADING_POS: Pos = Pos(12, 0);
 const PULSE_POS: Pos = Pos(0, 0);
-const EMAIL_POS: Pos = Pos(108, 4);
+const EMAIL_POS: Pos = Pos(112, 4);
 const EVENTS_POS: Pos = Pos(0, 24);
 const INSTR1_POS: Pos = Pos(24, 24);
 const CODE_POS: Pos = Pos(64, 48);
@@ -57,7 +57,7 @@ impl Renderer {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
             pulse_on: false,
-            formatter: LeftFormatter::new(GlyphWidth(15)),
+            formatter: LeftFormatter::new(Dims(15, 10)),
         })
     }
 
@@ -222,7 +222,7 @@ impl Renderer {
         &mut self,
         date: &DateTime<Local>,
         apps: &Appointments,
-        _pos: &VertPos,
+        pos: &GlyphRow,
     ) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
@@ -246,7 +246,7 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
-            let justified_events = self.formatter.just(&all_events)?;
+            let justified_events = self.formatter.just_lines(&all_events)?[pos.0..].join("\n");
 
             ops.push(Op::AddText(
                 justified_events,
