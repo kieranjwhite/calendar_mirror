@@ -491,8 +491,9 @@ pub fn run(
                 let status = resp.status();
                 match status {
                     StatusCode::OK => {
-                        println!("response to read: {:?}", resp);
+                        println!("OK response to read.");
                         let events_resp: EventsResponse = resp.json()?;
+                        println!("json response to read: {:?}", events_resp);
                         let mut new_events = evs::Appointments::new();
                         new_events.add(&events_resp)?;
                         let page_token = match events_resp.next_page_token {
