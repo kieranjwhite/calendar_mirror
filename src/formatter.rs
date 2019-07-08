@@ -220,8 +220,9 @@ impl Pending {
 
 stm!(tokenising_stm, Machine, []=> Empty(), {
     [TokenComplete] => BuildingBreakable();
-    [Empty, TokenComplete] => BuildingNonBreakable();
-    [Empty, BuildingBreakable, BuildingNonBreakable] => TokenComplete()
+    [TokenComplete] => NotStartedBuildingNonBreakable();
+    [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable();
+    [Empty, BuildingBreakable, StartedBuildingNonBreakable] => TokenComplete()
 });
 
 pub struct LeftFormatter {
@@ -302,28 +303,38 @@ impl LeftFormatter {
                                 if self.all_splitters.contains(grapheme) {
                                     TokenComplete(st.into())
                                 } else {
-                                    pending.add_glyph(grapheme)?;
-                                    BuildingNonBreakable(st.into())
+                                    pending.add_glyph(grapheme)?; //pending start
+                                    StartedBuildingNonBreakable(st.into())
                                 }
                             }
                             BuildingBreakable(st) => {
                                 TokenComplete(st.into())
                             }
-                            BuildingNonBreakable(st) => {
-                                if self.all_splitters.contains(grapheme) && pending.started() {
+                            StartedBuildingNonBreakable(st) => {
+                                if self.all_splitters.contains(grapheme) {
                                     TokenComplete(st.into())
                                 } else {
-                                    pending.add_glyph(grapheme)?;
-                                    BuildingNonBreakable(st)
+                                    pending.add_glyph(grapheme)?; //pending start
+                                    StartedBuildingNonBreakable(st)
+                                }
+                            }
+                            NotStartedBuildingNonBreakable(st) => {
+                                pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
+                                if SPACES.contains(grapheme) {
+                                    NotStartedBuildingNonBreakable(st)
+                                } else {
+                                    StartedBuildingNonBreakable(st.into())
                                 }
                             }
                             TokenComplete(st) => {
                                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
-                                pending.add_glyph(grapheme)?;
+                                pending.add_glyph(grapheme)?; //pending start
                                 if BREAKABLE.contains(grapheme) {
                                     BuildingBreakable(st.into())
-                                } else { 
-                                    BuildingNonBreakable(st.into())
+                                } else if SPACES.contains(grapheme) { 
+                                    NotStartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
+                                } else {
+                                    StartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
                                 }
                             }
                         };
@@ -360,8 +371,12 @@ mod tests {
         assert_eq!(f.just("fo  bl123456h"), Ok("fo\nbl123\n456h\n".to_string()));
         assert_eq!(f.just("fo-bl123456h"), Ok("fo-\nbl123\n456h\n".to_string()));
         assert_eq!(f.just("fo--bl123456h"), Ok("fo--\nbl123\n456h\n".to_string()));
-        assert_eq!(f.just("fo----bl123456h"), Ok("fo---\n-\nbl123\n456h\n".to_string()));
         assert_eq!(f.just(" bl123456h"), Ok("bl123\n456h\n".to_string()));
+        assert_eq!(f.just("fo----bl123456h"), Ok("fo---\n-\nbl123\n456h\n".to_string()));
+        assert_eq!(f.just("fo-bl123456hfar"), Ok("fo-\nbl123\n456hf\nar\n".to_string()));
+        assert_eq!(f.just("     bl123456h"), Ok("bl123\n456h\n".to_string()));
+        assert_eq!(f.just("abc -52 123456"), Ok("abc\n-52\n12345\n6\n".to_string()));
+        assert_eq!(f.just(" -52456 123456"), Ok("-5245\n6\n12345\n6\n".to_string()));
 
         assert_eq!(
             f.just(
