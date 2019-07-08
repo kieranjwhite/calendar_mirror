@@ -104,7 +104,7 @@ impl From<&retriever::Event> for Result<Event, Error> {
             description: ev.description.clone(),
             start: PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
                 .select(&ev.start.date_time, &ev.start.date)?,
-            end: PeriodMarker::End(NaiveTime::from_hms(24, 0, 0))
+            end: PeriodMarker::End(NaiveTime::from_hms(23, 59, 59))
                 .select(&ev.end.date_time, &ev.end.date)?,
         })
     }
