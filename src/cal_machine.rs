@@ -491,7 +491,7 @@ pub fn run(
                             (v_pos.0-V_POS_INC) as usize
                         };
 
-                        println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?}", num_event_rows, screen_height, v_pos, max_row_offset);
+                        println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
                         v_pos=if prev_v_pos+screen_height.0>=num_event_rows.0 {
                             //last line of events was showing
                             GlyphYCnt(0)
@@ -502,6 +502,7 @@ pub fn run(
                             //last line of events wasn't showing
                             v_pos
                         };
+                        println!("pos_calculator. updated v_pos: {:?}", v_pos);
                         GlyphYCnt(v_pos.0)
                     },
                 )?;
