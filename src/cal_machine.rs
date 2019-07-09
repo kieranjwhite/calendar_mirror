@@ -42,8 +42,8 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
-    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType, GlyphYCnt);
-    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphYCnt)
+    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
+    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt)
 });
 
 type PeriodSeconds = u64;
@@ -211,9 +211,11 @@ pub fn run(
     const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
     const LONGISH_DURATION: Duration = Duration::from_millis(2000);
     const LONG_DURATION: Duration = Duration::from_secs(4);
-
+    const GLYPH_Y_ORIGIN: GlyphYCnt=GlyphYCnt(0);
+    
     let mut today = Local::today().and_hms(0, 0, 0);
     let mut display_date = today;
+    let mut v_pos=GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
     let mut gpio = GPIO::new()?;
@@ -424,8 +426,7 @@ pub fn run(
                         events,
                         refreshed_at,
                         downloaded_at,
-                        RefreshType::Full,
-                        GlyphYCnt(0),
+                        RefreshType::Full
                     )
                 } else {
                     let mut resp: Response = retriever.read(
@@ -470,8 +471,7 @@ pub fn run(
                 apps,
                 refreshed_at,
                 downloaded_at,
-                refresh_type,
-                mut v_pos,
+                refresh_type
             ) => {
                 println!("Display. pos: {:?} events: {:?}", v_pos, apps.events);
                 renderer.display_events(
@@ -511,11 +511,10 @@ pub fn run(
                     credentials,
                     apps,
                     refreshed_at,
-                    downloaded_at,
-                    v_pos,
+                    downloaded_at
                 )
             }
-            Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos) => {
+            Wait(st, credentials, apps, refreshed_at, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
@@ -546,7 +545,7 @@ pub fn run(
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
                     } else if today.date() != new_today.date()
                         || opt_filter(&scroll_event, long_check)
                     {
@@ -555,6 +554,7 @@ pub fn run(
                         display_date = today;
                         ReadFirst(st.into(), credentials, refreshed_at)
                     } else if opt_filter(&scroll_event, short_check) {
+                        v_pos=GlyphYCnt(v_pos.0+V_POS_INC);
                         Display(
                             st.into(),
                             credentials,
@@ -562,25 +562,28 @@ pub fn run(
                             refreshed_at,
                             started_wait_at,
                             RefreshType::Partial,
-                            GlyphYCnt(v_pos.0 + V_POS_INC),
                         )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
-                        || waiting_for >= RECHECK_PERIOD
                     {
-                        println!("full display refresh");
+                        println!("full display refresh after date change");
+                        v_pos=GLYPH_Y_ORIGIN;
+                        ReadFirst(st.into(), credentials, refreshed_at)
+                    } else if waiting_for >= RECHECK_PERIOD
+                    {
+                        println!("full display refresh due");
                         ReadFirst(st.into(), credentials, refreshed_at)
                     } else if opt_filter(&back_event, short_check) {
                         display_date = display_date - chrono::Duration::days(1);
                         println!("New date: {:?}", display_date);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
                     } else if opt_filter(&next_event, short_check) {
                         display_date = display_date + chrono::Duration::days(1);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
                     } else {
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at, v_pos)
+                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
                     }
                 }
             }

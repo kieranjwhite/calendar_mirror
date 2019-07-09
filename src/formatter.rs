@@ -332,7 +332,7 @@ impl LeftFormatter {
                 //let mut pending_length: usize = 0;
                 let graphemes = l.graphemes(true).collect::<Vec<&str>>();
                 for grapheme in graphemes {
-                    while {
+                    loop {
                         mach = match mach {
                             Empty(st) => {
                                 col = GlyphXCnt(0);
@@ -373,11 +373,10 @@ impl LeftFormatter {
                             }
                         };
                         if let &TokenComplete(_) = &mach {
-                            true
                         } else {
-                            false
+                            break;
                         }
-                    } {}
+                    }
                 }
                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
 

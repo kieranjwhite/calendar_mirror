@@ -5,7 +5,7 @@ mod cal_machine;
 mod display;
 mod err;
 mod gpio_in;
-mod formatter;
+pub mod formatter;
 #[macro_use]
 mod new_type;
 mod stm;

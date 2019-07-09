@@ -14,7 +14,7 @@ const EVENTS_ID: &str = "events";
 
 const HEADING_POS: Pos = Pos(10, 0);
 const PULSE_POS: Pos = Pos(0, 0);
-const EMAIL_POS: Pos = Pos(110, 4);
+const EMAIL_POS: Pos = Pos(96, 4);
 const EVENTS_POS: Pos = Pos(0, 20);
 const INSTR1_POS: Pos = Pos(24, 24);
 const CODE_POS: Pos = Pos(64, 48);
