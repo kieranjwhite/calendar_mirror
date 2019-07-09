@@ -239,7 +239,7 @@ impl Renderer {
 
         if apps.events.len() == 0 {
             if render_type == RefreshType::Full {
-                ops.push(Op::Clear);
+                //ops.push(Op::Clear);
                 ops.push(Op::AddText(
                     NO_EVENTS.to_string(),
                     EVENTS_POS,
@@ -272,7 +272,7 @@ impl Renderer {
             let justified_events = lines[pos.0..].join("\n");
 
             if render_type == RefreshType::Full {
-                ops.push(Op::Clear);
+                //ops.push(Op::Clear);
 
                 ops.push(Op::AddText(
                     justified_events,

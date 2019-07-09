@@ -209,7 +209,7 @@ pub fn run(
     const QUOTA_EXCEEDED: &str = "Quota Exceeded";
     const ACCESS_DENIED: &str = "User has refused to grant access to this calendar";
     const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
-    const LONGISH_DURATION: Duration = Duration::from_millis(2000);
+    const LONGISH_DURATION: Duration = Duration::from_millis(1500);
     const LONG_DURATION: Duration = Duration::from_secs(4);
     const GLYPH_Y_ORIGIN: GlyphYCnt=GlyphYCnt(0);
     
