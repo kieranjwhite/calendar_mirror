@@ -31,7 +31,7 @@ digraph cal_stm {
     RequestCodes -> DisplayError[label="String\n"];
     Poll -> Save[label="Authenticators\n"];
     ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\n"];
-    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nGlyphRow\n"];
-    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nGlyphRow\n"];
+    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\nGlyphRow\n"];
+    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\nGlyphRow\n"];
     Display -> Wait[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nGlyphRow\n"];
 }
