@@ -24,8 +24,6 @@ const SPACES: &str = " \t";
 
 copyable!(ByteWidth, usize);
 const ZERO_BYTES: ByteWidth = ByteWidth(0);
-copyable!(GlyphRow, isize);
-copyable!(GlyphCol, isize);
 copyable!(GlyphXCnt, usize);
 const ZERO_GLYPHS: GlyphXCnt = GlyphXCnt(0);
 copyable!(GlyphYCnt, usize);
@@ -34,38 +32,6 @@ impl GlyphXCnt {
     pub fn is_none(&self) -> bool {
         self.0 == 0
     }
-}
-
-impl GlyphRow {
-    /*
-    pub fn is_line_start(&self) -> bool {
-        self.0 == 0
-    }
-
-    pub fn screen_row(&self) -> usize {
-        if self.0 < 0 {
-            0
-        } else {
-            self.0 as usize
-        }
-    }
-     */
-}
-
-impl GlyphCol {
-    /*
-        pub fn is_line_start(&self) -> bool {
-            self.0 == 0
-        }
-
-        pub fn screen_col(&self) -> usize {
-            if self.0 < 0 {
-                0
-            } else {
-                self.0 as usize
-            }
-        }
-    */
 }
 
 struct GlyphLayout {
