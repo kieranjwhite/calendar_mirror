@@ -471,9 +471,9 @@ pub fn run(
                     refresh_type,
                     |num_event_rows, screen_height| {
                         let max_row_offset = if screen_height.0 <= num_event_rows.0 {
-                            0
-                        } else {
                             num_event_rows.0 - screen_height.0
+                        } else {
+                            0
                         };
                         GlyphRow(v_pos.0 % (max_row_offset + 1))
                     },
