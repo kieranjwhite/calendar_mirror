@@ -237,10 +237,7 @@ fn main() -> Result<(), Error> {
                 })
                 .expect("Error setting Ctrl-C handler");
                 renderer.disconnect_quits_server()?;
-                //if let Err(error) = cal_machine::run(&mut renderer, quitter, &config_file, simple_saver) {
-                //      renderer.clear()?;
-                //       return Err(error.into());
-                //}
+
                 let var_dir_opt = var_os(CALENDAR_MIRROR_VAR);
                 let var_dir_os = &var_dir_opt.clone().unwrap_or(DEFAULT_VAR_DIR.into());
                 let var_dir: &Path = Path::new(var_dir_os);

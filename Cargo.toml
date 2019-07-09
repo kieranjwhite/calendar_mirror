@@ -1,7 +1,7 @@
 [package]
 name = "calendar_mirror"
-version = "0.1.5"
-authors = ["pi"]
+version = "0.1.6"
+authors = ["Kieran White"]
 edition = "2018"
 
 [dependencies]

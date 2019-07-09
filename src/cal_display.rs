@@ -3,7 +3,7 @@ use crate::{
     cal_machine::evs::{Appointments, Email, Event},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
-    formatter::{self, Dims, GlyphYCnt, GlyphXCnt, LeftFormatter},
+    formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
 };
 use chrono::prelude::*;
 
@@ -59,6 +59,17 @@ pub struct Renderer {
     pulse_on: bool,
     formatter: LeftFormatter,
     dims: Dims,
+    last_op: Option<RenderOp>,
+}
+
+#[derive(Debug)]
+enum RenderOp {
+    Clear,
+    HeartBeat,
+    SaveWarning,
+    UserCode,
+    Date,
+    Events,
 }
 
 impl Renderer {
@@ -68,6 +79,7 @@ impl Renderer {
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
+            last_op: None
         })
     }
 
@@ -117,6 +129,7 @@ impl Renderer {
     }
 
     pub fn clear(&mut self) -> Result<(), Error> {
+        self.last_op = Some(RenderOp::Clear);
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
@@ -135,6 +148,8 @@ impl Renderer {
         if on == self.pulse_on {
             return Ok(());
         }
+        self.last_op = Some(RenderOp::HeartBeat);
+
         self.pulse_on = on;
 
         let mut ops: Vec<Op> = Vec::with_capacity(3);
@@ -149,6 +164,7 @@ impl Renderer {
     }
 
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
+        self.last_op = Some(RenderOp::SaveWarning);
         let mut ops: Vec<Op> = Vec::with_capacity(4);
         ops.push(Op::Clear);
         //ops.push(Op::AddText(
@@ -181,6 +197,7 @@ impl Renderer {
         expires_at: &DateTime<Local>,
         url: &str,
     ) -> Result<(), Error> {
+        self.last_op = Some(RenderOp::UserCode);
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
         ops.push(Op::AddText(
@@ -215,6 +232,7 @@ impl Renderer {
     }
 
     pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
+        self.last_op = Some(RenderOp::Date);
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -235,11 +253,18 @@ impl Renderer {
         render_type: RefreshType,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
+        self.last_op = Some(RenderOp::Events);
         let mut ops: Vec<Op> = Vec::with_capacity(6);
 
         if apps.events.len() == 0 {
             if render_type == RefreshType::Full {
-                //ops.push(Op::Clear);
+                match self.last_op {
+                    Some(RenderOp::Clear) => ops.push(Op::Clear),
+                    Some(RenderOp::SaveWarning) => ops.push(Op::Clear),
+                    Some(RenderOp::UserCode) => ops.push(Op::Clear),
+                    None => ops.push(Op::Clear),
+                    _ => {}
+                }
                 ops.push(Op::AddText(
                     NO_EVENTS.to_string(),
                     EVENTS_POS,
@@ -259,12 +284,12 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
-            let joined=self.formatter.just_lines(&all_events)?.join("\n");
+            let joined = self.formatter.just_lines(&all_events)?.join("\n");
             let lines = joined.lines().collect::<Vec<&str>>();
-            let mut line_idx=0;
+            let mut line_idx = 0;
             for line in lines.iter() {
                 println!("line. idx: {:?} text: {:?}", line_idx, line);
-                line_idx+=1;
+                line_idx += 1;
             }
             let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
             println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
@@ -272,7 +297,13 @@ impl Renderer {
             let justified_events = lines[pos.0..].join("\n");
 
             if render_type == RefreshType::Full {
-                //ops.push(Op::Clear);
+                match self.last_op {
+                    Some(RenderOp::Clear) => ops.push(Op::Clear),
+                    Some(RenderOp::SaveWarning) => ops.push(Op::Clear),
+                    Some(RenderOp::UserCode) => ops.push(Op::Clear),
+                    None => ops.push(Op::Clear),
+                    _ => {}
+                }
 
                 ops.push(Op::AddText(
                     justified_events,
