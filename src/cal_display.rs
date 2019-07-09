@@ -258,13 +258,19 @@ impl Renderer {
 
         if apps.events.len() == 0 {
             if render_type == RefreshType::Full {
+                ops.push(Op::Clear);
+                /*
                 match self.last_op {
                     Some(RenderOp::Clear) => ops.push(Op::Clear),
                     Some(RenderOp::SaveWarning) => ops.push(Op::Clear),
                     Some(RenderOp::UserCode) => ops.push(Op::Clear),
                     None => ops.push(Op::Clear),
-                    _ => {}
+                    _ => {
+                        if render_type==RefreshType::Full {
+                        }
+                    }
                 }
+                */
                 ops.push(Op::AddText(
                     NO_EVENTS.to_string(),
                     EVENTS_POS,
@@ -297,13 +303,7 @@ impl Renderer {
             let justified_events = lines[pos.0..].join("\n");
 
             if render_type == RefreshType::Full {
-                match self.last_op {
-                    Some(RenderOp::Clear) => ops.push(Op::Clear),
-                    Some(RenderOp::SaveWarning) => ops.push(Op::Clear),
-                    Some(RenderOp::UserCode) => ops.push(Op::Clear),
-                    None => ops.push(Op::Clear),
-                    _ => {}
-                }
+                ops.push(Op::Clear);
 
                 ops.push(Op::AddText(
                     justified_events,

@@ -37,11 +37,11 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(DownloadedAt);
     [ErrorWait, Load, Wait] => RequestCodes();
     [Load, Wait] => Refresh(RefreshToken);
-    [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt);
+    [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt, RefreshType);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
-    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
+    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
     [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
     [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt)
 });
@@ -309,7 +309,7 @@ pub fn run(
                             println!("Body is next... {:?}", credentials_tokens);
                             let credentials: Authenticators =
                                 (RefreshToken(refresh_token.clone()), credentials_tokens).into();
-                            ReadFirst(st.into(), credentials, RefreshedAt::now())
+                            ReadFirst(st.into(), credentials, RefreshedAt::now(), RefreshType::Full)
                         }
                     }
                     other_status => {
@@ -380,9 +380,9 @@ pub fn run(
             Save(st, credentials) => {
                 //credentials.refresh_token.save(&config_file)?;
                 saver(&credentials.refresh_token, renderer)?;
-                ReadFirst(st.into(), credentials, RefreshedAt::now())
+                ReadFirst(st.into(), credentials, RefreshedAt::now(), RefreshType::Full)
             }
-            ReadFirst(st, credentials_tokens, refreshed_at) => {
+            ReadFirst(st, credentials_tokens, refreshed_at, refresh_type) => {
                 let mut resp: Response = retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &display_date,
@@ -406,6 +406,7 @@ pub fn run(
                             new_events,
                             refreshed_at,
                             DownloadedAt::now(),
+                            refresh_type
                         )
                     }
                     _other_status => {
@@ -418,7 +419,7 @@ pub fn run(
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token, mut events, refreshed_at, downloaded_at) => {
+            Page(st, credentials_tokens, page_token, mut events, refreshed_at, downloaded_at, refresh_type) => {
                 if let None = page_token {
                     Display(
                         st.into(),
@@ -426,7 +427,7 @@ pub fn run(
                         events,
                         refreshed_at,
                         downloaded_at,
-                        RefreshType::Full
+                        refresh_type
                     )
                 } else {
                     let mut resp: Response = retriever.read(
@@ -452,6 +453,7 @@ pub fn run(
                                 events,
                                 refreshed_at,
                                 downloaded_at,
+                                refresh_type
                             )
                         }
                         _other_status => {
@@ -552,7 +554,7 @@ pub fn run(
                         println!("full display & date refresh");
                         today = new_today;
                         display_date = today;
-                        ReadFirst(st.into(), credentials, refreshed_at)
+                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&scroll_event, short_check) {
                         v_pos=GlyphYCnt(v_pos.0+V_POS_INC);
                         Display(
@@ -566,13 +568,13 @@ pub fn run(
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
-                        println!("full display refresh after date change");
+                        println!("partial display refresh after date change");
                         v_pos=GLYPH_Y_ORIGIN;
-                        ReadFirst(st.into(), credentials, refreshed_at)
+                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Partial)
                     } else if waiting_for >= RECHECK_PERIOD
                     {
                         println!("full display refresh due");
-                        ReadFirst(st.into(), credentials, refreshed_at)
+                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&back_event, short_check) {
                         display_date = display_date - chrono::Duration::days(1);
                         println!("New date: {:?}", display_date);
