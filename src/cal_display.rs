@@ -259,7 +259,13 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
-            let lines = self.formatter.just_lines(&all_events)?;
+            let joined=self.formatter.just_lines(&all_events)?.join("\n");
+            let lines = joined.lines().collect::<Vec<&str>>();
+            let mut line_idx=0;
+            for line in lines.iter() {
+                println!("line. idx: {:?} text: {:?}", line_idx, line);
+                line_idx+=1;
+            }
             let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
             println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
             println!("display_events. first event: {:?}", lines[pos.0]);

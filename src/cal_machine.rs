@@ -562,7 +562,7 @@ pub fn run(
                             refreshed_at,
                             started_wait_at,
                             RefreshType::Partial,
-                            GlyphYCnt(v_pos.0 + 2),
+                            GlyphYCnt(v_pos.0 + V_POS_INC),
                         )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
