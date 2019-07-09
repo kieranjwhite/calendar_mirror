@@ -19,9 +19,9 @@ digraph cal_stm {
     Wait -> RequestCodes[label=""];
     Load -> Refresh[label="RefreshToken\n"];
     Wait -> Refresh[label="RefreshToken\n"];
-    Refresh -> ReadFirst[label="Authenticators\nRefreshedAt\n"];
-    Save -> ReadFirst[label="Authenticators\nRefreshedAt\n"];
-    Wait -> ReadFirst[label="Authenticators\nRefreshedAt\n"];
+    Refresh -> ReadFirst[label="Authenticators\nRefreshedAt\nRefreshType\n"];
+    Save -> ReadFirst[label="Authenticators\nRefreshedAt\nRefreshType\n"];
+    Wait -> ReadFirst[label="Authenticators\nRefreshedAt\nRefreshType\n"];
     RequestCodes -> Poll[label="String\nPeriodSeconds\n"];
     Load -> DisplayError[label="String\n"];
     Page -> DisplayError[label="String\n"];
@@ -30,8 +30,8 @@ digraph cal_stm {
     Refresh -> DisplayError[label="String\n"];
     RequestCodes -> DisplayError[label="String\n"];
     Poll -> Save[label="Authenticators\n"];
-    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\n"];
-    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\nGlyphRow\n"];
-    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\nGlyphRow\n"];
-    Display -> Wait[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nGlyphRow\n"];
+    ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
+    Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
+    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
+    Display -> Wait[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\n"];
 }
