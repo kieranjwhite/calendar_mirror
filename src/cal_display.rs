@@ -79,7 +79,7 @@ impl Renderer {
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
-            last_op: None
+            last_op: None,
         })
     }
 
@@ -316,8 +316,15 @@ impl Renderer {
             }
         }
 
+        let heading = date.format(DATE_FORMAT).to_string();
+        let displayable_email = if let Some(Email(email_address)) = apps.email() {
+            email_address
+        } else {
+            NO_EMAIL.to_string()
+        };
+        let displayable_pulse = self.pulse_repr().to_string();
+        
         if render_type == RefreshType::Full {
-            let heading = date.format(DATE_FORMAT).to_string();
             ops.push(Op::AddText(
                 heading,
                 HEADING_POS,
@@ -326,29 +333,24 @@ impl Renderer {
             ));
 
             ops.push(Op::AddText(
-                self.pulse_repr().to_string(),
+                displayable_pulse,
                 PULSE_POS,
                 PULSE_SIZE,
                 PULSE_ID.to_string(),
             ));
 
-            if let Some(Email(email_address)) = apps.email() {
-                ops.push(Op::AddText(
-                    email_address,
-                    EMAIL_POS,
-                    EMAIL_SIZE,
-                    EMAIL_ID.to_string(),
-                ));
-            } else {
-                ops.push(Op::AddText(
-                    NO_EMAIL.to_string(),
-                    EMAIL_POS,
-                    EMAIL_SIZE,
-                    EMAIL_ID.to_string(),
-                ));
-            }
+            ops.push(Op::AddText(
+                displayable_email,
+                EMAIL_POS,
+                EMAIL_SIZE,
+                EMAIL_ID.to_string(),
+            ));
+
             ops.push(Op::WriteAll(PartialUpdate(false)));
         } else {
+            ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
+            ops.push(Op::UpdateText(PULSE_ID.to_string(), displayable_pulse));
+            ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
             ops.push(Op::WriteAll(PartialUpdate(true)));
         }
 
