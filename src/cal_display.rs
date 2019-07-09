@@ -37,7 +37,6 @@ const NO_EVENTS: &str = "No events";
 const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";
 const SUMMARY_DELIMITER: &str = "";
-//const DESC_DELIMITER: &str = "> ";
 
 const TIME_LEN: usize = 5;
 
@@ -59,17 +58,6 @@ pub struct Renderer {
     pulse_on: bool,
     formatter: LeftFormatter,
     dims: Dims,
-    last_op: Option<RenderOp>,
-}
-
-#[derive(Debug)]
-enum RenderOp {
-    Clear,
-    HeartBeat,
-    SaveWarning,
-    UserCode,
-    Date,
-    Events,
 }
 
 impl Renderer {
@@ -79,7 +67,6 @@ impl Renderer {
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
-            last_op: None,
         })
     }
 
@@ -104,12 +91,6 @@ impl Renderer {
                 + END_DELIMITER.len()
                 + event.summary.len()
                 + SUMMARY_DELIMITER.len()
-                //+ if let Some(ref desc) = event.description {
-                //    desc.len()
-                //} else {
-                //    0
-                //}
-                //+ DESC_DELIMITER.len()
                 + 1,
         );
 
@@ -119,17 +100,12 @@ impl Renderer {
         event_str.push_str(END_DELIMITER);
         event_str.push_str(&event.summary);
         event_str.push_str(SUMMARY_DELIMITER);
-        //if let Some(ref desc) = event.description {
-        //    event_str.push_str(&desc);
-        //}
-        //event_str.push_str(DESC_DELIMITER);
         event_str.push('\n');
 
         event_str
     }
 
     pub fn clear(&mut self) -> Result<(), Error> {
-        self.last_op = Some(RenderOp::Clear);
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
@@ -148,7 +124,6 @@ impl Renderer {
         if on == self.pulse_on {
             return Ok(());
         }
-        self.last_op = Some(RenderOp::HeartBeat);
 
         self.pulse_on = on;
 
@@ -164,15 +139,8 @@ impl Renderer {
     }
 
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
-        self.last_op = Some(RenderOp::SaveWarning);
         let mut ops: Vec<Op> = Vec::with_capacity(4);
         ops.push(Op::Clear);
-        //ops.push(Op::AddText(
-        //    "Warning...".to_string(),
-        //    INSTR1_POS,
-        //    INSTR_SIZE,
-        //    "Instr1".to_string(),
-        //));
         ops.push(Op::AddText(
             "SAVING!".to_string(),
             Pos(78, 48),
@@ -197,7 +165,6 @@ impl Renderer {
         expires_at: &DateTime<Local>,
         url: &str,
     ) -> Result<(), Error> {
-        self.last_op = Some(RenderOp::UserCode);
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
         ops.push(Op::AddText(
@@ -232,7 +199,6 @@ impl Renderer {
     }
 
     pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
-        self.last_op = Some(RenderOp::Date);
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -253,30 +219,20 @@ impl Renderer {
         render_type: RefreshType,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        self.last_op = Some(RenderOp::Events);
         let mut ops: Vec<Op> = Vec::with_capacity(6);
 
         if apps.events.len() == 0 {
+            let displayable_events = NO_EVENTS.to_string();
             if render_type == RefreshType::Full {
                 ops.push(Op::Clear);
-                /*
-                match self.last_op {
-                    Some(RenderOp::Clear) => ops.push(Op::Clear),
-                    Some(RenderOp::SaveWarning) => ops.push(Op::Clear),
-                    Some(RenderOp::UserCode) => ops.push(Op::Clear),
-                    None => ops.push(Op::Clear),
-                    _ => {
-                        if render_type==RefreshType::Full {
-                        }
-                    }
-                }
-                */
                 ops.push(Op::AddText(
-                    NO_EVENTS.to_string(),
+                    displayable_events,
                     EVENTS_POS,
                     EVENTS_SIZE,
                     EVENTS_ID.to_string(),
                 ));
+            } else {
+                ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
             }
         } else {
             let mut events = apps.events.clone();
@@ -323,7 +279,7 @@ impl Renderer {
             NO_EMAIL.to_string()
         };
         let displayable_pulse = self.pulse_repr().to_string();
-        
+
         if render_type == RefreshType::Full {
             ops.push(Op::AddText(
                 heading,
