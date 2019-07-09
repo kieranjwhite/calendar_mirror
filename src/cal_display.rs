@@ -3,7 +3,7 @@ use crate::{
     cal_machine::evs::{Appointments, Email, Event},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
-    formatter::{self, Dims, GlyphHeight, GlyphRow, GlyphWidth, LeftFormatter},
+    formatter::{self, Dims, GlyphYCnt, GlyphXCnt, LeftFormatter},
 };
 use chrono::prelude::*;
 
@@ -46,7 +46,7 @@ err!(Error {
     Format(formatter::Error)
 });
 
-const SCREEN_DIMS: Dims = Dims(GlyphWidth(25), GlyphHeight(10));
+const SCREEN_DIMS: Dims = Dims(GlyphXCnt(26), GlyphYCnt(9));
 
 #[derive(PartialEq)]
 pub enum RefreshType {
@@ -233,7 +233,7 @@ impl Renderer {
         date: &DateTime<Local>,
         apps: &Appointments,
         render_type: RefreshType,
-        pos_calculator: impl Fn(GlyphHeight, GlyphHeight) -> GlyphRow,
+        mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
 
@@ -260,7 +260,9 @@ impl Renderer {
             }
 
             let lines = self.formatter.just_lines(&all_events)?;
-            let pos = pos_calculator(GlyphHeight(lines.len()), self.dims.1);
+            let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
+            println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
+            println!("display_events. first event: {:?}", lines[pos.0]);
             let justified_events = lines[pos.0..].join("\n");
 
             if render_type == RefreshType::Full {

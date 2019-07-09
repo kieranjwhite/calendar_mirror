@@ -1,143 +1,139 @@
 
-src/cal_machine.rs,1839
-mod retriever;1,0
-use crate:crate3,16
-use chrono:chrono16,392
-use nix::Error as NixError;17,438
-use retriever:retriever18,466
-use serde:serde19,484
-use std::time::Duration;20,521
-use std:std21,546
-stm!(cal_stm, Machine,33,773
-type PeriodSeconds 46,1417
-type AuthTokens 47,1443
-const FOUR_MINS: Duration 49,1495
-const RECHECK_PERIOD: Duration 50,1549
-const BUTTON_POLL_PERIOD: Duration 51,1608
-pub struct VolatileAuthenticator 63,1873
-    pub access_token: String,64,1908
-    expires_in: u64,65,1938
-pub struct RefreshToken(String)69,2003
-pub struct Authenticators 120,3320
-    refresh_token: RefreshToken,121,3348
-    volatiles: VolatileAuthenticator,122,3381
-pub struct Email(pub String)150,4194
-    pub struct Appointments 166,4567
-        pub events: Vec<Vec167,4597
-        state: Machine,168,4629
-pub struct Event 215,6185
-    pub summary: String,216,6204
-    pub description: Option<Option217,6229
-    pub start: DateTime<DateTime218,6266
-    pub end: DateTime<DateTime219,6298
-    let mut f 262,7493
-    Machine::render_to(&mut f)263,7548
-    f 266,7597
-    evs::Machine::render_to(&mut f)267,7639
-    f 270,7693
-    papirus_in::LongPressMachine::render_to(&mut f)271,7750
-    use Machine:Machine283,8085
-    use reqwest:reqwest285,8106
-    const HTTP_ERROR: &str str287,8148
-    const LOAD_FAILED: &str str288,8191
-    const QUOTA_EXCEEDED: &str str289,8251
-    const ACCESS_DENIED: &str str290,8302
-    const UNRECOGNISED_TOKEN_TYPE: &str str291,8387
-    const LONGISH_DURATION: Duration 292,8456
-    const LONG_DURATION: Duration 293,8524
-    let mut display_date 295,8585
-    let retriever 296,8645
-    let mut mach: Machine 297,8689
-    let mut gpio 298,8738
-    let mut reset_button 299,8771
-    let mut back_button 304,8940
-    let mut next_button 309,9108
-
-src/papirus_in.rs,932
+src/gpio_in.rs,932
 use crate:crate1,0
 use memmap:memmap2,23
 use std:std3,56
-use LongPressMachine:LongPressMachine9,162
-const BLOCK_SIZE: usize 11,188
-const PIN_COUNT: usize 12,224
-const READ_REG_OFFSET: usize 13,253
-pub const SW1_GPIO: usize 15,289
-pub const SW2_GPIO: usize 16,321
-pub const SW3_GPIO: usize 17,353
-pub const SW4_GPIO: usize 18,385
-stm!(long_press_button_stm, LongPressMachine,29,573
-pub enum LongButtonEvent 36,900
-    Pressed,37,927
-    LongPress,38,940
-    Release,39,955
-    PressAndRelease,40,968
-pub struct DetectableDuration(pub Duration)68,1575
-pub struct LongReleaseDuration(pub Duration)69,1620
-pub struct LongPressButton 79,2107
-    pin: Pin,80,2136
-    state: LongPressMachine,81,2150
-    detectable_after: DetectableDuration,82,2179
-    long_release_after: LongReleaseDuration,83,2221
-pub struct Pin(pub usize)183,5630
-pub struct GPIO 185,5658
-    map: Mmap,186,5676
-    snap:snap187,5691
+use LongPressMachine:LongPressMachine9,147
+const BLOCK_SIZE: usize 11,173
+const PIN_COUNT: usize 12,209
+const READ_REG_OFFSET: usize 13,238
+pub const SW1_GPIO: usize 15,274
+pub const SW2_GPIO: usize 16,306
+pub const SW3_GPIO: usize 17,338
+pub const SW4_GPIO: usize 18,370
+stm!(long_press_button_stm, LongPressMachine,29,558
+pub enum LongButtonEvent 36,885
+    Pressed,37,912
+    LongPress,38,925
+    Release,39,940
+    PressAndRelease,40,953
+pub struct DetectableDuration(pub Duration)68,1560
+pub struct LongReleaseDuration(pub Duration)69,1605
+pub struct LongPressButton 79,2092
+    pin: Pin,80,2121
+    state: LongPressMachine,81,2135
+    detectable_after: DetectableDuration,82,2164
+    long_release_after: LongReleaseDuration,83,2206
+pub struct Pin(pub usize)183,5615
+pub struct GPIO 185,5643
+    map: Mmap,186,5661
+    snap:snap187,5676
 
-src/main.rs,1756
+src/cal_machine.rs,1670
+pub mod evs;1,0
+mod retriever;2,13
+use crate:crate4,29
+use chrono:chrono19,509
+use nix:nix20,555
+use retriever:retriever21,596
+use serde:serde22,614
+use std::time::Duration;23,651
+use std:std24,676
+stm!(cal_stm, Machine,36,895
+type PeriodSeconds 49,1622
+type AuthTokens 50,1648
+const FOUR_MINS: Duration 52,1700
+const RECHECK_PERIOD: Duration 53,1754
+const BUTTON_POLL_PERIOD: Duration 54,1813
+const V_POS_INC:isize=isize55,1877
+pub struct VolatileAuthenticator 69,2158
+    pub access_token: String,70,2193
+    expires_in: u64,71,2223
+pub struct RefreshToken(String)75,2288
+pub struct Authenticators 127,3623
+    refresh_token: RefreshToken,128,3651
+    volatiles: VolatileAuthenticator,129,3684
+    let mut f 164,4657
+    Machine::render_to(&mut f)165,4712
+    f 168,4761
+    evs::Machine::render_to(&mut f)169,4803
+    f 172,4857
+    gpio_in::LongPressMachine::render_to(&mut f)173,4914
+    f 176,4981
+    formatter::Machine::render_to(&mut f)177,5031
+    use Machine:Machine203,5710
+    use reqwest:reqwest205,5731
+    const HTTP_ERROR: &str str207,5773
+    const LOAD_FAILED: &str str208,5816
+    const QUOTA_EXCEEDED: &str str209,5876
+    const ACCESS_DENIED: &str str210,5927
+    const UNRECOGNISED_TOKEN_TYPE: &str str211,6012
+    const LONGISH_DURATION: Duration 212,6081
+    const LONG_DURATION: Duration 213,6149
+    let mut today 215,6210
+    let mut display_date 216,6263
+    let retriever 217,6297
+    let mut mach: Machine 218,6341
+    let mut gpio 219,6390
+    let mut reset_button 220,6423
+    let mut back_button 225,6592
+    let mut next_button 230,6760
+    let mut scroll_button 235,6928
+
+src/main.rs,1749
 mod cal_display;3,54
 mod cal_machine;4,71
 mod display;5,88
 mod err;6,101
-mod papirus_in;7,110
-mod stm;8,126
-use cal_display::Renderer;10,136
-use cal_machine:cal_machine11,163
-use display::Error as DisplayError;12,222
-use nix:nix13,258
-use std:std14,309
-enum PackageAction 36,741
-    Install,37,762
-    Uninstall,38,775
-    let script_rel_path: &Path Path46,917
-    let systemd_rel_path: &Path Path47,1004
-    let exe_link: &Path Path48,1090
-    let bin_dir: &Path Path49,1145
-    let bin_path 51,1189
-    let exe_path 52,1243
-    let exe_name 53,1288
-    let runnable_exe_path 62,1543
-    let mut project_dir 63,1596
-    let script_path 76,1941
-    let script_name 77,1998
-    let systemd_path 78,2044
-    let unit_name 79,2103
-    let runnable_script_path 81,2146
-    let version_path 82,2205
-    let version_exe 83,2263
-    let version_script 84,2314
-    let version_unit 85,2371
-    println!("exe is gone {:?}", version_exe)99,2701
-    println!("script is gone {:?}", version_script)103,2830
-    println!("unit is gone {:?}", version_unit)107,2961
-    println!("version_path is gone {:?}", version_path)111,3087
-const SYSTEMD_DIR: &str str182,5090
-const SCRIPT_NAME: &str str183,5127
-const UNIT_NAME: &str str184,5182
-const PKG_NAME: &str str185,5233
-const VERSION: &str str186,5280
-const DEFAULT_VAR_DIR: &str str187,5329
-    let args: Vec<Vec190,5398
-    let dest_base: &Path Path191,5449
-    let var_dir_opt 206,5931
-    let var_dir_os=207,5984
-    let var_dir: &Path Path208,6059
-    let path_opt 210,6108
-    let paths 211,6143
-    println!("path: {}", paths)216,6293
-    let mut ro_flags=218,6327
-    let ro_flags=221,6449
-    let config_file 223,6576
-    let quitter 226,6692
+mod gpio_in;7,110
+mod formatter;8,123
+mod new_type;10,151
+mod stm;11,165
+use cal_display:cal_display14,190
+use cal_machine:cal_machine15,245
+use display::Error as DisplayError;16,304
+use nix:nix17,340
+use std:std18,391
+enum PackageAction 43,897
+    Install,44,918
+    Uninstall,45,931
+    let script_rel_path: &Path Path53,1073
+    let systemd_rel_path: &Path Path54,1160
+    let exe_link: &Path Path55,1246
+    let bin_dir: &Path Path56,1301
+    let bin_path 58,1345
+    let exe_path 59,1399
+    let exe_name 60,1444
+    let runnable_exe_path 69,1699
+    let mut project_dir 70,1752
+    let script_path 83,2097
+    let script_name 84,2154
+    let systemd_path 85,2200
+    let unit_name 86,2259
+    let runnable_script_path 88,2302
+    let version_path 89,2361
+    let version_exe 90,2419
+    let version_script 91,2470
+    let version_unit 92,2527
+    println!("exe is gone {:?}", version_exe)106,2857
+    println!("script is gone {:?}", version_script)110,2986
+    println!("unit is gone {:?}", version_unit)114,3117
+    println!("version_path is gone {:?}", version_path)118,3243
+const SYSTEMD_DIR: &str str189,5246
+const SCRIPT_NAME: &str str190,5283
+const UNIT_NAME: &str str191,5338
+const PKG_NAME: &str str192,5389
+const VERSION: &str str193,5436
+const DEFAULT_VAR_DIR: &str str194,5485
+const VAR_DIR_FS_TYPE: &str str195,5520
+const CALENDAR_MIRROR_VAR: &str=str196,5558
+const CALENDAR_MIRROR_DEV: &str=str197,5613
+    let path_opt 200,5702
+    let paths 201,5737
+    println!("path: {}", paths)206,5887
+    let args: Vec<Vec208,5921
+    let dest_base: &Path Path209,5972
+    let quitter 225,6506
 
 src/display.rs,1054
 use crate::err;1,0
@@ -169,12 +165,83 @@ pub enum Operation 15,395
 type Id 25,571
 type Size 26,589
 pub struct PartialUpdate(pub bool)29,628
-pub struct Pos(pub u32, pub u32)32,686
+pub struct Pos(pub u32, pub i32)32,686
 pub struct RenderPipeline 39,785
     r_stream: BufReader<BufReader40,813
     w_stream: BufWriter<BufWriter41,849
 
-src/cal_machine/retriever.rs,2571
+src/formatter.rs,1486
+use crate:crate1,0
+use std::collections::VecDeque;2,28
+use unicode_segmentation::UnicodeSegmentation;3,60
+use Machine:Machine4,107
+pub enum Error 7,152
+    InvalidGraphemeLength(8,169
+    InvalidGraphemeLength(ByteWidth)8,169
+    TokenTooLong,9,207
+    IllegalState,10,225
+pub struct Dims(pub GlyphWidth, pub GlyphHeight)14,263
+const BREAKABLE: &str str22,389
+const SPACES: &str str23,419
+copyable!(ByteWidth, usize)25,448
+const ZERO_BYTES: ByteWidth 26,477
+copyable!(GlyphRow, isize)27,521
+copyable!(GlyphCol, isize)28,549
+copyable!(GlyphWidth, usize)29,577
+const ZERO_GLYPHS: GlyphWidth 30,607
+copyable!(GlyphHeight, usize)31,654
+struct GlyphLayout 57,1067
+    screen_widths: VecDeque<VecDeque58,1088
+    line_length: GlyphWidth,59,1128
+    last_line_offset: GlyphWidth,60,1157
+    last_line_bytes: ByteWidth,61,1191
+struct SizedString 132,3138
+    val: String,133,3159
+    len: GlyphWidth,134,3176
+struct Pending 143,3323
+    value: String,144,3340
+    starting_spaces: String,145,3359
+    layout: GlyphLayout,146,3388
+enum ConsumptionState 149,3416
+    Consumed(150,3440
+    Consumed(SizedString)150,3440
+    Empty,151,3467
+    TooLarge,152,3478
+enum Placement 155,3495
+    Assigned(156,3512
+    Assigned(ConsumptionState,156,3512
+    Assigned(ConsumptionState, GlyphCol)156,3512
+    Invalid,157,3554
+stm!(tokenising_stm, Machine,238,6479
+pub struct LeftFormatter 245,6803
+    size: Dims,246,6830
+    all_splitters: String,247,6846
+
+src/cal_machine/evs.rs,707
+use crate:crate1,0
+use chrono:chrono5,103
+use std::cmp::Ordering;6,170
+use Machine:Machine7,194
+stm!(ev_stm, Machine,16,389
+pub enum PeriodMarker 22,576
+    Start(23,600
+    Start(NaiveTime)23,600
+    End(24,622
+    End(NaiveTime)24,622
+type TwoDateTimes 61,1854
+copyable!(MissingDateTimeError, PeriodMarker)62,1910
+cloneable!(TimeZoneAmbiguousError, TwoDateTimes)63,1957
+pub struct Email(pub String)69,2100
+pub struct Event 72,2170
+    pub summary: String,73,2189
+    pub description: Option<Option74,2214
+    pub start: DateTime<DateTime75,2251
+    pub end: DateTime<DateTime76,2283
+pub struct Appointments 113,3436
+    pub events: Vec<Vec114,3462
+    state: Machine,115,3490
+
+src/cal_machine/retriever.rs,2578
 use chrono::prelude:chrono::prelude1,0
 use reqwest:reqwest2,24
 use serde::Deserialize;3,63
@@ -204,43 +271,43 @@ pub const TOKEN_TYPE: &str str30,1307
 pub const ACCESS_DENIED_ERROR: &str str32,1347
 pub const AUTHORISATION_PENDING_ERROR: &str str33,1402
 pub const POLLING_TOO_FREQUENTLY_ERROR: &str str34,1473
-pub struct PageToken(pub String)36,1534
-pub struct EventRetriever 38,1569
-    client: Client,39,1597
-pub struct DeviceUserCodeResponse 115,4227
-    pub device_code: String,116,4263
-    pub user_code: String,117,4292
-    pub expires_in: i64,118,4319
-    pub interval: u32,119,4344
-    pub verification_url: String,120,4367
-pub const QUOTA_EXCEEDED_ERROR_CODE: &str str123,4404
-pub struct DeviceUserCodeErrorResponse 125,4501
-    pub error_code: String,126,4542
-pub struct PollResponse 130,4603
-    pub access_token: String,131,4629
-    pub refresh_token: String,132,4659
-    pub expires_in: u64,133,4690
-    pub token_type: String,134,4715
-pub struct RefreshResponse 138,4776
-    pub access_token: String,139,4805
-    pub expires_in: u64,140,4835
-    pub token_type: String,141,4860
-pub struct PollErrorResponse 145,4921
-    pub error: String,146,4952
-    pub error_description: String,147,4975
-pub struct DateTimeStamp 152,5078
-    pub date_time: String,154,5141
-pub struct PersonalIdentifier 158,5216
-    pub email: String,159,5248
-pub struct Event 163,5304
-    pub summary: String,164,5323
-    pub description: Option<Option165,5348
-    pub creator: PersonalIdentifier,166,5385
-    pub start: DateTimeStamp,167,5422
-    pub end: DateTimeStamp,168,5452
-pub struct EventsResponse 173,5548
-    pub next_page_token: Option<Option174,5576
-    pub items: Vec<Vec175,5617
+pub struct PageToken(pub String)37,1551
+pub struct EventRetriever 39,1586
+    client: Client,40,1614
+pub struct DeviceUserCodeResponse 116,4244
+    pub device_code: String,117,4280
+    pub user_code: String,118,4309
+    pub expires_in: i64,119,4336
+    pub interval: u32,120,4361
+    pub verification_url: String,121,4384
+pub const QUOTA_EXCEEDED_ERROR_CODE: &str str124,4421
+pub struct DeviceUserCodeErrorResponse 126,4518
+    pub error_code: String,127,4559
+pub struct PollResponse 131,4620
+    pub access_token: String,132,4646
+    pub refresh_token: String,133,4676
+    pub expires_in: u64,134,4707
+    pub token_type: String,135,4732
+pub struct RefreshResponse 139,4793
+    pub access_token: String,140,4822
+    pub expires_in: u64,141,4852
+    pub token_type: String,142,4877
+pub struct PollErrorResponse 146,4938
+    pub error: String,147,4969
+    pub error_description: String,148,4992
+pub struct DateTimeStamp 153,5095
+    pub date_time: Option<Option155,5158
+pub struct PersonalIdentifier 160,5270
+    pub email: String,161,5302
+pub struct Event 165,5358
+    pub summary: String,166,5377
+    pub description: Option<Option167,5402
+    pub creator: PersonalIdentifier,168,5439
+    pub start: DateTimeStamp,169,5476
+    pub end: DateTimeStamp,170,5506
+pub struct EventsResponse 175,5602
+    pub next_page_token: Option<Option176,5630
+    pub items: Vec<Vec177,5671
 
 src/err.rs,126
         pub enum $enum_name 14,486
@@ -248,35 +315,55 @@ src/err.rs,126
                 $var(16,531
                 $var($embedded)16,531
 
-src/cal_display.rs,948
+src/cal_display.rs,1531
 use crate::display::Operation as Op;1,0
 use crate:crate2,37
-use chrono::prelude:chrono::prelude6,121
-pub struct Renderer 8,146
-    pipe: RenderPipeline,9,168
-const HEADING_ID: &str str12,197
-const EMAIL_ID: &str str13,233
-const EVENTS_ID: &str str14,265
-const HEADING_POS: Pos 16,300
-const EMAIL_POS: Pos 17,336
-const EVENTS_POS: Pos 18,372
-const INSTR1_POS: Pos 19,408
-const CODE_POS: Pos 20,445
-const INSTR2_POS: Pos 21,480
-const EXPIRY_POS: Pos 22,518
-const LARGE_SIZE: u32 24,557
-const SMALL_SIZE: u32 25,585
-const INSTR_SIZE: u32 26,613
-const HEADING_SIZE: u32 27,641
-const EMAIL_SIZE: u32 28,671
-const EVENTS_SIZE: u32 29,699
-const DATE_FORMAT: &str str31,729
-const TIME_FORMAT: &str str32,764
-const NO_EMAIL: &str str34,800
-const NO_EVENTS: &str str35,840
-const START_DELIMITER: &str str36,877
-const END_DELIMITER: &str str37,912
-const SUMMARY_DELIMITER: &str str38,945
-const TIME_LEN: usize 41,1019
+use chrono::prelude:chrono::prelude8,267
+const HEADING_ID: &str str10,292
+const PULSE_ID: &str str11,328
+const EMAIL_ID: &str str12,360
+const EVENTS_ID: &str str13,392
+const HEADING_POS: Pos 15,427
+const PULSE_POS: Pos 16,464
+const EMAIL_POS: Pos 17,498
+const EVENTS_POS: Pos 18,534
+const INSTR1_POS: Pos 19,570
+const CODE_POS: Pos 20,607
+const INSTR2_POS: Pos 21,642
+const EXPIRY_POS: Pos 22,680
+const LARGE_SIZE: u32 24,719
+const SMALL_SIZE: u32 25,747
+const INSTR_SIZE: u32 26,775
+const HEADING_SIZE: u32 27,803
+const PULSE_SIZE: u32 28,833
+const EMAIL_SIZE: u32 29,861
+const EVENTS_SIZE: u32 30,889
+const DATE_FORMAT: &str str32,919
+const TIME_FORMAT: &str str33,954
+const NO_EMAIL: &str str35,990
+const NO_EVENTS: &str str36,1030
+const START_DELIMITER: &str str37,1067
+const END_DELIMITER: &str str38,1102
+const SUMMARY_DELIMITER: &str str39,1135
+const TIME_LEN: usize 42,1209
+const SCREEN_DIMS: Dims 49,1311
+pub enum RefreshType 52,1398
+    Full,53,1421
+    Partial,54,1431
+pub struct Renderer 57,1447
+    pipe: RenderPipeline,58,1469
+    pulse_on: bool,59,1495
+    formatter: LeftFormatter,60,1515
+    dims: Dims,61,1545
+        self.pulse_on pulse_on138,3728
+        let mut ops: Vec<Vec140,3757
+        let mut ops: Vec<Vec152,4119
+        let mut ops: Vec<Vec184,4992
+        let mut ops: Vec<Vec218,5969
+        let heading 220,6024
+        let mut ops: Vec<Vec238,6658
+        } else 250,7059
 
 src/stm.rs,0
+
+src/new_type.rs,0

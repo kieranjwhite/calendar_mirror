@@ -9,7 +9,7 @@ use crate::{
     },
     display::{self},
     err,
-    formatter::{self, GlyphRow},
+    formatter::{self, GlyphYCnt},
     gpio_in::{
         self, Button, DetectableDuration, Error as GPIO_Error, LongButtonEvent, LongPressButton,
         LongReleaseDuration, Pin, GPIO, SW1_GPIO, SW2_GPIO, SW3_GPIO, SW4_GPIO,
@@ -42,8 +42,8 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
-    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType, GlyphRow);
-    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphRow)
+    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType, GlyphYCnt);
+    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphYCnt)
 });
 
 type PeriodSeconds = u64;
@@ -52,6 +52,7 @@ type AuthTokens = (RefreshToken, RefreshResponse);
 const FOUR_MINS: Duration = Duration::from_secs(240);
 const RECHECK_PERIOD: Duration = Duration::from_secs(300);
 const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
+const V_POS_INC: usize = 5;
 
 err!(Error {
     Chrono(ParseError),
@@ -424,7 +425,7 @@ pub fn run(
                         refreshed_at,
                         downloaded_at,
                         RefreshType::Full,
-                        GlyphRow(0),
+                        GlyphYCnt(0),
                     )
                 } else {
                     let mut resp: Response = retriever.read(
@@ -463,8 +464,16 @@ pub fn run(
                     }
                 }
             }
-            Display(st, credentials, apps, refreshed_at, downloaded_at, refresh_type, v_pos) => {
-                println!("Retrieved events: {:?}", apps.events);
+            Display(
+                st,
+                credentials,
+                apps,
+                refreshed_at,
+                downloaded_at,
+                refresh_type,
+                mut v_pos,
+            ) => {
+                println!("Display. pos: {:?} events: {:?}", v_pos, apps.events);
                 renderer.display_events(
                     &display_date,
                     &apps,
@@ -475,7 +484,25 @@ pub fn run(
                         } else {
                             0
                         };
-                        GlyphRow(v_pos.0 % (max_row_offset + 1))
+
+                        let prev_v_pos=if V_POS_INC>v_pos.0 {
+                            0
+                        } else {
+                            (v_pos.0-V_POS_INC) as usize
+                        };
+
+                        println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?}", num_event_rows, screen_height, v_pos, max_row_offset);
+                        v_pos=if prev_v_pos+screen_height.0>=num_event_rows.0 {
+                            //last line of events was showing
+                            GlyphYCnt(0)
+                        } else if v_pos.0>max_row_offset {
+                            //last line of events wasn't showing
+                            GlyphYCnt(max_row_offset)
+                        } else {
+                            //last line of events wasn't showing
+                            v_pos
+                        };
+                        GlyphYCnt(v_pos.0)
                     },
                 )?;
                 Wait(
@@ -534,7 +561,7 @@ pub fn run(
                             refreshed_at,
                             started_wait_at,
                             RefreshType::Partial,
-                            GlyphRow(v_pos.0 + 2),
+                            GlyphYCnt(v_pos.0 + 2),
                         )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
