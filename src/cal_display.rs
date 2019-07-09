@@ -1,17 +1,11 @@
 use crate::display::Operation as Op;
 use crate::{
-    cal_machine::{evs::{Appointments,Event, Email}},
+    cal_machine::evs::{Appointments, Email, Event},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
-    formatter::{self, Dims, GlyphRow, LeftFormatter},
+    formatter::{self, Dims, GlyphHeight, GlyphRow, GlyphWidth, LeftFormatter},
 };
 use chrono::prelude::*;
-
-pub struct Renderer {
-    pipe: RenderPipeline,
-    pulse_on: bool,
-    formatter: LeftFormatter,
-}
 
 const HEADING_ID: &str = "heading";
 const PULSE_ID: &str = "pulse";
@@ -21,7 +15,7 @@ const EVENTS_ID: &str = "events";
 const HEADING_POS: Pos = Pos(10, 0);
 const PULSE_POS: Pos = Pos(0, 0);
 const EMAIL_POS: Pos = Pos(110, 4);
-const EVENTS_POS: Pos = Pos(0, 24);
+const EVENTS_POS: Pos = Pos(0, 20);
 const INSTR1_POS: Pos = Pos(24, 24);
 const CODE_POS: Pos = Pos(64, 48);
 const INSTR2_POS: Pos = Pos(20, 108);
@@ -52,12 +46,28 @@ err!(Error {
     Format(formatter::Error)
 });
 
+const SCREEN_DIMS: Dims = Dims(GlyphWidth(25), GlyphHeight(10));
+
+#[derive(PartialEq)]
+pub enum RefreshType {
+    Full,
+    Partial,
+}
+
+pub struct Renderer {
+    pipe: RenderPipeline,
+    pulse_on: bool,
+    formatter: LeftFormatter,
+    dims: Dims,
+}
+
 impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
             pulse_on: false,
-            formatter: LeftFormatter::new(Dims(15, 10)),
+            formatter: LeftFormatter::new(SCREEN_DIMS),
+            dims: SCREEN_DIMS,
         })
     }
 
@@ -222,18 +232,21 @@ impl Renderer {
         &mut self,
         date: &DateTime<Local>,
         apps: &Appointments,
-        pos: &GlyphRow,
+        render_type: RefreshType,
+        pos_calculator: impl Fn(GlyphHeight, GlyphHeight) -> GlyphRow,
     ) -> Result<(), Error> {
         let mut ops: Vec<Op> = Vec::with_capacity(6);
-        ops.push(Op::Clear);
 
         if apps.events.len() == 0 {
-            ops.push(Op::AddText(
-                NO_EVENTS.to_string(),
-                EVENTS_POS,
-                EVENTS_SIZE,
-                EVENTS_ID.to_string(),
-            ));
+            if render_type == RefreshType::Full {
+                ops.push(Op::Clear);
+                ops.push(Op::AddText(
+                    NO_EVENTS.to_string(),
+                    EVENTS_POS,
+                    EVENTS_SIZE,
+                    EVENTS_ID.to_string(),
+                ));
+            }
         } else {
             let mut events = apps.events.clone();
             events.sort();
@@ -246,48 +259,59 @@ impl Renderer {
                 all_events.push_str(&ev);
             }
 
-            let justified_events = self.formatter.just_lines(&all_events)?[pos.0..].join("\n");
+            let lines = self.formatter.just_lines(&all_events)?;
+            let pos = pos_calculator(GlyphHeight(lines.len()), self.dims.1);
+            let justified_events = lines[pos.0..].join("\n");
 
-            ops.push(Op::AddText(
-                justified_events,
-                EVENTS_POS,
-                EVENTS_SIZE,
-                EVENTS_ID.to_string(),
-            ));
+            if render_type == RefreshType::Full {
+                ops.push(Op::Clear);
+
+                ops.push(Op::AddText(
+                    justified_events,
+                    EVENTS_POS,
+                    EVENTS_SIZE,
+                    EVENTS_ID.to_string(),
+                ));
+            } else {
+                ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
+            }
         }
 
-        let heading = date.format(DATE_FORMAT).to_string();
-        ops.push(Op::AddText(
-            heading,
-            HEADING_POS,
-            HEADING_SIZE,
-            HEADING_ID.to_string(),
-        ));
-
-        ops.push(Op::AddText(
-            self.pulse_repr().to_string(),
-            PULSE_POS,
-            PULSE_SIZE,
-            PULSE_ID.to_string(),
-        ));
-
-        if let Some(Email(email_address)) = apps.email() {
+        if render_type == RefreshType::Full {
+            let heading = date.format(DATE_FORMAT).to_string();
             ops.push(Op::AddText(
-                email_address,
-                EMAIL_POS,
-                EMAIL_SIZE,
-                EMAIL_ID.to_string(),
+                heading,
+                HEADING_POS,
+                HEADING_SIZE,
+                HEADING_ID.to_string(),
             ));
+
+            ops.push(Op::AddText(
+                self.pulse_repr().to_string(),
+                PULSE_POS,
+                PULSE_SIZE,
+                PULSE_ID.to_string(),
+            ));
+
+            if let Some(Email(email_address)) = apps.email() {
+                ops.push(Op::AddText(
+                    email_address,
+                    EMAIL_POS,
+                    EMAIL_SIZE,
+                    EMAIL_ID.to_string(),
+                ));
+            } else {
+                ops.push(Op::AddText(
+                    NO_EMAIL.to_string(),
+                    EMAIL_POS,
+                    EMAIL_SIZE,
+                    EMAIL_ID.to_string(),
+                ));
+            }
+            ops.push(Op::WriteAll(PartialUpdate(false)));
         } else {
-            ops.push(Op::AddText(
-                NO_EMAIL.to_string(),
-                EMAIL_POS,
-                EMAIL_SIZE,
-                EMAIL_ID.to_string(),
-            ));
+            ops.push(Op::WriteAll(PartialUpdate(true)));
         }
-
-        ops.push(Op::WriteAll(PartialUpdate(false)));
 
         self.pipe.send(ops.iter(), false)?;
         Ok(())

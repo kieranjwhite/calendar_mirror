@@ -2,9 +2,9 @@ pub mod evs;
 mod retriever;
 
 use crate::{
-    cal_display::{Error as CalDisplayError, Renderer},
+    cal_display::{Error as CalDisplayError, RefreshType, Renderer},
     cal_machine::{
-        evs::{Appointments, PeriodMarker, Error as EvError},
+        evs::{Appointments, Error as EvError},
         instant_types::{DownloadedAt, RefreshedAt},
     },
     display::{self},
@@ -22,7 +22,6 @@ use retriever::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{
-    cmp::{Ord, Ordering},
     ffi::CString,
     fs::File,
     io::{self, BufRead, BufReader, BufWriter, Write},
@@ -43,7 +42,7 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt);
-    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphRow);
+    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType, GlyphRow);
     [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt, GlyphRow)
 });
 
@@ -424,6 +423,7 @@ pub fn run(
                         events,
                         refreshed_at,
                         downloaded_at,
+                        RefreshType::Full,
                         GlyphRow(0),
                     )
                 } else {
@@ -463,9 +463,21 @@ pub fn run(
                     }
                 }
             }
-            Display(st, credentials, apps, refreshed_at, downloaded_at, v_pos) => {
+            Display(st, credentials, apps, refreshed_at, downloaded_at, refresh_type, v_pos) => {
                 println!("Retrieved events: {:?}", apps.events);
-                renderer.display_events(&display_date, &apps, &v_pos)?;
+                renderer.display_events(
+                    &display_date,
+                    &apps,
+                    refresh_type,
+                    |num_event_rows, screen_height| {
+                        let max_row_offset = if screen_height.0 <= num_event_rows.0 {
+                            0
+                        } else {
+                            num_event_rows.0 - screen_height.0
+                        };
+                        GlyphRow(v_pos.0 % (max_row_offset + 1))
+                    },
+                )?;
                 Wait(
                     st.into(),
                     credentials,
@@ -521,6 +533,7 @@ pub fn run(
                             apps,
                             refreshed_at,
                             started_wait_at,
+                            RefreshType::Partial,
                             GlyphRow(v_pos.0 + 2),
                         )
                     } else if opt_filter(&back_event, release_check)

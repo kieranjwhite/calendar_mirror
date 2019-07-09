@@ -2,8 +2,8 @@ use crate::{
     cal_machine::retriever::{self, EventsResponse},
     cloneable, copyable, err, stm,
 };
-use chrono::{format::ParseError, offset::LocalResult, prelude::*, Duration};
-use std::{cmp::Ordering, ops::Add};
+use chrono::{format::ParseError, offset::LocalResult, prelude::*};
+use std::cmp::Ordering;
 use Machine::*;
 
 err!(Error {
@@ -58,7 +58,7 @@ impl PeriodMarker {
     }
 }
 
-type TwoDateTimes=(DateTime<Local>,DateTime<Local>);
+type TwoDateTimes = (DateTime<Local>, DateTime<Local>);
 copyable!(MissingDateTimeError, PeriodMarker);
 cloneable!(TimeZoneAmbiguousError, TwoDateTimes);
 

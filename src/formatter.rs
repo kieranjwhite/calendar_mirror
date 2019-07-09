@@ -10,11 +10,11 @@ pub enum Error {
     IllegalState,
 }
 
-pub struct Dims(pub usize, pub usize);
+pub struct Dims(pub GlyphWidth, pub GlyphHeight);
 
 impl Dims {
     pub fn width(&self) -> usize {
-        self.0
+        (self.0).0
     }
 }
 
@@ -27,6 +27,7 @@ copyable!(GlyphRow, usize);
 copyable!(GlyphCol, usize);
 const ZERO_GLYPHS: GlyphCol = GlyphCol(0);
 copyable!(GlyphWidth, usize);
+copyable!(GlyphHeight, usize);
 
 impl GlyphCol {
     pub fn is_line_start(&self) -> bool {
