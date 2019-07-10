@@ -45,8 +45,8 @@ static INITIALISATION: Once = Once::new();
 fn system_d() -> Result<&'static dbus::ConnPath<'static, &'static dbus::Connection>, Error> {
     unsafe {
         INITIALISATION.call_once(|| {
-            DBUS_CONNECTION =
-                Connection::get_private(BusType::System).or(Err(Error::UninitialisedStatic(UninitialisedStaticError())));
+            DBUS_CONNECTION = Connection::get_private(BusType::System)
+                .or(Err(Error::UninitialisedStatic(UninitialisedStaticError())));
             if let Ok(ref c) = DBUS_CONNECTION {
                 SYSTEM_D = Ok(c.with_path(
                     "org.freedesktop.systemd1",
@@ -112,14 +112,11 @@ enum PackageAction {
     Uninstall,
 }
 
-fn installation(
-    action: PackageAction,
-    install_dir: &Path,
-    version: &str,
-) -> Result<(), Error> {
-    let package_install_dir=&install_dir.join(PKG_NAME);
+fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Result<(), Error> {
+    let package_install_dir = &install_dir.join(PKG_NAME);
     let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
-    let systemd_rel_path: &Path = &Path::new(SYSTEMD_DIR).join(Path::new(UNIT_NAME));
+    let systemd_rel_path: &Path =
+        &Path::new(SYSTEMD_DIR).join(Path::new(CALENDAR_MIRROR_UNIT_NAME));
     let exe_link: &Path = Path::new("/proc/self/exe");
     let bin_dir: &Path = Path::new("bin");
 
@@ -153,7 +150,7 @@ fn installation(
     let script_path = project_dir.join(script_rel_path);
     let script_name = Path::new(SCRIPT_NAME);
     let systemd_path = project_dir.join(systemd_rel_path);
-    let unit_name = Path::new(UNIT_NAME);
+    let unit_name = Path::new(CALENDAR_MIRROR_UNIT_NAME);
 
     let runnable_script_path = bin_path.join(script_name);
     let version_path = package_install_dir.join(version);
@@ -164,11 +161,11 @@ fn installation(
     println!("begin uninstall");
     //always begin with an uninstall
 
-    println!("disabling the unit {:?}", UNIT_NAME);
-    match system_d()?.disable_unit_files(vec![UNIT_NAME], false) {
+    println!("disabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+    match system_d()?.disable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false) {
         Ok(_) => {
-            println!("disabled the unit {:?}", UNIT_NAME);
-        },
+            println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        }
         Err(err) => {
             println!("error disabling {:?}", err);
         }
@@ -261,9 +258,9 @@ fn installation(
         //    .arg(version_unit)
         //    .output()?;
 
-        println!("enabling the unit {:?}", UNIT_NAME);
-        system_d()?.enable_unit_files(vec![UNIT_NAME], false, false)?;
-        println!("disabled the unit {:?}", UNIT_NAME);
+        println!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        system_d()?.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
+        println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
 
         //Command::new("systemctl")
         //    .arg("enable")
@@ -280,7 +277,8 @@ fn installation(
 const SCRIPTS_DIR: &str = "scripts";
 const SYSTEMD_DIR: &str = "systemd";
 const SCRIPT_NAME: &str = "calendar_mirror_server.py";
-const UNIT_NAME: &str = "calendar_mirror.service";
+const CALENDAR_MIRROR_UNIT_NAME: &str = "calendar_mirror.service";
+const NTP_UNIT_NAME: &str = "ntp.service";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
@@ -289,10 +287,10 @@ const CALENDAR_MIRROR_VAR: &str = "CALENDAR_MIRROR_VAR";
 const CALENDAR_MIRROR_DEV: &str = "CALENDAR_MIRROR_DEV";
 
 fn sync_time() -> Result<(), Error> {
-    system_d()?.stop_unit("ntp", "replace")?;
+    system_d()?.stop_unit(NTP_UNIT_NAME, "replace")?;
     //ntpd -gq
     Command::new("ntpd").arg("-gq").output()?;
-    system_d()?.start_unit("ntp", "replace")?;
+    system_d()?.start_unit(NTP_UNIT_NAME, "replace")?;
     Ok(())
 }
 
