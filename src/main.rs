@@ -1,18 +1,24 @@
+#[macro_use]
+//extern crate lazy_static;
+
 //#![feature(trace_macros)]
 //#![feature(log_syntax)]
 mod cal_display;
 mod cal_machine;
 mod display;
 mod err;
-mod gpio_in;
 pub mod formatter;
+mod gpio_in;
 #[macro_use]
 mod new_type;
 mod stm;
+#[allow(bare_trait_objects)]
+mod systemd1;
 //mod yielder;
 
-use cal_display::{Renderer, Error as CalDisplayError};
+use cal_display::{Error as CalDisplayError, Renderer};
 use cal_machine::{Error as CalMachineError, RefreshToken};
+use dbus::{BusType, Connection};
 use display::Error as DisplayError;
 use nix::{mount::*, unistd::*, Error as NixError};
 use std::{
@@ -21,13 +27,70 @@ use std::{
     fs::{self, create_dir_all},
     io,
     os::unix::fs::symlink,
-    path::Path,
+    path::{Path, PathBuf},
     process::{self, Command},
     sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
-    sync::Arc,
+    sync::{Arc, Once},
     thread,
     time::Duration,
 };
+use systemd1::OrgFreedesktopSystemd1Manager;
+
+static mut DBUS_CONNECTION: Result<dbus::Connection, Error> =
+    Err(Error::UninitialisedStatic(UninitialisedStaticError()));
+static mut SYSTEM_D: Result<dbus::ConnPath<'static, &'static dbus::Connection>, Error> =
+    Err(Error::UninitialisedStatic(UninitialisedStaticError()));
+static INITIALISATION: Once = Once::new();
+
+fn system_d() -> Result<&'static dbus::ConnPath<'static, &'static dbus::Connection>, Error> {
+    unsafe {
+        INITIALISATION.call_once(|| {
+            DBUS_CONNECTION =
+                Connection::get_private(BusType::System).or(Err(UninitialisedStaticError().into()));
+            if let Ok(ref c) = DBUS_CONNECTION {
+                SYSTEM_D = Ok(c.with_path(
+                    "org.freedesktop.systemd1.Manager",
+                    "/org/freedesktop/systemd1",
+                    5000,
+                ))
+            }
+        });
+
+        if let Ok(val) = &SYSTEM_D {
+            Ok(val)
+        } else {
+            Err(UninitialisedStaticError().into())
+        }
+    }
+}
+/*
+lazy_static! {
+    static ref SYSTEM_D: Result<dbus::ConnPath<'static, &'static dbus::Connection>, dbus::Error>= {
+        let c=Connection::get_private(BusType::System)?;
+        Ok(c.with_path(
+            "org.freedesktop.systemd1.Manager",
+            "/org/freedesktop/systemd1",
+            5000,
+        ))
+    };
+}
+
+fn dbus() -> Result<dbus::ConnPath<'static, &'static dbus::Connection>, dbus::Error> {
+    use dbus::{BusType, Connection};
+    let c=Connection::get_private(BusType::System)?
+    Ok(c.with_path(
+        "org.freedesktop.systemd1.Manager",
+        "/org/freedesktop/systemd1",
+        5000,
+    ))
+}
+ */
+
+#[derive(Debug)]
+pub struct PathError(PathBuf);
+
+#[derive(Clone, Debug)]
+pub struct UninitialisedStaticError();
 
 err!(
     Error {
@@ -35,7 +98,10 @@ err!(
         DisplayError(DisplayError),
         CalDisplayError(CalDisplayError),
         NixError(NixError),
-        IOError(io::Error)
+        IOError(io::Error),
+        DBus(dbus::Error),
+        Path(PathError),
+        UninitialisedStatic(UninitialisedStaticError)
     }
 );
 
@@ -49,7 +115,7 @@ fn installation(
     action: PackageAction,
     package_install_dir: &Path,
     version: &str,
-) -> Result<(), io::Error> {
+) -> Result<(), Error> {
     let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
     let systemd_rel_path: &Path = &Path::new(SYSTEMD_DIR).join(Path::new(UNIT_NAME));
     let exe_link: &Path = Path::new("/proc/self/exe");
@@ -63,7 +129,8 @@ fn installation(
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
             "failed to identify filename of running executable",
-        ));
+        )
+        .into());
     };
 
     let runnable_exe_path = bin_path.join(exe_name);
@@ -76,7 +143,8 @@ fn installation(
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "failed to identify project directory",
-            ));
+            )
+            .into());
         }
     }
 
@@ -90,15 +158,23 @@ fn installation(
     let version_exe = version_path.join(exe_name);
     let version_script = version_path.join(script_name);
     let version_unit = version_path.join(unit_name);
+    let package_install_str = if let Some(package_install_str) = package_install_dir.to_str() {
+        package_install_str
+    } else {
+        return Err(PathError(package_install_dir.to_path_buf()).into());
+    };
 
     println!("begin uninstall");
     //always begin with an uninstall
 
-    Command::new("systemctl")
-        .arg("disable")
-        .arg("calendar_mirror")
-        .arg("--now")
-        .output()?;
+    //let con = systemd!();
+    (system_d())?.disable_unit_files(vec![package_install_str], false)?;
+
+    //Command::new("systemctl")
+    //    .arg("disable")
+    //    .arg("calendar_mirror")
+    //    .arg("--now")
+    //    .output()?;
 
     if version_exe.exists() {
         fs::remove_file(&version_exe)?;
@@ -168,16 +244,23 @@ fn installation(
         symlink(&version_exe, &runnable_exe_path)?;
         symlink(&version_script, &runnable_script_path)?;
 
-        Command::new("systemctl")
-            .arg("link")
-            .arg(version_unit)
-            .output()?;
+        if let Some(version_unit_str) = version_unit.to_str() {
+            system_d()?.disable_unit_files(vec![version_unit_str], false)?;
+        } else {
+            return Err(PathError(version_unit.to_path_buf()).into());
+        }
+        //Command::new("systemctl")
+        //    .arg("link")
+        //    .arg(version_unit)
+        //    .output()?;
 
-        Command::new("systemctl")
-            .arg("enable")
-            .arg("calendar_mirror")
-            .arg("--now")
-            .output()?;
+        system_d()?.enable_unit_files(vec![package_install_str], false, false)?;
+
+        //Command::new("systemctl")
+        //    .arg("enable")
+        //    .arg("calendar_mirror")
+        //    .arg("--now")
+        //    .output()?;
 
         println!("end install");
     }
@@ -193,8 +276,16 @@ const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
 const VAR_DIR_FS_TYPE: &str = "ext4";
-const CALENDAR_MIRROR_VAR: &str="CALENDAR_MIRROR_VAR";
-const CALENDAR_MIRROR_DEV: &str="CALENDAR_MIRROR_DEV";
+const CALENDAR_MIRROR_VAR: &str = "CALENDAR_MIRROR_VAR";
+const CALENDAR_MIRROR_DEV: &str = "CALENDAR_MIRROR_DEV";
+
+fn sync_time() -> Result<(), Error> {
+    system_d()?.stop_unit("ntp", "replace")?;
+    //ntpd -gq
+    Command::new("ntpd").arg("-gq").output()?;
+    system_d()?.start_unit("ntp", "replace")?;
+    Ok(())
+}
 
 fn main() -> Result<(), Error> {
     let path_opt = var_os("PATH");
@@ -227,6 +318,8 @@ fn main() -> Result<(), Error> {
     if cfg!(feature = "render_stm") {
         cal_machine::render_stms()?;
     } else {
+        sync_time()?;
+
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
                 let child_quitter = Arc::clone(&quitter);
@@ -252,10 +345,10 @@ fn main() -> Result<(), Error> {
                 ro_flags.insert(MsFlags::MS_RDONLY);
 
                 if var_dir_opt.is_some() {
-                    let var_dir_dev_opt=var_os(CALENDAR_MIRROR_DEV);
+                    let var_dir_dev_opt = var_os(CALENDAR_MIRROR_DEV);
                     let var_dir_dev_os= &var_dir_dev_opt.clone().expect(format!("If the var mount point is specified by the environment so too must a block device using the {} environment variable", CALENDAR_MIRROR_DEV).as_str());
                     let var_dir_dev: &Path = Path::new(var_dir_dev_os);
-                
+
                     create_dir_all(var_dir)?;
                     println!(
                         "before mount: {:?} flags: {:?} dev: {:?} fs type: {:?}",
