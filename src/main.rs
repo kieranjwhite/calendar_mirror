@@ -46,19 +46,20 @@ fn system_d() -> Result<&'static dbus::ConnPath<'static, &'static dbus::Connecti
     unsafe {
         INITIALISATION.call_once(|| {
             DBUS_CONNECTION =
-                Connection::get_private(BusType::System).or(Err(UninitialisedStaticError().into()));
+                Connection::get_private(BusType::System).or(Err(Error::UninitialisedStatic(UninitialisedStaticError())));
             if let Ok(ref c) = DBUS_CONNECTION {
                 SYSTEM_D = Ok(c.with_path(
-                    "org.freedesktop.systemd1.Manager",
+                    "org.freedesktop.systemd1",
                     "/org/freedesktop/systemd1",
                     5000,
-                ))
+                ));
             }
         });
 
         if let Ok(val) = &SYSTEM_D {
             Ok(val)
         } else {
+            eprintln!("connection path was not initialised");
             Err(UninitialisedStaticError().into())
         }
     }
@@ -113,9 +114,10 @@ enum PackageAction {
 
 fn installation(
     action: PackageAction,
-    package_install_dir: &Path,
+    install_dir: &Path,
     version: &str,
 ) -> Result<(), Error> {
+    let package_install_dir=&install_dir.join(PKG_NAME);
     let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
     let systemd_rel_path: &Path = &Path::new(SYSTEMD_DIR).join(Path::new(UNIT_NAME));
     let exe_link: &Path = Path::new("/proc/self/exe");
@@ -158,17 +160,19 @@ fn installation(
     let version_exe = version_path.join(exe_name);
     let version_script = version_path.join(script_name);
     let version_unit = version_path.join(unit_name);
-    let package_install_str = if let Some(package_install_str) = package_install_dir.to_str() {
-        package_install_str
-    } else {
-        return Err(PathError(package_install_dir.to_path_buf()).into());
-    };
 
     println!("begin uninstall");
     //always begin with an uninstall
 
-    //let con = systemd!();
-    (system_d())?.disable_unit_files(vec![package_install_str], false)?;
+    println!("disabling the unit {:?}", UNIT_NAME);
+    match system_d()?.disable_unit_files(vec![UNIT_NAME], false) {
+        Ok(_) => {
+            println!("disabled the unit {:?}", UNIT_NAME);
+        },
+        Err(err) => {
+            println!("error disabling {:?}", err);
+        }
+    }
 
     //Command::new("systemctl")
     //    .arg("disable")
@@ -244,17 +248,22 @@ fn installation(
         symlink(&version_exe, &runnable_exe_path)?;
         symlink(&version_script, &runnable_script_path)?;
 
+        println!("linking the unit {:?}", version_unit);
         if let Some(version_unit_str) = version_unit.to_str() {
-            system_d()?.disable_unit_files(vec![version_unit_str], false)?;
+            system_d()?.link_unit_files(vec![version_unit_str], false, false)?;
         } else {
             return Err(PathError(version_unit.to_path_buf()).into());
         }
+        println!("linked the unit {:?}", version_unit);
+
         //Command::new("systemctl")
         //    .arg("link")
         //    .arg(version_unit)
         //    .output()?;
 
-        system_d()?.enable_unit_files(vec![package_install_str], false, false)?;
+        println!("enabling the unit {:?}", UNIT_NAME);
+        system_d()?.enable_unit_files(vec![UNIT_NAME], false, false)?;
+        println!("disabled the unit {:?}", UNIT_NAME);
 
         //Command::new("systemctl")
         //    .arg("enable")
@@ -301,11 +310,11 @@ fn main() -> Result<(), Error> {
     for arg in args.iter() {
         match arg.as_str() {
             "--install" => {
-                installation(PackageAction::Install, &dest_base.join(PKG_NAME), VERSION)?;
+                installation(PackageAction::Install, dest_base, VERSION)?;
                 process::exit(0);
             }
             "--uninstall" => {
-                installation(PackageAction::Uninstall, &dest_base.join(PKG_NAME), VERSION)?;
+                installation(PackageAction::Uninstall, &dest_base, VERSION)?;
                 process::exit(0);
             }
             _ => {}
