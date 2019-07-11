@@ -295,11 +295,31 @@ const DEFAULT_VAR_DIR: &str = ".";
 const VAR_DIR_FS_TYPE: &str = "ext4";
 const CALENDAR_MIRROR_VAR: &str = "CALENDAR_MIRROR_VAR";
 const CALENDAR_MIRROR_DEV: &str = "CALENDAR_MIRROR_DEV";
+const NETWORK_CHECK_POLL_PERIOD: Duration = Duration::from_millis(750);
 
 fn sync_time() -> Result<(), Error> {
-    system_d()?.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
+    match system_d()?.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG) {
+        Ok(_) => {
+            println!("stopped the unit {:?}", NTP_UNIT_NAME);
+        }
+        Err(err) => {
+            println!("error disabling {:?}. {:?} was probably not running", err, NTP_UNIT_NAME);
+        }
+    };
     //ntpd -gq
-    Command::new("ntpd").arg("-gq").output()?;
+    //let output=Command::new("ntpdate").arg("0.us.pool.ntp.org").output()?;
+    loop {
+        let output=Command::new("sntp").arg("-S").arg("0.us.pool.ntp.org").output()?;
+        println!("status: {}", output.status);
+        println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+        if output.status.success() {
+            break;
+        }
+        thread::sleep(NETWORK_CHECK_POLL_PERIOD);
+    }
+    println!("after sntp");
     system_d()?.start_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
     Ok(())
 }
@@ -335,7 +355,9 @@ fn main() -> Result<(), Error> {
     if cfg!(feature = "render_stm") {
         cal_machine::render_stms()?;
     } else {
+        println!("before sync time");
         sync_time()?;
+        println!("after sync time");
 
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
