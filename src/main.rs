@@ -161,6 +161,15 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
     println!("begin uninstall");
     //always begin with an uninstall
 
+    match system_d()?.stop_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG) {
+        Ok(_) => {
+            println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        }
+        Err(err) => {
+            println!("error disabling {:?}", err);
+        }
+    }
+
     println!("disabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
     match system_d()?.disable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false) {
         Ok(_) => {
@@ -260,8 +269,8 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
 
         println!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         system_d()?.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
-        println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
-
+        println!("starting the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        system_d()?.start_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
         //Command::new("systemctl")
         //    .arg("enable")
         //    .arg("calendar_mirror")
@@ -279,6 +288,7 @@ const SYSTEMD_DIR: &str = "systemd";
 const SCRIPT_NAME: &str = "calendar_mirror_server.py";
 const CALENDAR_MIRROR_UNIT_NAME: &str = "calendar_mirror.service";
 const NTP_UNIT_NAME: &str = "ntp.service";
+const UNIT_STOP_START_CONFIG: &str = "replace";
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_VAR_DIR: &str = ".";
@@ -287,10 +297,10 @@ const CALENDAR_MIRROR_VAR: &str = "CALENDAR_MIRROR_VAR";
 const CALENDAR_MIRROR_DEV: &str = "CALENDAR_MIRROR_DEV";
 
 fn sync_time() -> Result<(), Error> {
-    system_d()?.stop_unit(NTP_UNIT_NAME, "replace")?;
+    system_d()?.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
     //ntpd -gq
     Command::new("ntpd").arg("-gq").output()?;
-    system_d()?.start_unit(NTP_UNIT_NAME, "replace")?;
+    system_d()?.start_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
     Ok(())
 }
 
