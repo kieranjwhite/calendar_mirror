@@ -194,6 +194,35 @@ fn shutdown() -> Result<(), NixError> {
     Ok(())
 }
 
+fn max_row_offset(num_event_rows: GlyphYCnt, screen_height: GlyphYCnt) -> GlyphYCnt {
+    if screen_height.0 <= num_event_rows.0 {
+        GlyphYCnt(num_event_rows.0 - screen_height.0)
+    } else {
+        GlyphYCnt(0)
+    }
+}
+
+fn prev_v_pos(v_pos: GlyphYCnt) -> GlyphYCnt {
+    if V_POS_INC > v_pos.0 {
+        GlyphYCnt(0)
+    } else {
+        GlyphYCnt((v_pos.0 - V_POS_INC) as usize)
+    }
+}
+
+fn new_pos(v_pos: GlyphYCnt, num_event_rows: GlyphYCnt, screen_height: GlyphYCnt) -> GlyphYCnt {
+    let max_row_offset = max_row_offset(num_event_rows, screen_height);
+    let prev_v_pos = prev_v_pos(v_pos);
+
+    if prev_v_pos.0 + screen_height.0 >= num_event_rows.0 {
+        GlyphYCnt(0)
+    } else if v_pos.0 > max_row_offset.0 {
+        max_row_offset
+    } else {
+        v_pos
+    }
+}
+
 //    loader: impl Fn() -> io::Result<Option<RefreshToken>>,
 pub fn run(
     renderer: &mut Renderer,
@@ -244,7 +273,6 @@ pub fn run(
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
             Load(st) => match RefreshToken::load(&config_file) {
-                //Load(st) => match loader() {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
@@ -487,70 +515,22 @@ pub fn run(
                 }
             }
             Display(st, credentials, apps, refreshed_at, downloaded_at, refresh_type) => {
-                //println!("Display. pos: {:?} events: {:?}", v_pos, apps.events);
+                let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                    new_pos(v_pos, num_event_rows, screen_height)
+                };
                 renderer.display_events(
                     display_date.clone(),
                     apps,
                     refresh_type,
-                    |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                        let max_row_offset = if screen_height.0 <= num_event_rows.0 {
-                            num_event_rows.0 - screen_height.0
-                        } else {
-                            0
-                        };
-
-                        let prev_v_pos = if V_POS_INC > v_pos.0 {
-                            0
-                        } else {
-                            (v_pos.0 - V_POS_INC) as usize
-                        };
-
-                        //println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
-                        v_pos = if prev_v_pos + screen_height.0 >= num_event_rows.0 {
-                            //last line of events was showing
-                            GlyphYCnt(0)
-                        } else if v_pos.0 > max_row_offset {
-                            //last line of events wasn't showing
-                            GlyphYCnt(max_row_offset)
-                        } else {
-                            //last line of events wasn't showing
-                            v_pos
-                        };
-                        //println!("pos_calculator. updated v_pos: {:?}", v_pos);
-                        GlyphYCnt(v_pos.0)
-                    },
+                    pos_calculator,
                 )?;
                 Wait(st.into(), credentials, refreshed_at, downloaded_at)
             }
             Scroll(st, credentials, refreshed_at, downloaded_at) => {
-                //println!("Scroll. pos: {:?} events: {:?}", v_pos, apps.events);
-                renderer.scroll_events(|num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                    let max_row_offset = if screen_height.0 <= num_event_rows.0 {
-                        num_event_rows.0 - screen_height.0
-                    } else {
-                        0
-                    };
-
-                    let prev_v_pos = if V_POS_INC > v_pos.0 {
-                        0
-                    } else {
-                        (v_pos.0 - V_POS_INC) as usize
-                    };
-
-                    //println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
-                    v_pos = if prev_v_pos + screen_height.0 >= num_event_rows.0 {
-                        //last line of events was showing
-                        GlyphYCnt(0)
-                    } else if v_pos.0 > max_row_offset {
-                        //last line of events wasn't showing
-                        GlyphYCnt(max_row_offset)
-                    } else {
-                        //last line of events wasn't showing
-                        v_pos
-                    };
-                    //println!("pos_calculator. updated v_pos: {:?}", v_pos);
-                    GlyphYCnt(v_pos.0)
-                })?;
+                let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                    new_pos(v_pos, num_event_rows, screen_height)
+                };
+                renderer.scroll_events(pos_calculator)?;
                 Wait(st.into(), credentials, refreshed_at, downloaded_at)
             }
             Wait(st, credentials, refreshed_at, started_wait_at) => {

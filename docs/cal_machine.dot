@@ -9,6 +9,7 @@ digraph cal_stm {
     Refresh[label="Refresh"][shape="ellipse"];
     RequestCodes[label="RequestCodes"][shape="ellipse"];
     Save[label="Save"][shape="ellipse"];
+    Scroll[label="Scroll"][shape="ellipse"];
     Wait[label="Wait"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> Load[label=""];
@@ -32,6 +33,7 @@ digraph cal_stm {
     Poll -> Save[label="Authenticators\n"];
     ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
     Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
-    Wait -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
-    Display -> Wait[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\n"];
+    Wait -> Scroll[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
+    Display -> Wait[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
+    Scroll -> Wait[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
 }

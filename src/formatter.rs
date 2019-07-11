@@ -294,8 +294,6 @@ impl LeftFormatter {
                 let mut output = None;
                 let mut pending = Pending::new(GlyphXCnt(self.size.width()));
 
-                //let mut line_graphemes_cnt: usize = 0;
-                //let mut pending_length: usize = 0;
                 let graphemes = l.graphemes(true).collect::<Vec<&str>>();
                 for grapheme in graphemes {
                     loop {
@@ -355,7 +353,6 @@ impl LeftFormatter {
             .collect::<Result<Vec<String>, Error>>()?
             .iter()
             .map(|string_ref| string_ref.to_string())
-            //.filter(|opt_str| (*opt_str).expect("none should never be returned from just"))
             .collect::<Vec<String>>())
     }
 

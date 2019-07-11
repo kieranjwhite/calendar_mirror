@@ -276,8 +276,6 @@ impl Renderer {
                     line_idx += 1;
                 }
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
-                println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
-                println!("display_events. first event: {:?}", lines[pos.0]);
                 let justified_events = lines[pos.0..].join("\n");
 
                 if render_type == RefreshType::Full {

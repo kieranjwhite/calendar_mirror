@@ -1,8 +1,4 @@
 #[macro_use]
-//extern crate lazy_static;
-
-//#![feature(trace_macros)]
-//#![feature(log_syntax)]
 mod cal_display;
 mod cal_machine;
 mod display;
@@ -64,28 +60,6 @@ fn system_d() -> Result<&'static dbus::ConnPath<'static, &'static dbus::Connecti
         }
     }
 }
-/*
-lazy_static! {
-    static ref SYSTEM_D: Result<dbus::ConnPath<'static, &'static dbus::Connection>, dbus::Error>= {
-        let c=Connection::get_private(BusType::System)?;
-        Ok(c.with_path(
-            "org.freedesktop.systemd1.Manager",
-            "/org/freedesktop/systemd1",
-            5000,
-        ))
-    };
-}
-
-fn dbus() -> Result<dbus::ConnPath<'static, &'static dbus::Connection>, dbus::Error> {
-    use dbus::{BusType, Connection};
-    let c=Connection::get_private(BusType::System)?
-    Ok(c.with_path(
-        "org.freedesktop.systemd1.Manager",
-        "/org/freedesktop/systemd1",
-        5000,
-    ))
-}
- */
 
 #[derive(Debug)]
 pub struct PathError(PathBuf);
@@ -180,12 +154,6 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
         }
     }
 
-    //Command::new("systemctl")
-    //    .arg("disable")
-    //    .arg("calendar_mirror")
-    //    .arg("--now")
-    //    .output()?;
-
     if version_exe.exists() {
         fs::remove_file(&version_exe)?;
     }
@@ -262,20 +230,10 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
         }
         println!("linked the unit {:?}", version_unit);
 
-        //Command::new("systemctl")
-        //    .arg("link")
-        //    .arg(version_unit)
-        //    .output()?;
-
         println!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         system_d()?.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
         println!("starting the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         system_d()?.start_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
-        //Command::new("systemctl")
-        //    .arg("enable")
-        //    .arg("calendar_mirror")
-        //    .arg("--now")
-        //    .output()?;
 
         println!("end install");
     }
@@ -306,8 +264,7 @@ fn sync_time() -> Result<(), Error> {
             println!("error disabling {:?}. {:?} was probably not running", err, NTP_UNIT_NAME);
         }
     };
-    //ntpd -gq
-    //let output=Command::new("ntpdate").arg("0.us.pool.ntp.org").output()?;
+
     loop {
         let output=Command::new("sntp").arg("-S").arg("0.us.pool.ntp.org").output()?;
         println!("status: {}", output.status);
@@ -349,7 +306,6 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    //const PYTHON_NAME: &str = "/usr/bin/python3";
     let quitter = Arc::new(AtomicBool::new(false));
 
     if cfg!(feature = "render_stm") {
