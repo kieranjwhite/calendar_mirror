@@ -40,9 +40,13 @@ const SUMMARY_DELIMITER: &str = "";
 
 const TIME_LEN: usize = 5;
 
+#[derive(Debug)]
+pub struct InvalidStateError(&'static str);
+
 err!(Error {
     Display(DisplayError),
-    Format(formatter::Error)
+    Format(formatter::Error),
+    InvalidState(InvalidStateError)
 });
 
 const SCREEN_DIMS: Dims = Dims(GlyphXCnt(26), GlyphYCnt(9));
@@ -58,6 +62,12 @@ pub struct Renderer {
     pulse_on: bool,
     formatter: LeftFormatter,
     dims: Dims,
+    events: Option<EventContent>,
+}
+
+struct EventContent {
+    date: DateTime<Local>,
+    apps: Appointments,
 }
 
 impl Renderer {
@@ -67,6 +77,7 @@ impl Renderer {
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
+            events: None,
         })
     }
 
@@ -106,6 +117,7 @@ impl Renderer {
     }
 
     pub fn clear(&mut self) -> Result<(), Error> {
+        self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
@@ -121,6 +133,7 @@ impl Renderer {
     }
 
     pub fn heartbeat(&mut self, on: bool) -> Result<(), Error> {
+        self.events = None;
         if on == self.pulse_on {
             return Ok(());
         }
@@ -139,6 +152,7 @@ impl Renderer {
     }
 
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
+        self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(4);
         ops.push(Op::Clear);
         ops.push(Op::AddText(
@@ -165,6 +179,7 @@ impl Renderer {
         expires_at: &DateTime<Local>,
         url: &str,
     ) -> Result<(), Error> {
+        self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
         ops.push(Op::AddText(
@@ -199,6 +214,7 @@ impl Renderer {
     }
 
     pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
+        self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -212,105 +228,126 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn display_events(
+    pub fn scroll_events(
         &mut self,
-        date: &DateTime<Local>,
-        apps: &Appointments,
+        pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
+    ) -> Result<(), Error> {
+        self.render_events(RefreshType::Partial, pos_calculator)
+    }
+
+    fn render_events(
+        &mut self,
         render_type: RefreshType,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let mut ops: Vec<Op> = Vec::with_capacity(6);
+        if let Some(ref content) = self.events {
+            let mut ops: Vec<Op> = Vec::with_capacity(6);
 
-        if apps.events.len() == 0 {
-            let displayable_events = NO_EVENTS.to_string();
-            if render_type == RefreshType::Full {
-                ops.push(Op::Clear);
-                ops.push(Op::AddText(
-                    displayable_events,
-                    EVENTS_POS,
-                    EVENTS_SIZE,
-                    EVENTS_ID.to_string(),
-                ));
+            if content.apps.events.len() == 0 {
+                let displayable_events = NO_EVENTS.to_string();
+                if render_type == RefreshType::Full {
+                    ops.push(Op::Clear);
+                    ops.push(Op::AddText(
+                        displayable_events,
+                        EVENTS_POS,
+                        EVENTS_SIZE,
+                        EVENTS_ID.to_string(),
+                    ));
+                } else {
+                    ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
+                }
             } else {
-                ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
-            }
-        } else {
-            let mut events = apps.events.clone();
-            events.sort();
+                let mut events = content.apps.events.clone();
+                events.sort();
 
-            let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
-            let ev_ref_strs = &ev_strs;
-            let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
-            let mut all_events = String::with_capacity(event_len);
-            for ev in ev_strs {
-                all_events.push_str(&ev);
+                let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
+                let ev_ref_strs = &ev_strs;
+                let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
+                let mut all_events = String::with_capacity(event_len);
+                for ev in ev_strs {
+                    all_events.push_str(&ev);
+                }
+
+                let joined = self.formatter.just_lines(&all_events)?.join("\n");
+                let lines = joined.lines().collect::<Vec<&str>>();
+                let mut line_idx = 0;
+                for line in lines.iter() {
+                    println!("line. idx: {:?} text: {:?}", line_idx, line);
+                    line_idx += 1;
+                }
+                let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
+                println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
+                println!("display_events. first event: {:?}", lines[pos.0]);
+                let justified_events = lines[pos.0..].join("\n");
+
+                if render_type == RefreshType::Full {
+                    ops.push(Op::Clear);
+
+                    ops.push(Op::AddText(
+                        justified_events,
+                        EVENTS_POS,
+                        EVENTS_SIZE,
+                        EVENTS_ID.to_string(),
+                    ));
+                } else {
+                    ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
+                }
             }
 
-            let joined = self.formatter.just_lines(&all_events)?.join("\n");
-            let lines = joined.lines().collect::<Vec<&str>>();
-            let mut line_idx = 0;
-            for line in lines.iter() {
-                println!("line. idx: {:?} text: {:?}", line_idx, line);
-                line_idx += 1;
-            }
-            let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
-            println!("display_events. dims: {:?} pos: {:?}", self.dims, pos);
-            println!("display_events. first event: {:?}", lines[pos.0]);
-            let justified_events = lines[pos.0..].join("\n");
+            let heading = content.date.format(DATE_FORMAT).to_string();
+            let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
+                email_address
+            } else {
+                NO_EMAIL.to_string()
+            };
+            let displayable_pulse = self.pulse_repr().to_string();
 
             if render_type == RefreshType::Full {
-                ops.push(Op::Clear);
+                ops.push(Op::AddText(
+                    heading,
+                    HEADING_POS,
+                    HEADING_SIZE,
+                    HEADING_ID.to_string(),
+                ));
 
                 ops.push(Op::AddText(
-                    justified_events,
-                    EVENTS_POS,
-                    EVENTS_SIZE,
-                    EVENTS_ID.to_string(),
+                    displayable_pulse,
+                    PULSE_POS,
+                    PULSE_SIZE,
+                    PULSE_ID.to_string(),
                 ));
+
+                ops.push(Op::AddText(
+                    displayable_email,
+                    EMAIL_POS,
+                    EMAIL_SIZE,
+                    EMAIL_ID.to_string(),
+                ));
+
+                ops.push(Op::WriteAll(PartialUpdate(false)));
             } else {
-                ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
+                ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
+                ops.push(Op::UpdateText(PULSE_ID.to_string(), displayable_pulse));
+                ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
+                ops.push(Op::WriteAll(PartialUpdate(true)));
             }
-        }
 
-        let heading = date.format(DATE_FORMAT).to_string();
-        let displayable_email = if let Some(Email(email_address)) = apps.email() {
-            email_address
+            self.pipe.send(ops.iter(), false)?;
+            Ok(())
         } else {
-            NO_EMAIL.to_string()
-        };
-        let displayable_pulse = self.pulse_repr().to_string();
-
-        if render_type == RefreshType::Full {
-            ops.push(Op::AddText(
-                heading,
-                HEADING_POS,
-                HEADING_SIZE,
-                HEADING_ID.to_string(),
-            ));
-
-            ops.push(Op::AddText(
-                displayable_pulse,
-                PULSE_POS,
-                PULSE_SIZE,
-                PULSE_ID.to_string(),
-            ));
-
-            ops.push(Op::AddText(
-                displayable_email,
-                EMAIL_POS,
-                EMAIL_SIZE,
-                EMAIL_ID.to_string(),
-            ));
-
-            ops.push(Op::WriteAll(PartialUpdate(false)));
-        } else {
-            ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
-            ops.push(Op::UpdateText(PULSE_ID.to_string(), displayable_pulse));
-            ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
-            ops.push(Op::WriteAll(PartialUpdate(true)));
+            Err(Error::InvalidState(InvalidStateError("self.render_events should have been the last rendering optation to have been invoked")))
         }
+    }
 
-        self.pipe.send(ops.iter(), false)?;
-        Ok(())
+    pub fn display_events(
+        &mut self,
+        date: DateTime<Local>,
+        apps: Appointments,
+        render_type: RefreshType,
+        pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
+    ) -> Result<(), Error> {
+        let content = EventContent { date, apps };
+        self.events = Some(content);
+        self.render_events(render_type, pos_calculator)
     }
 }

@@ -20,7 +20,6 @@ use chrono::{format::ParseError, prelude::*};
 use nix::{unistd::*, Error as NixError};
 use retriever::*;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use std::{
     ffi::CString,
     fs::File,
@@ -31,6 +30,7 @@ use std::{
         Arc,
     },
     thread,
+    time::Duration,
 };
 
 stm!(cal_stm, Machine, [ErrorWait] => Load(), {
@@ -42,8 +42,9 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Page, Wait] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Display] => Wait(Authenticators, Appointments, RefreshedAt, DownloadedAt)
+    [Page] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
+    [Wait] => Scroll(Authenticators, RefreshedAt, DownloadedAt);
+    [Display, Scroll] => Wait(Authenticators, RefreshedAt, DownloadedAt)
 });
 
 type PeriodSeconds = u64;
@@ -211,11 +212,11 @@ pub fn run(
     const UNRECOGNISED_TOKEN_TYPE: &str = "Unrecognised token type";
     const LONGISH_DURATION: Duration = Duration::from_millis(1500);
     const LONG_DURATION: Duration = Duration::from_secs(4);
-    const GLYPH_Y_ORIGIN: GlyphYCnt=GlyphYCnt(0);
-    
+    const GLYPH_Y_ORIGIN: GlyphYCnt = GlyphYCnt(0);
+
     let mut today = Local::today().and_hms(0, 0, 0);
     let mut display_date = today;
-    let mut v_pos=GLYPH_Y_ORIGIN;
+    let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
     let mut mach: Machine = Load(cal_stm::Load);
     let mut gpio = GPIO::new()?;
@@ -309,7 +310,12 @@ pub fn run(
                             println!("Body is next... {:?}", credentials_tokens);
                             let credentials: Authenticators =
                                 (RefreshToken(refresh_token.clone()), credentials_tokens).into();
-                            ReadFirst(st.into(), credentials, RefreshedAt::now(), RefreshType::Full)
+                            ReadFirst(
+                                st.into(),
+                                credentials,
+                                RefreshedAt::now(),
+                                RefreshType::Full,
+                            )
                         }
                     }
                     other_status => {
@@ -380,7 +386,12 @@ pub fn run(
             Save(st, credentials) => {
                 //credentials.refresh_token.save(&config_file)?;
                 saver(&credentials.refresh_token, renderer)?;
-                ReadFirst(st.into(), credentials, RefreshedAt::now(), RefreshType::Full)
+                ReadFirst(
+                    st.into(),
+                    credentials,
+                    RefreshedAt::now(),
+                    RefreshType::Full,
+                )
             }
             ReadFirst(st, credentials_tokens, refreshed_at, refresh_type) => {
                 let mut resp: Response = retriever.read(
@@ -406,7 +417,7 @@ pub fn run(
                             new_events,
                             refreshed_at,
                             DownloadedAt::now(),
-                            refresh_type
+                            refresh_type,
                         )
                     }
                     _other_status => {
@@ -419,7 +430,15 @@ pub fn run(
                     }
                 }
             }
-            Page(st, credentials_tokens, page_token, mut events, refreshed_at, downloaded_at, refresh_type) => {
+            Page(
+                st,
+                credentials_tokens,
+                page_token,
+                mut events,
+                refreshed_at,
+                downloaded_at,
+                refresh_type,
+            ) => {
                 if let None = page_token {
                     Display(
                         st.into(),
@@ -427,7 +446,7 @@ pub fn run(
                         events,
                         refreshed_at,
                         downloaded_at,
-                        refresh_type
+                        refresh_type,
                     )
                 } else {
                     let mut resp: Response = retriever.read(
@@ -453,7 +472,7 @@ pub fn run(
                                 events,
                                 refreshed_at,
                                 downloaded_at,
-                                refresh_type
+                                refresh_type,
                             )
                         }
                         _other_status => {
@@ -467,56 +486,74 @@ pub fn run(
                     }
                 }
             }
-            Display(
-                st,
-                credentials,
-                apps,
-                refreshed_at,
-                downloaded_at,
-                refresh_type
-            ) => {
-                println!("Display. pos: {:?} events: {:?}", v_pos, apps.events);
+            Display(st, credentials, apps, refreshed_at, downloaded_at, refresh_type) => {
+                //println!("Display. pos: {:?} events: {:?}", v_pos, apps.events);
                 renderer.display_events(
-                    &display_date,
-                    &apps,
+                    display_date.clone(),
+                    apps,
                     refresh_type,
-                    |num_event_rows, screen_height| {
+                    |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
                         let max_row_offset = if screen_height.0 <= num_event_rows.0 {
                             num_event_rows.0 - screen_height.0
                         } else {
                             0
                         };
 
-                        let prev_v_pos=if V_POS_INC>v_pos.0 {
+                        let prev_v_pos = if V_POS_INC > v_pos.0 {
                             0
                         } else {
-                            (v_pos.0-V_POS_INC) as usize
+                            (v_pos.0 - V_POS_INC) as usize
                         };
 
-                        println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
-                        v_pos=if prev_v_pos+screen_height.0>=num_event_rows.0 {
+                        //println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
+                        v_pos = if prev_v_pos + screen_height.0 >= num_event_rows.0 {
                             //last line of events was showing
                             GlyphYCnt(0)
-                        } else if v_pos.0>max_row_offset {
+                        } else if v_pos.0 > max_row_offset {
                             //last line of events wasn't showing
                             GlyphYCnt(max_row_offset)
                         } else {
                             //last line of events wasn't showing
                             v_pos
                         };
-                        println!("pos_calculator. updated v_pos: {:?}", v_pos);
+                        //println!("pos_calculator. updated v_pos: {:?}", v_pos);
                         GlyphYCnt(v_pos.0)
                     },
                 )?;
-                Wait(
-                    st.into(),
-                    credentials,
-                    apps,
-                    refreshed_at,
-                    downloaded_at
-                )
+                Wait(st.into(), credentials, refreshed_at, downloaded_at)
             }
-            Wait(st, credentials, apps, refreshed_at, started_wait_at) => {
+            Scroll(st, credentials, refreshed_at, downloaded_at) => {
+                //println!("Scroll. pos: {:?} events: {:?}", v_pos, apps.events);
+                renderer.scroll_events(|num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                    let max_row_offset = if screen_height.0 <= num_event_rows.0 {
+                        num_event_rows.0 - screen_height.0
+                    } else {
+                        0
+                    };
+
+                    let prev_v_pos = if V_POS_INC > v_pos.0 {
+                        0
+                    } else {
+                        (v_pos.0 - V_POS_INC) as usize
+                    };
+
+                    //println!("pos_calculator. num_event_rows: {:?} screen_height: {:?} v_pos: {:?} max_row_offset: {:?} prev_v_pos: {:?}", num_event_rows, screen_height, v_pos, max_row_offset, prev_v_pos);
+                    v_pos = if prev_v_pos + screen_height.0 >= num_event_rows.0 {
+                        //last line of events was showing
+                        GlyphYCnt(0)
+                    } else if v_pos.0 > max_row_offset {
+                        //last line of events wasn't showing
+                        GlyphYCnt(max_row_offset)
+                    } else {
+                        //last line of events wasn't showing
+                        v_pos
+                    };
+                    //println!("pos_calculator. updated v_pos: {:?}", v_pos);
+                    GlyphYCnt(v_pos.0)
+                })?;
+                Wait(st.into(), credentials, refreshed_at, downloaded_at)
+            }
+            Wait(st, credentials, refreshed_at, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
@@ -547,7 +584,7 @@ pub fn run(
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
+                        Wait(st, credentials, refreshed_at, started_wait_at)
                     } else if today.date() != new_today.date()
                         || opt_filter(&scroll_event, long_check)
                     {
@@ -556,36 +593,28 @@ pub fn run(
                         display_date = today;
                         ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&scroll_event, short_check) {
-                        v_pos=GlyphYCnt(v_pos.0+V_POS_INC);
-                        Display(
-                            st.into(),
-                            credentials,
-                            apps,
-                            refreshed_at,
-                            started_wait_at,
-                            RefreshType::Partial,
-                        )
+                        v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
+                        Scroll(st.into(), credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
                         println!("partial display refresh after date change");
-                        v_pos=GLYPH_Y_ORIGIN;
+                        v_pos = GLYPH_Y_ORIGIN.clone().into();
                         ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Partial)
-                    } else if waiting_for >= RECHECK_PERIOD
-                    {
+                    } else if waiting_for >= RECHECK_PERIOD {
                         println!("full display refresh due");
                         ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&back_event, short_check) {
                         display_date = display_date - chrono::Duration::days(1);
                         println!("New date: {:?}", display_date);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
+                        Wait(st, credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&next_event, short_check) {
                         display_date = display_date + chrono::Duration::days(1);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
+                        Wait(st, credentials, refreshed_at, started_wait_at)
                     } else {
-                        Wait(st, credentials, apps, refreshed_at, started_wait_at)
+                        Wait(st, credentials, refreshed_at, started_wait_at)
                     }
                 }
             }
