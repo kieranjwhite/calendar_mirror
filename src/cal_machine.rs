@@ -37,13 +37,11 @@ stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(DownloadedAt);
     [ErrorWait, Load, RefreshingWait, Wait] => RequestCodes();
     [Load, RefreshingWait, Wait] => Refresh(RefreshToken);
-    [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt, RefreshType);
+    [Poll, Refresh, Wait] => ReadFirst(Authenticators, RefreshedAt, RefreshType);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
-    [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Page] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Display] => Wait(Authenticators, RefreshedAt, DownloadedAt);
+    [Page] => Wait(Authenticators, RefreshedAt, DownloadedAt);
     [Refresh, ReadFirst, Page] => RefreshingWait(RefreshToken, LastNetErrorAt)
 });
 
@@ -379,7 +377,14 @@ pub fn run(
                             )
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
-                            Save(st.into(), credentials_tokens.into())
+                            let auth: Authenticators=credentials_tokens.into();
+                            saver(&auth.refresh_token, renderer)?;
+                            ReadFirst(
+                                st.into(),
+                                auth,
+                                RefreshedAt::now(),
+                                RefreshType::Full,
+                            )
                         }
                     }
                     other_status => match resp.json::<PollErrorResponse>() {
@@ -421,16 +426,6 @@ pub fn run(
                         ),
                     },
                 }
-            }
-            Save(st, credentials) => {
-                //credentials.refresh_token.save(&config_file)?;
-                saver(&credentials.refresh_token, renderer)?;
-                ReadFirst(
-                    st.into(),
-                    credentials,
-                    RefreshedAt::now(),
-                    RefreshType::Full,
-                )
             }
             ReadFirst(st, credentials_tokens, refreshed_at, refresh_type) => {
                 match retriever.read(
@@ -490,14 +485,16 @@ pub fn run(
                 refresh_type,
             ) => {
                 if let None = page_token {
-                    Display(
-                        st.into(),
-                        credentials_tokens,
+                    let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                        new_pos(v_pos, num_event_rows, screen_height)
+                    };
+                    renderer.display_events(
+                        display_date.clone(),
                         events,
-                        refreshed_at,
-                        downloaded_at,
                         refresh_type,
-                    )
+                        pos_calculator,
+                    )?;
+                    Wait(st.into(), credentials_tokens, refreshed_at, downloaded_at)
                 } else {
                     match retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
@@ -546,18 +543,6 @@ pub fn run(
                         }
                     }
                 }
-            }
-            Display(st, credentials, apps, refreshed_at, downloaded_at, refresh_type) => {
-                let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                    new_pos(v_pos, num_event_rows, screen_height)
-                };
-                renderer.display_events(
-                    display_date.clone(),
-                    apps,
-                    refresh_type,
-                    pos_calculator,
-                )?;
-                Wait(st.into(), credentials, refreshed_at, downloaded_at)
             }
             Wait(st, credentials, refreshed_at, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
