@@ -38,6 +38,8 @@ const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";
 const SUMMARY_DELIMITER: &str = "";
 
+const STATUS_FLASH_OFF: &str=" ";
+
 const TIME_LEN: usize = 5;
 
 #[derive(Debug)]
@@ -68,6 +70,24 @@ pub struct Renderer {
 struct EventContent {
     date: DateTime<Local>,
     apps: Appointments,
+}
+
+pub enum Status {
+    AllOk,
+    NetworkDown,
+}
+
+impl Status {
+    pub fn repr(&self, flash_on: bool) -> &'static str {
+        if !flash_on {
+            STATUS_FLASH_OFF
+        } else {
+            match self {
+                Status::AllOk => "!",
+                Status::NetworkDown => "i",
+            }
+        }
+    }
 }
 
 impl Renderer {
@@ -124,15 +144,7 @@ impl Renderer {
         Ok(())
     }
 
-    fn pulse_repr(&self) -> &'static str {
-        if self.pulse_on {
-            "!"
-        } else {
-            " "
-        }
-    }
-
-    pub fn heartbeat(&mut self, on: bool) -> Result<(), Error> {
+    pub fn display_status(&mut self, status: Status, on: bool) -> Result<(), Error> {
         self.events = None;
         if on == self.pulse_on {
             return Ok(());
@@ -143,7 +155,7 @@ impl Renderer {
         let mut ops: Vec<Op> = Vec::with_capacity(3);
         ops.push(Op::UpdateText(
             PULSE_ID.to_string(),
-            self.pulse_repr().to_string(),
+            status.repr(self.pulse_on).to_string(),
         ));
         ops.push(Op::WriteAll(PartialUpdate(true)));
 
@@ -298,8 +310,6 @@ impl Renderer {
             } else {
                 NO_EMAIL.to_string()
             };
-            let displayable_pulse = self.pulse_repr().to_string();
-
             if render_type == RefreshType::Full {
                 ops.push(Op::AddText(
                     heading,
@@ -309,7 +319,7 @@ impl Renderer {
                 ));
 
                 ops.push(Op::AddText(
-                    displayable_pulse,
+                    STATUS_FLASH_OFF.to_string(),
                     PULSE_POS,
                     PULSE_SIZE,
                     PULSE_ID.to_string(),
@@ -325,7 +335,7 @@ impl Renderer {
                 ops.push(Op::WriteAll(PartialUpdate(false)));
             } else {
                 ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
-                ops.push(Op::UpdateText(PULSE_ID.to_string(), displayable_pulse));
+                ops.push(Op::UpdateText(PULSE_ID.to_string(), STATUS_FLASH_OFF.to_string()));
                 ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
                 ops.push(Op::WriteAll(PartialUpdate(true)));
             }

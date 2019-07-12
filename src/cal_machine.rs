@@ -2,10 +2,10 @@ pub mod evs;
 mod retriever;
 
 use crate::{
-    cal_display::{Error as CalDisplayError, RefreshType, Renderer},
+    cal_display::{Error as CalDisplayError, RefreshType, Renderer, Status},
     cal_machine::{
         evs::{Appointments, Error as EvError},
-        instant_types::{DownloadedAt, RefreshedAt},
+        instant_types::*,
     },
     display::{self},
     err,
@@ -35,22 +35,23 @@ use std::{
 
 stm!(cal_stm, Machine, [ErrorWait] => Load(), {
     [DisplayError] => ErrorWait(DownloadedAt);
-    [ErrorWait, Load, Wait] => RequestCodes();
-    [Load, Wait] => Refresh(RefreshToken);
+    [ErrorWait, Load, RefreshingWait, Wait] => RequestCodes();
+    [Load, RefreshingWait, Wait] => Refresh(RefreshToken);
     [Refresh, Save, Wait] => ReadFirst(Authenticators, RefreshedAt, RefreshType);
     [RequestCodes] => Poll(String, PeriodSeconds);
     [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
     [Poll] => Save(Authenticators);
     [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
     [Page] => Display(Authenticators, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Wait] => Scroll(Authenticators, RefreshedAt, DownloadedAt);
-    [Display, Scroll] => Wait(Authenticators, RefreshedAt, DownloadedAt)
+    [Display] => Wait(Authenticators, RefreshedAt, DownloadedAt);
+    [Refresh, ReadFirst, Page] => RefreshingWait(RefreshToken, LastNetErrorAt)
 });
 
 type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
-const FOUR_MINS: Duration = Duration::from_secs(240);
+const PREEMPTIVE_REFRESH_OFFSET_MINS: Duration = Duration::from_secs(240);
+const PROBLEM_IDENTIFICATION_OFFSET_MINS: Duration = Duration::from_secs(245);
 const RECHECK_PERIOD: Duration = Duration::from_secs(300);
 const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
 const V_POS_INC: usize = 5;
@@ -96,6 +97,7 @@ mod instant_types {
     use std::time::Instant;
     instant!(RefreshedAt);
     instant!(DownloadedAt);
+    instant!(LastNetErrorAt);
 }
 
 impl RefreshToken {
@@ -321,37 +323,47 @@ pub fn run(
                     }
                 }
             }
-            Refresh(st, RefreshToken(refresh_token)) => {
-                let mut resp: Response = retriever.refresh(&refresh_token)?;
-                let status = resp.status();
-                match status {
-                    StatusCode::OK => {
-                        let credentials_tokens: RefreshResponse = resp.json()?;
+            Refresh(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token) {
+                Ok(mut resp) => {
+                    let status = resp.status();
+                    match status {
+                        StatusCode::OK => {
+                            let credentials_tokens: RefreshResponse = resp.json()?;
 
-                        let token_type = credentials_tokens.token_type.clone();
-                        if token_type != TOKEN_TYPE {
-                            DisplayError(
-                                st.into(),
-                                format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
-                            )
-                        } else {
-                            println!("Body is next... {:?}", credentials_tokens);
-                            let credentials: Authenticators =
-                                (RefreshToken(refresh_token.clone()), credentials_tokens).into();
-                            ReadFirst(
-                                st.into(),
-                                credentials,
-                                RefreshedAt::now(),
-                                RefreshType::Full,
-                            )
+                            let token_type = credentials_tokens.token_type.clone();
+                            if token_type != TOKEN_TYPE {
+                                DisplayError(
+                                    st.into(),
+                                    format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
+                                )
+                            } else {
+                                println!("Body is next... {:?}", credentials_tokens);
+                                let credentials: Authenticators =
+                                    (RefreshToken(refresh_token.clone()), credentials_tokens)
+                                        .into();
+                                ReadFirst(
+                                    st.into(),
+                                    credentials,
+                                    RefreshedAt::now(),
+                                    RefreshType::Full,
+                                )
+                            }
+                        }
+                        other_status => {
+                            let err_msg = format!("When refreshing status: {:?}", other_status);
+                            DisplayError(st.into(), err_msg)
                         }
                     }
-                    other_status => {
-                        let err_msg = format!("When refreshing status: {:?}", other_status);
-                        DisplayError(st.into(), err_msg)
-                    }
                 }
-            }
+                Err(err) => {
+                    eprintln!("Error refreshing: {:?}", err);
+                    RefreshingWait(
+                        st.into(),
+                        RefreshToken(refresh_token),
+                        LastNetErrorAt::now(),
+                    )
+                }
+            },
             Poll(st, device_code, delay_s) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
@@ -422,38 +434,49 @@ pub fn run(
                 )
             }
             ReadFirst(st, credentials_tokens, refreshed_at, refresh_type) => {
-                let mut resp: Response = retriever.read(
+                match retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &display_date,
                     &(display_date + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
                     &Option::<PageToken>::None,
-                )?;
-                let status = resp.status();
-                match status {
-                    StatusCode::OK => {
-                        let events_resp: EventsResponse = resp.json()?;
-                        let mut new_events = evs::Appointments::new();
-                        new_events.add(&events_resp)?;
-                        let page_token = match events_resp.next_page_token {
-                            None => None,
-                            Some(next_page) => Some(PageToken(next_page)),
-                        };
-                        Page(
-                            st.into(),
-                            credentials_tokens,
-                            page_token,
-                            new_events,
-                            refreshed_at,
-                            DownloadedAt::now(),
-                            refresh_type,
-                        )
+                ) {
+                    Ok(mut resp) => {
+                        let status = resp.status();
+                        match status {
+                            StatusCode::OK => {
+                                let events_resp: EventsResponse = resp.json()?;
+                                let mut new_events = evs::Appointments::new();
+                                new_events.add(&events_resp)?;
+                                let page_token = match events_resp.next_page_token {
+                                    None => None,
+                                    Some(next_page) => Some(PageToken(next_page)),
+                                };
+                                Page(
+                                    st.into(),
+                                    credentials_tokens,
+                                    page_token,
+                                    new_events,
+                                    refreshed_at,
+                                    DownloadedAt::now(),
+                                    refresh_type,
+                                )
+                            }
+                            _other_status => {
+                                println!("Event Headers: {:#?}", resp.headers());
+                                println!("Event is next... {:?}", resp.text()?);
+                                DisplayError(
+                                    st.into(),
+                                    format!("in readfirst. http status: {:?}", status),
+                                )
+                            }
+                        }
                     }
-                    _other_status => {
-                        println!("Event Headers: {:#?}", resp.headers());
-                        println!("Event is next... {:?}", resp.text()?);
-                        DisplayError(
+                    Err(err) => {
+                        eprintln!("Error refreshing: {:?}", err);
+                        RefreshingWait(
                             st.into(),
-                            format!("in readfirst. http status: {:?}", status),
+                            credentials_tokens.refresh_token,
+                            LastNetErrorAt::now(),
                         )
                     }
                 }
@@ -477,38 +500,49 @@ pub fn run(
                         refresh_type,
                     )
                 } else {
-                    let mut resp: Response = retriever.read(
+                    match retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                         &display_date,
                         &(display_date + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
                         &page_token,
-                    )?;
-                    let status = resp.status();
-                    match status {
-                        StatusCode::OK => {
-                            let events_resp: EventsResponse = resp.json()?;
-                            events.add(&events_resp)?;
-                            let page_token = match events_resp.next_page_token {
-                                None => None,
-                                Some(next_page) => Some(PageToken(next_page)),
-                            };
+                    ) {
+                        Ok(mut resp) => {
+                            let status = resp.status();
+                            match status {
+                                StatusCode::OK => {
+                                    let events_resp: EventsResponse = resp.json()?;
+                                    events.add(&events_resp)?;
+                                    let page_token = match events_resp.next_page_token {
+                                        None => None,
+                                        Some(next_page) => Some(PageToken(next_page)),
+                                    };
 
-                            Page(
-                                st,
-                                credentials_tokens,
-                                page_token,
-                                events,
-                                refreshed_at,
-                                downloaded_at,
-                                refresh_type,
-                            )
+                                    Page(
+                                        st,
+                                        credentials_tokens,
+                                        page_token,
+                                        events,
+                                        refreshed_at,
+                                        downloaded_at,
+                                        refresh_type,
+                                    )
+                                }
+                                _other_status => {
+                                    println!("Event Headers: {:#?}", resp.headers());
+                                    println!("Event is next... {:?}", resp.text()?);
+                                    DisplayError(
+                                        st.into(),
+                                        format!("in readfirst. http status: {:?}", status),
+                                    )
+                                }
+                            }
                         }
-                        _other_status => {
-                            println!("Event Headers: {:#?}", resp.headers());
-                            println!("Event is next... {:?}", resp.text()?);
-                            DisplayError(
+                        Err(err) => {
+                            eprintln!("Error refreshing: {:?}", err);
+                            RefreshingWait(
                                 st.into(),
-                                format!("in readfirst. http status: {:?}", status),
+                                credentials_tokens.refresh_token,
+                                LastNetErrorAt::now(),
                             )
                         }
                     }
@@ -526,28 +560,31 @@ pub fn run(
                 )?;
                 Wait(st.into(), credentials, refreshed_at, downloaded_at)
             }
-            Scroll(st, credentials, refreshed_at, downloaded_at) => {
-                let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                    new_pos(v_pos, num_event_rows, screen_height)
-                };
-                renderer.scroll_events(pos_calculator)?;
-                Wait(st.into(), credentials, refreshed_at, downloaded_at)
-            }
             Wait(st, credentials, refreshed_at, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
-                if (elapsed_since_token_refresh + FOUR_MINS).as_secs()
+                let seconds_since_refresh = elapsed_since_token_refresh.as_secs();
+                renderer.display_status(
+                    if seconds_since_refresh + PROBLEM_IDENTIFICATION_OFFSET_MINS.as_secs()
+                        >= credentials.volatiles.expires_in
+                    {
+                        Status::NetworkDown
+                    } else {
+                        Status::AllOk
+                    },
+                    if (seconds_since_refresh & 2) == 2 {
+                        true
+                    } else {
+                        false
+                    },
+                )?;
+
+                if seconds_since_refresh + PREEMPTIVE_REFRESH_OFFSET_MINS.as_secs()
                     >= credentials.volatiles.expires_in
                 {
                     Refresh(st.into(), credentials.refresh_token)
                 } else {
-                    renderer.heartbeat(if (elapsed_since_token_refresh.as_secs() & 2) == 2 {
-                        true
-                    } else {
-                        false
-                    })?;
-
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
                     let back_event = back_button.event(&mut gpio)?;
@@ -574,7 +611,12 @@ pub fn run(
                         ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&scroll_event, short_check) {
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
-                        Scroll(st.into(), credentials, refreshed_at, started_wait_at)
+                        let pos_calculator =
+                            |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                                new_pos(v_pos, num_event_rows, screen_height)
+                            };
+                        renderer.scroll_events(pos_calculator)?;
+                        Wait(st.into(), credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
@@ -595,6 +637,74 @@ pub fn run(
                         Wait(st, credentials, refreshed_at, started_wait_at)
                     } else {
                         Wait(st, credentials, refreshed_at, started_wait_at)
+                    }
+                }
+            }
+            RefreshingWait(st, refresh_token, net_error_at) => {
+                let elapsed_since_outage = net_error_at.instant().elapsed();
+                let seconds_since_outage = elapsed_since_outage.as_secs();
+                renderer.display_status(
+                    Status::NetworkDown,
+                    if (seconds_since_outage & 2) == 2 {
+                        true
+                    } else {
+                        false
+                    },
+                )?;
+
+                if (seconds_since_outage & 8) == 8 {
+                    Refresh(st.into(), refresh_token)
+                } else {
+                    thread::sleep(BUTTON_POLL_PERIOD);
+                    let reset_event = reset_button.event(&mut gpio)?;
+                    let back_event = back_button.event(&mut gpio)?;
+                    let next_event = next_button.event(&mut gpio)?;
+                    let scroll_event = scroll_button.event(&mut gpio)?;
+
+                    let short_check = |e: &LongButtonEvent| e.is_short_press();
+                    let release_check = |e: &LongButtonEvent| e.is_release();
+                    let long_check = |e: &LongButtonEvent| e.is_long_press();
+
+                    let new_today = Local::today().and_hms(0, 0, 0);
+
+                    if opt_filter(&reset_event, long_check) {
+                        RequestCodes(st.into())
+                    } else if opt_filter(&reset_event, short_check) {
+                        shutdown()?;
+                        RefreshingWait(st, refresh_token, net_error_at)
+                    } else if today.date() != new_today.date()
+                        || opt_filter(&scroll_event, long_check)
+                    {
+                        println!("full display & date refresh in refreshing wait");
+                        today = new_today;
+                        display_date = today;
+                        Refresh(st.into(), refresh_token)
+                    } else if opt_filter(&scroll_event, short_check) {
+                        v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
+                        let pos_calculator =
+                            |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                                new_pos(v_pos, num_event_rows, screen_height)
+                            };
+                        renderer.scroll_events(pos_calculator)?;
+                        RefreshingWait(st.into(), refresh_token, net_error_at)
+                    } else if opt_filter(&back_event, release_check)
+                        || opt_filter(&next_event, release_check)
+                    {
+                        println!("partial display refresh after date change");
+                        v_pos = GLYPH_Y_ORIGIN.clone().into();
+                        Refresh(st.into(), refresh_token)
+                    } else if opt_filter(&back_event, short_check) {
+                        display_date = display_date - chrono::Duration::days(1);
+                        println!("Back a day: {:?} in RefreshingWait", display_date);
+                        renderer.refresh_date(&display_date)?;
+                        RefreshingWait(st, refresh_token, net_error_at)
+                    } else if opt_filter(&next_event, short_check) {
+                        display_date = display_date + chrono::Duration::days(1);
+                        println!("Forward a day: {:?} in RefreshingWait", display_date);
+                        renderer.refresh_date(&display_date)?;
+                        RefreshingWait(st, refresh_token, net_error_at)
+                    } else {
+                        RefreshingWait(st, refresh_token, net_error_at)
                     }
                 }
             }

@@ -26,39 +26,22 @@ use std::{
     path::{Path, PathBuf},
     process::{self, Command},
     sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
-    sync::{Arc, Once},
+    sync::Arc,
     thread,
     time::Duration,
 };
 use systemd1::OrgFreedesktopSystemd1Manager;
 
-static mut DBUS_CONNECTION: Result<dbus::Connection, Error> =
-    Err(Error::UninitialisedStatic(UninitialisedStaticError()));
-static mut SYSTEM_D: Result<dbus::ConnPath<'static, &'static dbus::Connection>, Error> =
-    Err(Error::UninitialisedStatic(UninitialisedStaticError()));
-static INITIALISATION: Once = Once::new();
+fn system_d_inst<'a>(
+    dbus: &'a Connection,
+) -> Result<dbus::ConnPath<'a, &'a dbus::Connection>, Error> {
+    let system_d = dbus.with_path(
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        5000,
+    );
 
-fn system_d() -> Result<&'static dbus::ConnPath<'static, &'static dbus::Connection>, Error> {
-    unsafe {
-        INITIALISATION.call_once(|| {
-            DBUS_CONNECTION = Connection::get_private(BusType::System)
-                .or(Err(Error::UninitialisedStatic(UninitialisedStaticError())));
-            if let Ok(ref c) = DBUS_CONNECTION {
-                SYSTEM_D = Ok(c.with_path(
-                    "org.freedesktop.systemd1",
-                    "/org/freedesktop/systemd1",
-                    5000,
-                ));
-            }
-        });
-
-        if let Ok(val) = &SYSTEM_D {
-            Ok(val)
-        } else {
-            eprintln!("connection path was not initialised");
-            Err(UninitialisedStaticError().into())
-        }
-    }
+    Ok(system_d)
 }
 
 #[derive(Debug)]
@@ -86,7 +69,12 @@ enum PackageAction {
     Uninstall,
 }
 
-fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Result<(), Error> {
+fn installation<'a>(
+    system_d: &'a dbus::ConnPath<'a, &'a dbus::Connection>,
+    action: PackageAction,
+    install_dir: &Path,
+    version: &str,
+) -> Result<(), Error> {
     let package_install_dir = &install_dir.join(PKG_NAME);
     let script_rel_path: &Path = &Path::new(SCRIPTS_DIR).join(Path::new(SCRIPT_NAME));
     let systemd_rel_path: &Path =
@@ -135,7 +123,7 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
     println!("begin uninstall");
     //always begin with an uninstall
 
-    match system_d()?.stop_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG) {
+    match system_d.stop_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG) {
         Ok(_) => {
             println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         }
@@ -145,7 +133,7 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
     }
 
     println!("disabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
-    match system_d()?.disable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false) {
+    match system_d.disable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false) {
         Ok(_) => {
             println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         }
@@ -224,16 +212,16 @@ fn installation(action: PackageAction, install_dir: &Path, version: &str) -> Res
 
         println!("linking the unit {:?}", version_unit);
         if let Some(version_unit_str) = version_unit.to_str() {
-            system_d()?.link_unit_files(vec![version_unit_str], false, false)?;
+            system_d.link_unit_files(vec![version_unit_str], false, false)?;
         } else {
             return Err(PathError(version_unit.to_path_buf()).into());
         }
         println!("linked the unit {:?}", version_unit);
 
         println!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
-        system_d()?.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
+        system_d.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
         println!("starting the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
-        system_d()?.start_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
+        system_d.start_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
 
         println!("end install");
     }
@@ -255,18 +243,24 @@ const CALENDAR_MIRROR_VAR: &str = "CALENDAR_MIRROR_VAR";
 const CALENDAR_MIRROR_DEV: &str = "CALENDAR_MIRROR_DEV";
 const NETWORK_CHECK_POLL_PERIOD: Duration = Duration::from_millis(750);
 
-fn sync_time() -> Result<(), Error> {
-    match system_d()?.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG) {
+fn sync_time<'a>(system_d: &'a dbus::ConnPath<'a, &'a dbus::Connection>) -> Result<(), Error> {
+    match system_d.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG) {
         Ok(_) => {
             println!("stopped the unit {:?}", NTP_UNIT_NAME);
         }
         Err(err) => {
-            println!("error disabling {:?}. {:?} was probably not running", err, NTP_UNIT_NAME);
+            println!(
+                "error disabling {:?}. {:?} was probably not running",
+                err, NTP_UNIT_NAME
+            );
         }
     };
 
     loop {
-        let output=Command::new("sntp").arg("-S").arg("0.us.pool.ntp.org").output()?;
+        let output = Command::new("sntp")
+            .arg("-S")
+            .arg("0.us.pool.ntp.org")
+            .output()?;
         println!("status: {}", output.status);
         println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
         println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
@@ -277,7 +271,7 @@ fn sync_time() -> Result<(), Error> {
         thread::sleep(NETWORK_CHECK_POLL_PERIOD);
     }
     println!("after sntp");
-    system_d()?.start_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
+    system_d.start_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
     Ok(())
 }
 
@@ -290,16 +284,18 @@ fn main() -> Result<(), Error> {
     };
     println!("path: {}", paths);
 
+    let dbus = Connection::get_private(BusType::System)?;
+    let system_d = system_d_inst(&dbus)?;
     let args: Vec<String> = env::args().collect();
     let dest_base: &Path = Path::new("/opt/");
     for arg in args.iter() {
         match arg.as_str() {
             "--install" => {
-                installation(PackageAction::Install, dest_base, VERSION)?;
+                installation(&system_d, PackageAction::Install, dest_base, VERSION)?;
                 process::exit(0);
             }
             "--uninstall" => {
-                installation(PackageAction::Uninstall, &dest_base, VERSION)?;
+                installation(&system_d, PackageAction::Uninstall, &dest_base, VERSION)?;
                 process::exit(0);
             }
             _ => {}
@@ -312,7 +308,7 @@ fn main() -> Result<(), Error> {
         cal_machine::render_stms()?;
     } else {
         println!("before sync time");
-        sync_time()?;
+        sync_time(&system_d)?;
         println!("after sync time");
 
         match fork().expect("fork failed") {
