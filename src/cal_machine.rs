@@ -33,16 +33,16 @@ use std::{
     time::Duration,
 };
 
-stm!(cal_stm, Machine, [ErrorWait] => Load(), {
+stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [DisplayError] => ErrorWait(DownloadedAt);
-    [ErrorWait, Load, RefreshingWait, Wait] => RequestCodes();
-    [Load, RefreshingWait, Wait] => Refresh(RefreshToken);
-    [Poll, Refresh, Wait] => ReadFirst(Authenticators, RefreshedAt, RefreshType);
-    [RequestCodes] => Poll(String, PeriodSeconds);
-    [Load, Page, Poll, ReadFirst, Refresh, RequestCodes] => DisplayError(String);
-    [ReadFirst] => Page(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [Page] => Wait(Authenticators, RefreshedAt, DownloadedAt);
-    [Refresh, ReadFirst, Page] => RefreshingWait(RefreshToken, LastNetErrorAt)
+    [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes();
+    [LoadAuth, NetworkOutage, PollEvents] => RefreshAuth(RefreshToken);
+    [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType);
+    [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
+    [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
+    [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt);
+    [RefreshAuth, ReadFirstEvents, PageEvents] => NetworkOutage(RefreshToken, LastNetErrorAt)
 });
 
 type PeriodSeconds = u64;
@@ -246,7 +246,7 @@ pub fn run(
     let mut display_date = today;
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
-    let mut mach: Machine = Load(cal_stm::Load);
+    let mut mach: Machine = LoadAuth(cal_stm::LoadAuth);
     let mut gpio = GPIO::new()?;
     let mut reset_button = LongPressButton::new(
         Pin(SW3_GPIO),
@@ -271,13 +271,13 @@ pub fn run(
 
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
-            Load(st) => match RefreshToken::load(&config_file) {
+            LoadAuth(st) => match RefreshToken::load(&config_file) {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
                 ),
                 Ok(None) => RequestCodes(st.into()),
-                Ok(Some(refresh_token)) => Refresh(st.into(), refresh_token),
+                Ok(Some(refresh_token)) => RefreshAuth(st.into(), refresh_token),
             },
             RequestCodes(st) => {
                 let mut resp: Response = retriever.retrieve_dev_and_code()?;
@@ -292,7 +292,7 @@ pub fn run(
                             &body.verification_url,
                         )?;
 
-                        Poll(
+                        DeviceAuthPoll(
                             st.into(),
                             String::from(body.device_code),
                             body.interval as PeriodSeconds,
@@ -320,7 +320,7 @@ pub fn run(
                     }
                 }
             }
-            Refresh(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token) {
+            RefreshAuth(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token) {
                 Ok(mut resp) => {
                     let status = resp.status();
                     match status {
@@ -338,7 +338,7 @@ pub fn run(
                                 let credentials: Authenticators =
                                     (RefreshToken(refresh_token.clone()), credentials_tokens)
                                         .into();
-                                ReadFirst(
+                                ReadFirstEvents(
                                     st.into(),
                                     credentials,
                                     RefreshedAt::now(),
@@ -354,14 +354,14 @@ pub fn run(
                 }
                 Err(err) => {
                     eprintln!("Error refreshing: {:?}", err);
-                    RefreshingWait(
+                    NetworkOutage(
                         st.into(),
                         RefreshToken(refresh_token),
                         LastNetErrorAt::now(),
                     )
                 }
             },
-            Poll(st, device_code, delay_s) => {
+            DeviceAuthPoll(st, device_code, delay_s) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
                 let status = resp.status();
@@ -379,7 +379,7 @@ pub fn run(
                             println!("Body is next... {:?}", credentials_tokens);
                             let auth: Authenticators=credentials_tokens.into();
                             saver(&auth.refresh_token, renderer)?;
-                            ReadFirst(
+                            ReadFirstEvents(
                                 st.into(),
                                 auth,
                                 RefreshedAt::now(),
@@ -397,17 +397,17 @@ pub fn run(
                                 StatusCode::BAD_REQUEST
                                     if body.error == AUTHORISATION_PENDING_ERROR =>
                                 {
-                                    Poll(st, device_code, delay_s)
+                                    DeviceAuthPoll(st, device_code, delay_s)
                                 }
                                 StatusCode::PRECONDITION_REQUIRED
                                     if body.error == AUTHORISATION_PENDING_ERROR =>
                                 {
-                                    Poll(st, device_code, delay_s)
+                                    DeviceAuthPoll(st, device_code, delay_s)
                                 }
                                 StatusCode::TOO_MANY_REQUESTS
                                     if body.error == POLLING_TOO_FREQUENTLY_ERROR =>
                                 {
-                                    Poll(st, device_code, delay_s * 2)
+                                    DeviceAuthPoll(st, device_code, delay_s * 2)
                                 }
                                 _otherwise => DisplayError(
                                     st.into(),
@@ -427,7 +427,7 @@ pub fn run(
                     },
                 }
             }
-            ReadFirst(st, credentials_tokens, refreshed_at, refresh_type) => {
+            ReadFirstEvents(st, credentials_tokens, refreshed_at, refresh_type) => {
                 match retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &display_date,
@@ -445,7 +445,7 @@ pub fn run(
                                     None => None,
                                     Some(next_page) => Some(PageToken(next_page)),
                                 };
-                                Page(
+                                PageEvents(
                                     st.into(),
                                     credentials_tokens,
                                     page_token,
@@ -467,7 +467,7 @@ pub fn run(
                     }
                     Err(err) => {
                         eprintln!("Error refreshing: {:?}", err);
-                        RefreshingWait(
+                        NetworkOutage(
                             st.into(),
                             credentials_tokens.refresh_token,
                             LastNetErrorAt::now(),
@@ -475,7 +475,7 @@ pub fn run(
                     }
                 }
             }
-            Page(
+            PageEvents(
                 st,
                 credentials_tokens,
                 page_token,
@@ -494,7 +494,7 @@ pub fn run(
                         refresh_type,
                         pos_calculator,
                     )?;
-                    Wait(st.into(), credentials_tokens, refreshed_at, downloaded_at)
+                    PollEvents(st.into(), credentials_tokens, refreshed_at, downloaded_at)
                 } else {
                     match retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
@@ -513,7 +513,7 @@ pub fn run(
                                         Some(next_page) => Some(PageToken(next_page)),
                                     };
 
-                                    Page(
+                                    PageEvents(
                                         st,
                                         credentials_tokens,
                                         page_token,
@@ -535,7 +535,7 @@ pub fn run(
                         }
                         Err(err) => {
                             eprintln!("Error refreshing: {:?}", err);
-                            RefreshingWait(
+                            NetworkOutage(
                                 st.into(),
                                 credentials_tokens.refresh_token,
                                 LastNetErrorAt::now(),
@@ -544,7 +544,7 @@ pub fn run(
                     }
                 }
             }
-            Wait(st, credentials, refreshed_at, started_wait_at) => {
+            PollEvents(st, credentials, refreshed_at, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
@@ -561,7 +561,7 @@ pub fn run(
                 if seconds_since_refresh + PREEMPTIVE_REFRESH_OFFSET_MINS.as_secs()
                     >= credentials.volatiles.expires_in
                 {
-                    Refresh(st.into(), credentials.refresh_token)
+                    RefreshAuth(st.into(), credentials.refresh_token)
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
@@ -579,14 +579,14 @@ pub fn run(
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        PollEvents(st, credentials, refreshed_at, started_wait_at)
                     } else if today.date() != new_today.date()
                         || opt_filter(&scroll_event, long_check)
                     {
                         println!("full display & date refresh");
                         today = new_today;
                         display_date = today;
-                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
+                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&scroll_event, short_check) {
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
@@ -594,31 +594,31 @@ pub fn run(
                                 new_pos(v_pos, num_event_rows, screen_height)
                             };
                         renderer.scroll_events(pos_calculator)?;
-                        Wait(st.into(), credentials, refreshed_at, started_wait_at)
+                        PollEvents(st.into(), credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
                         println!("partial display refresh after date change");
                         v_pos = GLYPH_Y_ORIGIN.clone().into();
-                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Partial)
+                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Partial)
                     } else if waiting_for >= RECHECK_PERIOD {
                         println!("full display refresh due");
-                        ReadFirst(st.into(), credentials, refreshed_at, RefreshType::Full)
+                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&back_event, short_check) {
                         display_date = display_date - chrono::Duration::days(1);
                         println!("New date: {:?}", display_date);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        PollEvents(st, credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&next_event, short_check) {
                         display_date = display_date + chrono::Duration::days(1);
                         renderer.refresh_date(&display_date)?;
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        PollEvents(st, credentials, refreshed_at, started_wait_at)
                     } else {
-                        Wait(st, credentials, refreshed_at, started_wait_at)
+                        PollEvents(st, credentials, refreshed_at, started_wait_at)
                     }
                 }
             }
-            RefreshingWait(st, refresh_token, net_error_at) => {
+            NetworkOutage(st, refresh_token, net_error_at) => {
                 let elapsed_since_outage = net_error_at.instant().elapsed();
                 let seconds_since_outage = elapsed_since_outage.as_secs();
                 renderer.display_status(
@@ -631,7 +631,7 @@ pub fn run(
                 )?;
 
                 if (seconds_since_outage & 8) == 8 {
-                    Refresh(st.into(), refresh_token)
+                    RefreshAuth(st.into(), refresh_token)
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
@@ -649,14 +649,14 @@ pub fn run(
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        RefreshingWait(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at)
                     } else if today.date() != new_today.date()
                         || opt_filter(&scroll_event, long_check)
                     {
                         println!("full display & date refresh in refreshing wait");
                         today = new_today;
                         display_date = today;
-                        Refresh(st.into(), refresh_token)
+                        RefreshAuth(st.into(), refresh_token)
                     } else if opt_filter(&scroll_event, short_check) {
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
@@ -664,32 +664,32 @@ pub fn run(
                                 new_pos(v_pos, num_event_rows, screen_height)
                             };
                         renderer.scroll_events(pos_calculator)?;
-                        RefreshingWait(st.into(), refresh_token, net_error_at)
+                        NetworkOutage(st.into(), refresh_token, net_error_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
                         println!("partial display refresh after date change");
                         v_pos = GLYPH_Y_ORIGIN.clone().into();
-                        Refresh(st.into(), refresh_token)
+                        RefreshAuth(st.into(), refresh_token)
                     } else if opt_filter(&back_event, short_check) {
                         display_date = display_date - chrono::Duration::days(1);
-                        println!("Back a day: {:?} in RefreshingWait", display_date);
+                        println!("Back a day: {:?} in NetworkOutage", display_date);
                         renderer.refresh_date(&display_date)?;
-                        RefreshingWait(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at)
                     } else if opt_filter(&next_event, short_check) {
                         display_date = display_date + chrono::Duration::days(1);
-                        println!("Forward a day: {:?} in RefreshingWait", display_date);
+                        println!("Forward a day: {:?} in NetworkOutage", display_date);
                         renderer.refresh_date(&display_date)?;
-                        RefreshingWait(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at)
                     } else {
-                        RefreshingWait(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at)
                     }
                 }
             }
             ErrorWait(st, started_wait_at) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 if waiting_for >= RECHECK_PERIOD {
-                    Load(st.into())
+                    LoadAuth(st.into())
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
