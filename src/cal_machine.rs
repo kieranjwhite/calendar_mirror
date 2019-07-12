@@ -51,7 +51,6 @@ type PeriodSeconds = u64;
 type AuthTokens = (RefreshToken, RefreshResponse);
 
 const PREEMPTIVE_REFRESH_OFFSET_MINS: Duration = Duration::from_secs(240);
-const PROBLEM_IDENTIFICATION_OFFSET_MINS: Duration = Duration::from_secs(245);
 const RECHECK_PERIOD: Duration = Duration::from_secs(300);
 const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
 const V_POS_INC: usize = 5;
@@ -566,13 +565,7 @@ pub fn run(
 
                 let seconds_since_refresh = elapsed_since_token_refresh.as_secs();
                 renderer.display_status(
-                    if seconds_since_refresh + PROBLEM_IDENTIFICATION_OFFSET_MINS.as_secs()
-                        >= credentials.volatiles.expires_in
-                    {
-                        Status::NetworkDown
-                    } else {
-                        Status::AllOk
-                    },
+                    Status::AllOk,
                     if (seconds_since_refresh & 2) == 2 {
                         true
                     } else {

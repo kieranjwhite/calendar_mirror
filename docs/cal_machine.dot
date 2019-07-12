@@ -7,9 +7,9 @@ digraph cal_stm {
     Poll[label="Poll"][shape="ellipse"];
     ReadFirst[label="ReadFirst"][shape="ellipse"];
     Refresh[label="Refresh"][shape="ellipse"];
+    RefreshingWait[label="RefreshingWait"][shape="ellipse"];
     RequestCodes[label="RequestCodes"][shape="ellipse"];
     Save[label="Save"][shape="ellipse"];
-    Scroll[label="Scroll"][shape="ellipse"];
     Wait[label="Wait"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> Load[label=""];
@@ -17,8 +17,10 @@ digraph cal_stm {
     DisplayError -> ErrorWait[label="DownloadedAt\n"];
     ErrorWait -> RequestCodes[label=""];
     Load -> RequestCodes[label=""];
+    RefreshingWait -> RequestCodes[label=""];
     Wait -> RequestCodes[label=""];
     Load -> Refresh[label="RefreshToken\n"];
+    RefreshingWait -> Refresh[label="RefreshToken\n"];
     Wait -> Refresh[label="RefreshToken\n"];
     Refresh -> ReadFirst[label="Authenticators\nRefreshedAt\nRefreshType\n"];
     Save -> ReadFirst[label="Authenticators\nRefreshedAt\nRefreshType\n"];
@@ -33,7 +35,8 @@ digraph cal_stm {
     Poll -> Save[label="Authenticators\n"];
     ReadFirst -> Page[label="Authenticators\nOption<PageToken>\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
     Page -> Display[label="Authenticators\nAppointments\nRefreshedAt\nDownloadedAt\nRefreshType\n"];
-    Wait -> Scroll[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
     Display -> Wait[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
-    Scroll -> Wait[label="Authenticators\nRefreshedAt\nDownloadedAt\n"];
+    Refresh -> RefreshingWait[label="RefreshToken\nLastNetErrorAt\n"];
+    ReadFirst -> RefreshingWait[label="RefreshToken\nLastNetErrorAt\n"];
+    Page -> RefreshingWait[label="RefreshToken\nLastNetErrorAt\n"];
 }
