@@ -654,9 +654,9 @@ pub fn run(
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                                let result = new_pos(v_pos, num_event_rows, screen_height);
-                                println!("pos_calculator. v_pos {:?} num_event_rows {:?} screen_height {:?} result {:?}", v_pos, num_event_rows, screen_height, result);
-                                result
+                                v_pos = new_pos(v_pos, num_event_rows, screen_height);
+                                println!("pos_calculator. v_pos {:?} num_event_rows {:?} screen_height {:?} v_pos {:?}", v_pos, num_event_rows, screen_height, v_pos);
+                                v_pos
                             };
                         renderer.scroll_events(pos_calculator)?;
                         println!("NetworkOutage. after scroll. v_pos: {:?}", v_pos);
