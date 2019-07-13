@@ -320,7 +320,8 @@ pub fn run(
                     }
                 }
             }
-            RefreshAuth(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token) {
+            RefreshAuth(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token)
+            {
                 Ok(mut resp) => {
                     let status = resp.status();
                     match status {
@@ -377,14 +378,9 @@ pub fn run(
                             )
                         } else {
                             println!("Body is next... {:?}", credentials_tokens);
-                            let auth: Authenticators=credentials_tokens.into();
+                            let auth: Authenticators = credentials_tokens.into();
                             saver(&auth.refresh_token, renderer)?;
-                            ReadFirstEvents(
-                                st.into(),
-                                auth,
-                                RefreshedAt::now(),
-                                RefreshType::Full,
-                            )
+                            ReadFirstEvents(st.into(), auth, RefreshedAt::now(), RefreshType::Full)
                         }
                     }
                     other_status => match resp.json::<PollErrorResponse>() {
@@ -641,15 +637,20 @@ pub fn run(
                     let long_check = |e: &LongButtonEvent| e.is_long_press();
 
                     if opt_filter(&reset_event, long_check) {
+                        println!("network outage. auth reset event");
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
+                        println!("network outage. shutdown event");
                         shutdown()?;
                         NetworkOutage(st, refresh_token, net_error_at)
                     } else if opt_filter(&scroll_event, short_check) {
+                        println!("network outage. scroll event");
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                                new_pos(v_pos, num_event_rows, screen_height)
+                                let result = new_pos(v_pos, num_event_rows, screen_height);
+                                println!("pos_calculator. v_pos {:?} num_event_rows {:?} screen_height {:?} result {:?}", v_pos, num_event_rows, screen_height, result);
+                                result
                             };
                         renderer.scroll_events(pos_calculator)?;
                         NetworkOutage(st.into(), refresh_token, net_error_at)

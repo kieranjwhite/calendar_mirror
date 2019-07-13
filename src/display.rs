@@ -79,7 +79,7 @@ impl RenderPipeline {
     pub fn send(&mut self, els: Iter<Operation>, sync: bool) -> Result<(), Error> {
         for el in els {
             let serialised = serde_json::to_string(el)?;
-            println!("sending: {}", serialised);
+            //println!("sending: {}", serialised);
             write!(self.w_stream, "{}\n", serialised)?;
         }
         if sync {
