@@ -145,7 +145,6 @@ impl Renderer {
     }
 
     pub fn display_status(&mut self, status: Status, on: bool) -> Result<(), Error> {
-        self.events = None;
         if on == self.pulse_on {
             return Ok(());
         }
@@ -341,10 +340,10 @@ impl Renderer {
             }
 
             self.pipe.send(ops.iter(), false)?;
-            Ok(())
         } else {
-            Err(Error::InvalidState(InvalidStateError("self.render_events should have been the last rendering optation to have been invoked")))
+            //Err(Error::InvalidState(InvalidStateError("self.render_events should have been the last rendering optation to have been invoked")))
         }
+        Ok(())
     }
 
     pub fn display_events(
