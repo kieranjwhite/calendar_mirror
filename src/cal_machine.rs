@@ -635,28 +635,16 @@ pub fn run(
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
-                    let back_event = back_button.event(&mut gpio)?;
-                    let next_event = next_button.event(&mut gpio)?;
                     let scroll_event = scroll_button.event(&mut gpio)?;
 
                     let short_check = |e: &LongButtonEvent| e.is_short_press();
-                    let release_check = |e: &LongButtonEvent| e.is_release();
                     let long_check = |e: &LongButtonEvent| e.is_long_press();
-
-                    let new_today = Local::today().and_hms(0, 0, 0);
 
                     if opt_filter(&reset_event, long_check) {
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
                         NetworkOutage(st, refresh_token, net_error_at)
-                    } else if today.date() != new_today.date()
-                        || opt_filter(&scroll_event, long_check)
-                    {
-                        println!("full display & date refresh in refreshing wait");
-                        today = new_today;
-                        display_date = today;
-                        RefreshAuth(st.into(), refresh_token)
                     } else if opt_filter(&scroll_event, short_check) {
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
@@ -665,22 +653,6 @@ pub fn run(
                             };
                         renderer.scroll_events(pos_calculator)?;
                         NetworkOutage(st.into(), refresh_token, net_error_at)
-                    } else if opt_filter(&back_event, release_check)
-                        || opt_filter(&next_event, release_check)
-                    {
-                        println!("partial display refresh after date change");
-                        v_pos = GLYPH_Y_ORIGIN.clone().into();
-                        RefreshAuth(st.into(), refresh_token)
-                    } else if opt_filter(&back_event, short_check) {
-                        display_date = display_date - chrono::Duration::days(1);
-                        println!("Back a day: {:?} in NetworkOutage", display_date);
-                        renderer.refresh_date(&display_date)?;
-                        NetworkOutage(st, refresh_token, net_error_at)
-                    } else if opt_filter(&next_event, short_check) {
-                        display_date = display_date + chrono::Duration::days(1);
-                        println!("Forward a day: {:?} in NetworkOutage", display_date);
-                        renderer.refresh_date(&display_date)?;
-                        NetworkOutage(st, refresh_token, net_error_at)
                     } else {
                         NetworkOutage(st, refresh_token, net_error_at)
                     }
