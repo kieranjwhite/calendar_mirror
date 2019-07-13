@@ -481,6 +481,7 @@ pub fn run(
                 refresh_type,
             ) => {
                 if let None = page_token {
+                    println!("PageEvents. before display {:?}", v_pos);
                     let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
                         v_pos=new_pos(v_pos, num_event_rows, screen_height);
                         v_pos
@@ -491,6 +492,7 @@ pub fn run(
                         refresh_type,
                         pos_calculator,
                     )?;
+                    println!("PageEvents. after display {:?}", v_pos);
                     PollEvents(st.into(), credentials_tokens, refreshed_at, downloaded_at)
                 } else {
                     match retriever.read(
@@ -585,6 +587,7 @@ pub fn run(
                         display_date = today;
                         ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Full)
                     } else if opt_filter(&scroll_event, short_check) {
+                        println!("PollEvents. before scroll v_pos: {:?}", v_pos);
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
@@ -592,12 +595,13 @@ pub fn run(
                                 v_pos
                             };
                         renderer.scroll_events(pos_calculator)?;
+                        println!("PollEvents. after scroll v_pos: {:?}", v_pos);
                         PollEvents(st.into(), credentials, refreshed_at, started_wait_at)
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
-                        println!("partial display refresh after date change");
                         v_pos = GLYPH_Y_ORIGIN.clone().into();
+                        println!("partial display refresh after date change. v_pos: {:?}", v_pos);
                         ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Partial)
                     } else if waiting_for >= RECHECK_PERIOD {
                         println!("full display refresh due");
@@ -646,7 +650,7 @@ pub fn run(
                         shutdown()?;
                         NetworkOutage(st, refresh_token, net_error_at)
                     } else if opt_filter(&scroll_event, short_check) {
-                        println!("network outage. scroll event");
+                        println!("NetworkOutage. before scroll. v_pos: {:?}", v_pos);
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
@@ -655,6 +659,7 @@ pub fn run(
                                 result
                             };
                         renderer.scroll_events(pos_calculator)?;
+                        println!("NetworkOutage. after scroll. v_pos: {:?}", v_pos);
                         NetworkOutage(st.into(), refresh_token, net_error_at)
                     } else {
                         NetworkOutage(st, refresh_token, net_error_at)
