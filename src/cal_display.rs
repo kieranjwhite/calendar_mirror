@@ -73,7 +73,7 @@ struct EventContent {
     apps: Appointments,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Status {
     AllOk,
     NetworkDown,
@@ -155,7 +155,8 @@ impl Renderer {
         }
 
         self.pulse_on = on;
-
+        self.status=status;
+        
         let mut ops: Vec<Op> = Vec::with_capacity(3);
         ops.push(Op::UpdateText(
             PULSE_ID.to_string(),
