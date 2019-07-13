@@ -482,7 +482,8 @@ pub fn run(
             ) => {
                 if let None = page_token {
                     let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                        new_pos(v_pos, num_event_rows, screen_height)
+                        v_pos=new_pos(v_pos, num_event_rows, screen_height);
+                        v_pos
                     };
                     renderer.display_events(
                         display_date.clone(),
@@ -587,7 +588,8 @@ pub fn run(
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                                new_pos(v_pos, num_event_rows, screen_height)
+                                v_pos=new_pos(v_pos, num_event_rows, screen_height);
+                                v_pos
                             };
                         renderer.scroll_events(pos_calculator)?;
                         PollEvents(st.into(), credentials, refreshed_at, started_wait_at)
