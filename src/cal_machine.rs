@@ -320,48 +320,51 @@ pub fn run(
                     }
                 }
             }
-            RefreshAuth(st, RefreshToken(refresh_token)) => match retriever.refresh(&refresh_token)
-            {
-                Ok(mut resp) => {
-                    let status = resp.status();
-                    match status {
-                        StatusCode::OK => {
-                            let credentials_tokens: RefreshResponse = resp.json()?;
+            RefreshAuth(st, RefreshToken(refresh_token)) => {
+                renderer.display_status(Status::NetworkPending, true)?;
+                match retriever.refresh(&refresh_token) {
+                    Ok(mut resp) => {
+                        let status = resp.status();
+                        match status {
+                            StatusCode::OK => {
+                                let credentials_tokens: RefreshResponse = resp.json()?;
 
-                            let token_type = credentials_tokens.token_type.clone();
-                            if token_type != TOKEN_TYPE {
-                                DisplayError(
-                                    st.into(),
-                                    format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
-                                )
-                            } else {
-                                println!("Body is next... {:?}", credentials_tokens);
-                                let credentials: Authenticators =
-                                    (RefreshToken(refresh_token.clone()), credentials_tokens)
-                                        .into();
-                                ReadFirstEvents(
-                                    st.into(),
-                                    credentials,
-                                    RefreshedAt::now(),
-                                    RefreshType::Full,
-                                )
+                                let token_type = credentials_tokens.token_type.clone();
+                                if token_type != TOKEN_TYPE {
+                                    DisplayError(
+                                        st.into(),
+                                        format!("{}: {}", UNRECOGNISED_TOKEN_TYPE, token_type),
+                                    )
+                                } else {
+                                    println!("Body is next... {:?}", credentials_tokens);
+                                    let credentials: Authenticators =
+                                        (RefreshToken(refresh_token.clone()), credentials_tokens)
+                                            .into();
+                                    ReadFirstEvents(
+                                        st.into(),
+                                        credentials,
+                                        RefreshedAt::now(),
+                                        RefreshType::Full,
+                                    )
+                                }
+                            }
+                            other_status => {
+                                let err_msg = format!("When refreshing status: {:?}", other_status);
+                                DisplayError(st.into(), err_msg)
                             }
                         }
-                        other_status => {
-                            let err_msg = format!("When refreshing status: {:?}", other_status);
-                            DisplayError(st.into(), err_msg)
-                        }
+                    }
+
+                    Err(err) => {
+                        eprintln!("Error refreshing: {:?}", err);
+                        NetworkOutage(
+                            st.into(),
+                            RefreshToken(refresh_token),
+                            LastNetErrorAt::now(),
+                        )
                     }
                 }
-                Err(err) => {
-                    eprintln!("Error refreshing: {:?}", err);
-                    NetworkOutage(
-                        st.into(),
-                        RefreshToken(refresh_token),
-                        LastNetErrorAt::now(),
-                    )
-                }
-            },
+            }
             DeviceAuthPoll(st, device_code, delay_s) => {
                 thread::sleep(Duration::from_secs(delay_s));
                 let mut resp: Response = retriever.poll(&device_code)?;
@@ -424,6 +427,7 @@ pub fn run(
                 }
             }
             ReadFirstEvents(st, credentials_tokens, refreshed_at, refresh_type) => {
+                renderer.display_status(Status::NetworkPending, true)?;
                 match retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &display_date,
@@ -483,7 +487,7 @@ pub fn run(
                 if let None = page_token {
                     println!("PageEvents. before display {:?}", v_pos);
                     let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                        v_pos=new_pos(v_pos, num_event_rows, screen_height);
+                        v_pos = new_pos(v_pos, num_event_rows, screen_height);
                         v_pos
                     };
                     renderer.display_events(
@@ -495,6 +499,7 @@ pub fn run(
                     println!("PageEvents. after display {:?}", v_pos);
                     PollEvents(st.into(), credentials_tokens, refreshed_at, downloaded_at)
                 } else {
+                    renderer.display_status(Status::NetworkPending, true)?;
                     match retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                         &display_date,
@@ -591,7 +596,7 @@ pub fn run(
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
                         let pos_calculator =
                             |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                                v_pos=new_pos(v_pos, num_event_rows, screen_height);
+                                v_pos = new_pos(v_pos, num_event_rows, screen_height);
                                 v_pos
                             };
                         renderer.scroll_events(pos_calculator)?;
@@ -601,7 +606,10 @@ pub fn run(
                         || opt_filter(&next_event, release_check)
                     {
                         v_pos = GLYPH_Y_ORIGIN.clone().into();
-                        println!("partial display refresh after date change. v_pos: {:?}", v_pos);
+                        println!(
+                            "partial display refresh after date change. v_pos: {:?}",
+                            v_pos
+                        );
                         ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Partial)
                     } else if waiting_for >= RECHECK_PERIOD {
                         println!("full display refresh due");

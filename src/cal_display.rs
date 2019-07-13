@@ -61,6 +61,7 @@ pub enum RefreshType {
 
 pub struct Renderer {
     pipe: RenderPipeline,
+    status: Status,
     pulse_on: bool,
     formatter: LeftFormatter,
     dims: Dims,
@@ -72,9 +73,11 @@ struct EventContent {
     apps: Appointments,
 }
 
+#[derive(PartialEq)]
 pub enum Status {
     AllOk,
     NetworkDown,
+    NetworkPending
 }
 
 impl Status {
@@ -85,6 +88,7 @@ impl Status {
             match self {
                 Status::AllOk => "!",
                 Status::NetworkDown => "i",
+                Status::NetworkPending => "G"
             }
         }
     }
@@ -94,6 +98,7 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
+            status: Status::AllOk,
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
@@ -145,7 +150,7 @@ impl Renderer {
     }
 
     pub fn display_status(&mut self, status: Status, on: bool) -> Result<(), Error> {
-        if on == self.pulse_on {
+        if on == self.pulse_on && self.status==status {
             return Ok(());
         }
 
