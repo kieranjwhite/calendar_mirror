@@ -4,16 +4,16 @@ digraph long_press_button_stm {
     PressedPending[label="PressedPending"][shape="ellipse"];
     ReleasePending[label="ReleasePending"][shape="ellipse"];
     _start[label="_start"][shape="point"];
-    _start -> NotPressed[label=""];
-    ReleasePending -> NotPressed[label=""];
-    PressedPending -> NotPressed[label=""];
-    LongPressed -> NotPressed[label=""];
-    PressedPending -> ReleasePending[label=""];
-    LongPressed -> ReleasePending[label=""];
-    NotPressed -> PressedPending[label=""];
-    ReleasePending -> PressedPending[label=""];
-    LongPressed -> PressedPending[label=""];
-    NotPressed -> LongPressed[label=""];
-    ReleasePending -> LongPressed[label=""];
-    PressedPending -> LongPressed[label=""];
+    _start -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "NotPressed"</I></B></TD></TR></TABLE>>];
+    ReleasePending -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><I>"ReleasePending" -&gt; "NotPressed"</I></TD></TR></TABLE>>];
+    PressedPending -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><I>"PressedPending" -&gt; "NotPressed"</I></TD></TR></TABLE>>];
+    LongPressed -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><I>"LongPressed" -&gt; "NotPressed"</I></TD></TR></TABLE>>];
+    PressedPending -> ReleasePending[label=<<TABLE BORDER="0"><TR><TD><I>"PressedPending" -&gt; "ReleasePending"</I></TD></TR></TABLE>>];
+    LongPressed -> ReleasePending[label=<<TABLE BORDER="0"><TR><TD><I>"LongPressed" -&gt; "ReleasePending"</I></TD></TR></TABLE>>];
+    NotPressed -> PressedPending[label=<<TABLE BORDER="0"><TR><TD><I>"NotPressed" -&gt; "PressedPending"</I></TD></TR></TABLE>>];
+    ReleasePending -> PressedPending[label=<<TABLE BORDER="0"><TR><TD><I>"ReleasePending" -&gt; "PressedPending"</I></TD></TR></TABLE>>];
+    LongPressed -> PressedPending[label=<<TABLE BORDER="0"><TR><TD><I>"LongPressed" -&gt; "PressedPending"</I></TD></TR></TABLE>>];
+    NotPressed -> LongPressed[label=<<TABLE BORDER="0"><TR><TD><I>"NotPressed" -&gt; "LongPressed"</I></TD></TR></TABLE>>];
+    ReleasePending -> LongPressed[label=<<TABLE BORDER="0"><TR><TD><I>"ReleasePending" -&gt; "LongPressed"</I></TD></TR></TABLE>>];
+    PressedPending -> LongPressed[label=<<TABLE BORDER="0"><TR><TD><I>"PressedPending" -&gt; "LongPressed"</I></TD></TR></TABLE>>];
 }

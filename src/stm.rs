@@ -89,32 +89,36 @@ macro_rules! stm {
                     dot::Id::new(*n).unwrap()
                 }
 
-                fn edge_label(&'a self, (_, to): &Ed) -> dot::LabelText<'a> {
+                fn edge_label(&'a self, (f, to): &Ed) -> dot::LabelText<'a> {
                     {
                         let dest_name=stringify!($start);
                         if &dest_name==to {
-                            let mut edge_name=String::new();
+                            let mut edge_name=if START_NODE_NAME==*f {
+                                String::from(format!("<TABLE BORDER=\"0\"><TR><TD><B><I> -&gt; {:?}</I></B></TD></TR>", to.replace("<", "&lt;").replace(">", "&gt;")))
+                            } else {
+                                String::from(format!("<TABLE BORDER=\"0\"><TR><TD><I>{:?} -&gt; {:?}</I></TD></TR>", f.replace("<", "&lt;").replace(">", "&gt;"), to.replace("<", "&lt;").replace(">", "&gt;")))
+                            };
                             edge_name.push_str(""); //to avoid warning about edge_name not needing to be mutable
                             $(
                                 let arg=stringify!($start_arg);
-                                let arg_line=format!("{}\n", arg);
+                                let arg_line=format!("<TR><TD>{}</TD></TR>", arg.replace("<", "&lt;").replace(">", "&gt;"));
                                 (&mut edge_name).push_str(&arg_line);
                             )*;
-                            return dot::LabelText::EscStr(edge_name.into())
+                            return dot::LabelText::HtmlStr(format!("{}</TABLE>", edge_name).into())
                         }
                     }
                     $(
                         {
                             let dest_name=stringify!($node);
                             if &dest_name==to {
-                                let mut edge_name=String::new();
+                                let mut edge_name=String::from(format!("<TABLE BORDER=\"0\"><TR><TD><I>{:?} -&gt; {:?}</I></TD></TR>", f.replace("<", "&lt;").replace(">", "&gt;"), to.replace("<", "&lt;").replace(">", "&gt;")));
                                 edge_name.push_str(""); //to avoid warning about edge_name not needing to be mutable
                                 $(
                                     let arg=stringify!($arg);
-                                    let arg_line=format!("{}\n", arg);
+                                    let arg_line=format!("<TR><TD>{}</TD></TR>", arg.replace("<", "&lt;").replace(">", "&gt;"));
                                     (&mut edge_name).push_str(&arg_line);
                                 )*;
-                                return dot::LabelText::EscStr(edge_name.into())
+                                return dot::LabelText::HtmlStr(format!("{}</TABLE>", edge_name).into())
                             }
                         }
                     )*;

@@ -3,7 +3,7 @@ digraph ev_stm {
     OneCreator[label="OneCreator"][shape="ellipse"];
     Uninitialised[label="Uninitialised"][shape="ellipse"];
     _start[label="_start"][shape="point"];
-    _start -> Uninitialised[label=""];
-    Uninitialised -> OneCreator[label="Email\n"];
-    OneCreator -> NotOneCreator[label=""];
+    _start -> Uninitialised[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Uninitialised"</I></B></TD></TR></TABLE>>];
+    Uninitialised -> OneCreator[label=<<TABLE BORDER="0"><TR><TD><I>"Uninitialised" -&gt; "OneCreator"</I></TD></TR><TR><TD>Email</TD></TR></TABLE>>];
+    OneCreator -> NotOneCreator[label=<<TABLE BORDER="0"><TR><TD><I>"OneCreator" -&gt; "NotOneCreator"</I></TD></TR></TABLE>>];
 }

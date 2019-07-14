@@ -5,13 +5,13 @@ digraph tokenising_stm {
     StartedBuildingNonBreakable[label="StartedBuildingNonBreakable"][shape="ellipse"];
     TokenComplete[label="TokenComplete"][shape="ellipse"];
     _start[label="_start"][shape="point"];
-    _start -> Empty[label=""];
-    TokenComplete -> BuildingBreakable[label=""];
-    TokenComplete -> NotStartedBuildingNonBreakable[label=""];
-    Empty -> StartedBuildingNonBreakable[label=""];
-    NotStartedBuildingNonBreakable -> StartedBuildingNonBreakable[label=""];
-    TokenComplete -> StartedBuildingNonBreakable[label=""];
-    Empty -> TokenComplete[label=""];
-    BuildingBreakable -> TokenComplete[label=""];
-    StartedBuildingNonBreakable -> TokenComplete[label=""];
+    _start -> Empty[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Empty"</I></B></TD></TR></TABLE>>];
+    TokenComplete -> BuildingBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"TokenComplete" -&gt; "BuildingBreakable"</I></TD></TR></TABLE>>];
+    TokenComplete -> NotStartedBuildingNonBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"TokenComplete" -&gt; "NotStartedBuildingNonBreakable"</I></TD></TR></TABLE>>];
+    Empty -> StartedBuildingNonBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "StartedBuildingNonBreakable"</I></TD></TR></TABLE>>];
+    NotStartedBuildingNonBreakable -> StartedBuildingNonBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"NotStartedBuildingNonBreakable" -&gt; "StartedBuildingNonBreakable"</I></TD></TR></TABLE>>];
+    TokenComplete -> StartedBuildingNonBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"TokenComplete" -&gt; "StartedBuildingNonBreakable"</I></TD></TR></TABLE>>];
+    Empty -> TokenComplete[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "TokenComplete"</I></TD></TR></TABLE>>];
+    BuildingBreakable -> TokenComplete[label=<<TABLE BORDER="0"><TR><TD><I>"BuildingBreakable" -&gt; "TokenComplete"</I></TD></TR></TABLE>>];
+    StartedBuildingNonBreakable -> TokenComplete[label=<<TABLE BORDER="0"><TR><TD><I>"StartedBuildingNonBreakable" -&gt; "TokenComplete"</I></TD></TR></TABLE>>];
 }
