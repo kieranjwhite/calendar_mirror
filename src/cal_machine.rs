@@ -36,12 +36,12 @@ use std::{
 stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [DisplayError] => ErrorWait(DownloadedAt);
     [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes();
-    [LoadAuth, NetworkOutage, PollEvents] => RefreshAuth(RefreshToken);
-    [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType);
+    [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate);
+    [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType, PendingDisplayDate);
     [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
     [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
-    [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType);
-    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt);
+    [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, PendingDisplayDate);
     [RefreshAuth, ReadFirstEvents, PageEvents] => NetworkOutage(RefreshToken, LastNetErrorAt)
 });
 
@@ -96,6 +96,8 @@ mod instant_types {
     instant!(DownloadedAt);
     instant!(LastNetErrorAt);
 }
+
+pub struct PendingDisplayDate(DateTime<Local>);
 
 impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
@@ -243,7 +245,7 @@ pub fn run(
     const GLYPH_Y_ORIGIN: GlyphYCnt = GlyphYCnt(0);
 
     let mut today = Local::today().and_hms(0, 0, 0);
-    let mut display_date = today;
+    let mut display_date = today; //don't delete this variable -- it's needed after a network outage to display events from that last date we navigated to, while at the same time reverting date changes due to the previous failed date navigation operation
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
     let mut mach: Machine = LoadAuth(cal_stm::LoadAuth);
@@ -277,7 +279,9 @@ pub fn run(
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
                 ),
                 Ok(None) => RequestCodes(st.into()),
-                Ok(Some(refresh_token)) => RefreshAuth(st.into(), refresh_token),
+                Ok(Some(refresh_token)) => {
+                    RefreshAuth(st.into(), refresh_token, PendingDisplayDate(today))
+                }
             },
             RequestCodes(st) => {
                 let mut resp: Response = retriever.retrieve_dev_and_code()?;
@@ -320,7 +324,7 @@ pub fn run(
                     }
                 }
             }
-            RefreshAuth(st, RefreshToken(refresh_token)) => {
+            RefreshAuth(st, RefreshToken(refresh_token), pending_display_date) => {
                 renderer.display_status(Status::NetworkPending, true)?;
                 match retriever.refresh(&refresh_token) {
                     Ok(mut resp) => {
@@ -345,6 +349,7 @@ pub fn run(
                                         credentials,
                                         RefreshedAt::now(),
                                         RefreshType::Full,
+                                        pending_display_date,
                                     )
                                 }
                             }
@@ -383,7 +388,13 @@ pub fn run(
                             println!("Body is next... {:?}", credentials_tokens);
                             let auth: Authenticators = credentials_tokens.into();
                             saver(&auth.refresh_token, renderer)?;
-                            ReadFirstEvents(st.into(), auth, RefreshedAt::now(), RefreshType::Full)
+                            ReadFirstEvents(
+                                st.into(),
+                                auth,
+                                RefreshedAt::now(),
+                                RefreshType::Full,
+                                PendingDisplayDate(today),
+                            )
                         }
                     }
                     other_status => match resp.json::<PollErrorResponse>() {
@@ -426,12 +437,19 @@ pub fn run(
                     },
                 }
             }
-            ReadFirstEvents(st, credentials_tokens, refreshed_at, refresh_type) => {
+            ReadFirstEvents(
+                st,
+                credentials_tokens,
+                refreshed_at,
+                refresh_type,
+                pending_display_date,
+            ) => {
                 renderer.display_status(Status::NetworkPending, true)?;
                 match retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
-                    &display_date,
-                    &(display_date + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                    &pending_display_date.0,
+                    &(pending_display_date.0 + chrono::Duration::days(1)
+                        - chrono::Duration::seconds(1)),
                     &Option::<PageToken>::None,
                 ) {
                     Ok(mut resp) => {
@@ -453,6 +471,7 @@ pub fn run(
                                     refreshed_at,
                                     DownloadedAt::now(),
                                     refresh_type,
+                                    pending_display_date,
                                 )
                             }
                             _other_status => {
@@ -483,27 +502,47 @@ pub fn run(
                 refreshed_at,
                 downloaded_at,
                 refresh_type,
+                pending_display_date,
             ) => {
                 if let None = page_token {
-                    println!("PageEvents. before display {:?}", v_pos);
-                    let pos_calculator = |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
-                        v_pos = new_pos(v_pos, num_event_rows, screen_height);
-                        v_pos
-                    };
-                    renderer.display_events(
-                        display_date.clone(),
-                        events,
-                        refresh_type,
-                        pos_calculator,
-                    )?;
-                    println!("PageEvents. after display {:?}", v_pos);
-                    PollEvents(st.into(), credentials_tokens, refreshed_at, downloaded_at)
+                    let new_today = Local::today().and_hms(0, 0, 0);
+                    if new_today != today && new_today != pending_display_date.0 {
+                        RefreshAuth(
+                            st.into(),
+                            credentials_tokens.refresh_token,
+                            PendingDisplayDate(new_today),
+                        )
+                    } else {
+                        today = new_today;
+                        display_date = pending_display_date.0;
+                        println!("PageEvents. before display {:?}", v_pos);
+                        let pos_calculator =
+                            |num_event_rows: GlyphYCnt, screen_height: GlyphYCnt| {
+                                v_pos = new_pos(v_pos, num_event_rows, screen_height);
+                                v_pos
+                            };
+                        renderer.display_events(
+                            display_date.clone(),
+                            events,
+                            refresh_type,
+                            pos_calculator,
+                        )?;
+                        println!("PageEvents. after display {:?}", v_pos);
+                        PollEvents(
+                            st.into(),
+                            credentials_tokens,
+                            refreshed_at,
+                            downloaded_at,
+                            pending_display_date,
+                        )
+                    }
                 } else {
                     renderer.display_status(Status::NetworkPending, true)?;
                     match retriever.read(
                         &format!("Bearer {}", credentials_tokens.volatiles.access_token),
-                        &display_date,
-                        &(display_date + chrono::Duration::days(1) - chrono::Duration::seconds(1)),
+                        &pending_display_date.0,
+                        &(pending_display_date.0 + chrono::Duration::days(1)
+                            - chrono::Duration::seconds(1)),
                         &page_token,
                     ) {
                         Ok(mut resp) => {
@@ -525,6 +564,7 @@ pub fn run(
                                         refreshed_at,
                                         downloaded_at,
                                         refresh_type,
+                                        pending_display_date,
                                     )
                                 }
                                 _other_status => {
@@ -548,7 +588,7 @@ pub fn run(
                     }
                 }
             }
-            PollEvents(st, credentials, refreshed_at, started_wait_at) => {
+            PollEvents(st, credentials, refreshed_at, started_wait_at, pending_display_date) => {
                 let waiting_for = started_wait_at.instant().elapsed();
                 let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
 
@@ -565,7 +605,7 @@ pub fn run(
                 if seconds_since_refresh + PREEMPTIVE_REFRESH_OFFSET_MINS.as_secs()
                     >= credentials.volatiles.expires_in
                 {
-                    RefreshAuth(st.into(), credentials.refresh_token)
+                    RefreshAuth(st.into(), credentials.refresh_token, pending_display_date)
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
@@ -577,20 +617,26 @@ pub fn run(
                     let release_check = |e: &LongButtonEvent| e.is_release();
                     let long_check = |e: &LongButtonEvent| e.is_long_press();
 
-                    let new_today = Local::today().and_hms(0, 0, 0);
-
                     if opt_filter(&reset_event, long_check) {
                         RequestCodes(st.into())
                     } else if opt_filter(&reset_event, short_check) {
                         shutdown()?;
-                        PollEvents(st, credentials, refreshed_at, started_wait_at)
-                    } else if today.date() != new_today.date()
-                        || opt_filter(&scroll_event, long_check)
-                    {
+                        PollEvents(
+                            st,
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            pending_display_date,
+                        )
+                    } else if opt_filter(&scroll_event, long_check) {
                         println!("full display & date refresh");
-                        today = new_today;
-                        display_date = today;
-                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Full)
+                        ReadFirstEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            RefreshType::Full,
+                            PendingDisplayDate(Local::today().and_hms(0, 0, 0)),
+                        )
                     } else if opt_filter(&scroll_event, short_check) {
                         println!("PollEvents. before scroll v_pos: {:?}", v_pos);
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
@@ -601,7 +647,13 @@ pub fn run(
                             };
                         renderer.scroll_events(pos_calculator)?;
                         println!("PollEvents. after scroll v_pos: {:?}", v_pos);
-                        PollEvents(st.into(), credentials, refreshed_at, started_wait_at)
+                        PollEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            pending_display_date,
+                        )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
@@ -610,21 +662,50 @@ pub fn run(
                             "partial display refresh after date change. v_pos: {:?}",
                             v_pos
                         );
-                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Partial)
+                        ReadFirstEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            RefreshType::Partial,
+                            pending_display_date,
+                        )
                     } else if waiting_for >= RECHECK_PERIOD {
                         println!("full display refresh due");
-                        ReadFirstEvents(st.into(), credentials, refreshed_at, RefreshType::Full)
+                        ReadFirstEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            RefreshType::Full,
+                            pending_display_date,
+                        )
                     } else if opt_filter(&back_event, short_check) {
-                        display_date = display_date - chrono::Duration::days(1);
-                        println!("New date: {:?}", display_date);
-                        renderer.refresh_date(&display_date)?;
-                        PollEvents(st, credentials, refreshed_at, started_wait_at)
+                        let new_display_date = display_date - chrono::Duration::days(1);
+                        renderer.refresh_date(&new_display_date)?;
+                        PollEvents(
+                            st,
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            PendingDisplayDate(new_display_date),
+                        )
                     } else if opt_filter(&next_event, short_check) {
-                        display_date = display_date + chrono::Duration::days(1);
-                        renderer.refresh_date(&display_date)?;
-                        PollEvents(st, credentials, refreshed_at, started_wait_at)
+                        let new_display_date = display_date + chrono::Duration::days(1);
+                        renderer.refresh_date(&new_display_date)?;
+                        PollEvents(
+                            st,
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            PendingDisplayDate(new_display_date),
+                        )
                     } else {
-                        PollEvents(st, credentials, refreshed_at, started_wait_at)
+                        PollEvents(
+                            st,
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            pending_display_date,
+                        )
                     }
                 }
             }
@@ -641,7 +722,7 @@ pub fn run(
                 )?;
 
                 if (seconds_since_outage & 8) == 8 {
-                    RefreshAuth(st.into(), refresh_token)
+                    RefreshAuth(st.into(), refresh_token, PendingDisplayDate(display_date))
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
