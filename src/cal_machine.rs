@@ -679,7 +679,7 @@ pub fn run(
                             pending_display_date,
                         )
                     } else if opt_filter(&back_event, short_check) {
-                        let new_display_date = display_date - chrono::Duration::days(1);
+                        let new_display_date = pending_display_date.0 - chrono::Duration::days(1);
                         renderer.refresh_date(&new_display_date)?;
                         PollEvents(
                             st,
@@ -689,7 +689,7 @@ pub fn run(
                             PendingDisplayDate(new_display_date),
                         )
                     } else if opt_filter(&next_event, short_check) {
-                        let new_display_date = display_date + chrono::Duration::days(1);
+                        let new_display_date = pending_display_date.0 + chrono::Duration::days(1);
                         renderer.refresh_date(&new_display_date)?;
                         PollEvents(
                             st,
