@@ -231,7 +231,6 @@ impl Renderer {
     }
 
     pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
-        self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -347,6 +346,7 @@ impl Renderer {
 
             self.pipe.send(ops.iter(), false)?;
         } else {
+            println!("no events");
             //Err(Error::InvalidState(InvalidStateError("self.render_events should have been the last rendering optation to have been invoked")))
         }
         Ok(())
