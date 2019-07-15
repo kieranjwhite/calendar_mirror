@@ -42,7 +42,8 @@ stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
     [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
     [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, PendingDisplayDate);
-    [RefreshAuth, ReadFirstEvents, PageEvents] => NetworkOutage(RefreshToken, LastNetErrorAt)
+    [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
+    [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt)
 });
 
 type PeriodSeconds = u64;
@@ -362,7 +363,7 @@ pub fn run(
 
                     Err(err) => {
                         eprintln!("Error refreshing: {:?}", err);
-                        NetworkOutage(
+                        CachedDisplay(
                             st.into(),
                             RefreshToken(refresh_token),
                             LastNetErrorAt::now(),
@@ -486,7 +487,7 @@ pub fn run(
                     }
                     Err(err) => {
                         eprintln!("Error refreshing: {:?}", err);
-                        NetworkOutage(
+                        CachedDisplay(
                             st.into(),
                             credentials_tokens.refresh_token,
                             LastNetErrorAt::now(),
@@ -579,7 +580,7 @@ pub fn run(
                         }
                         Err(err) => {
                             eprintln!("Error refreshing: {:?}", err);
-                            NetworkOutage(
+                            CachedDisplay(
                                 st.into(),
                                 credentials_tokens.refresh_token,
                                 LastNetErrorAt::now(),
@@ -654,6 +655,15 @@ pub fn run(
                             started_wait_at,
                             pending_display_date,
                         )
+                    } else if waiting_for >= RECHECK_PERIOD {
+                        println!("full display refresh due");
+                        ReadFirstEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            RefreshType::Full,
+                            pending_display_date,
+                        )
                     } else if opt_filter(&back_event, release_check)
                         || opt_filter(&next_event, release_check)
                     {
@@ -667,15 +677,6 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             RefreshType::Partial,
-                            pending_display_date,
-                        )
-                    } else if waiting_for >= RECHECK_PERIOD {
-                        println!("full display refresh due");
-                        ReadFirstEvents(
-                            st.into(),
-                            credentials,
-                            refreshed_at,
-                            RefreshType::Full,
                             pending_display_date,
                         )
                     } else if opt_filter(&back_event, short_check) {
@@ -708,6 +709,12 @@ pub fn run(
                         )
                     }
                 }
+            }
+            CachedDisplay(st, refresh_token, net_error_at) => {
+                let pos_calculator =
+                    |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| GlyphYCnt(0);
+                renderer.scroll_events(pos_calculator)?;
+                NetworkOutage(st.into(), refresh_token, net_error_at)
             }
             NetworkOutage(st, refresh_token, net_error_at) => {
                 let elapsed_since_outage = net_error_at.instant().elapsed();
