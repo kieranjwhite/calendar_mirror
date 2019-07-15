@@ -712,7 +712,7 @@ pub fn run(
             }
             CachedDisplay(st, refresh_token, net_error_at) => {
                 let pos_calculator =
-                    |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| GlyphYCnt(0);
+                    |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
                 renderer.scroll_events(pos_calculator)?;
                 NetworkOutage(st.into(), refresh_token, net_error_at)
             }
