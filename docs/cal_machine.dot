@@ -1,4 +1,5 @@
 digraph cal_stm {
+    CachedDisplay[label="CachedDisplay"][shape="ellipse"];
     DeviceAuthPoll[label="DeviceAuthPoll"][shape="ellipse"];
     DisplayError[label="DisplayError"][shape="ellipse"];
     ErrorWait[label="ErrorWait"][shape="ellipse"];
@@ -33,7 +34,8 @@ digraph cal_stm {
     RequestCodes -> DisplayError[label=<<TABLE BORDER="0"><TR><TD><I>"RequestCodes" -&gt; "DisplayError"</I></TD></TR><TR><TD>String</TD></TR></TABLE>>];
     ReadFirstEvents -> PageEvents[label=<<TABLE BORDER="0"><TR><TD><I>"ReadFirstEvents" -&gt; "PageEvents"</I></TD></TR><TR><TD>Authenticators</TD></TR><TR><TD>Option&lt;PageToken&gt;</TD></TR><TR><TD>Appointments</TD></TR><TR><TD>RefreshedAt</TD></TR><TR><TD>DownloadedAt</TD></TR><TR><TD>RefreshType</TD></TR><TR><TD>PendingDisplayDate</TD></TR></TABLE>>];
     PageEvents -> PollEvents[label=<<TABLE BORDER="0"><TR><TD><I>"PageEvents" -&gt; "PollEvents"</I></TD></TR><TR><TD>Authenticators</TD></TR><TR><TD>RefreshedAt</TD></TR><TR><TD>DownloadedAt</TD></TR><TR><TD>PendingDisplayDate</TD></TR></TABLE>>];
-    RefreshAuth -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"RefreshAuth" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
-    ReadFirstEvents -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"ReadFirstEvents" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
-    PageEvents -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"PageEvents" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
+    RefreshAuth -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"RefreshAuth" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
+    ReadFirstEvents -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"ReadFirstEvents" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
+    PageEvents -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"PageEvents" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
+    CachedDisplay -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"CachedDisplay" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
 }
