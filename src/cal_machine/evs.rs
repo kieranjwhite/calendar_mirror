@@ -2,7 +2,11 @@ use crate::{
     cal_machine::retriever::{self, EventsResponse},
     cloneable, copyable, err, stm,
 };
-use chrono::{format::ParseError, offset::LocalResult, prelude::*};
+use chrono::{
+    format::{strftime::StrftimeItems, DelayedFormat, ParseError},
+    offset::LocalResult,
+    prelude::*,
+};
 use std::cmp::Ordering;
 use Machine::*;
 
@@ -61,6 +65,25 @@ impl PeriodMarker {
 type TwoDateTimes = (DateTime<Local>, DateTime<Local>);
 copyable!(MissingDateTimeError, PeriodMarker);
 cloneable!(TimeZoneAmbiguousError, TwoDateTimes);
+cloneable!(StartDate, DateTime<Local>);
+cloneable!(EndDate, DateTime<Local>);
+
+macro_rules! delegate_date_time {
+    ($outer_type:ident) => {
+        impl $outer_type {
+            pub fn format<'a>(&self, fmt: &'a str) -> DelayedFormat<StrftimeItems<'a>> {
+                self.0.format(fmt)
+            }
+
+            pub fn cmp(&self, other: &Self) -> Ordering {
+                self.0.cmp(&other.0)
+            }
+        }
+    };
+}
+
+delegate_date_time!(StartDate);
+delegate_date_time!(EndDate);
 
 #[derive(Debug)]
 pub struct TimeZoneInvalidError();
@@ -72,8 +95,8 @@ pub struct Email(pub String);
 pub struct Event {
     pub summary: String,
     pub description: Option<String>,
-    pub start: DateTime<Local>,
-    pub end: DateTime<Local>,
+    pub start: StartDate,
+    pub end: EndDate,
 }
 
 impl Ord for Event {
@@ -102,10 +125,10 @@ impl From<&retriever::Event> for Result<Event, Error> {
         Ok(Event {
             summary: ev.summary.to_string(),
             description: ev.description.clone(),
-            start: PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
-                .select(&ev.start.date_time, &ev.start.date)?,
-            end: PeriodMarker::End(NaiveTime::from_hms(23, 59, 59))
-                .select(&ev.end.date_time, &ev.end.date)?,
+            start: StartDate(PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
+                .select(&ev.start.date_time, &ev.start.date)?),
+            end: EndDate(PeriodMarker::End(NaiveTime::from_hms(23, 59, 59))
+                .select(&ev.end.date_time, &ev.end.date)?),
         })
     }
 }

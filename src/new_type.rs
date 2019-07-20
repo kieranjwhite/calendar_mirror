@@ -21,9 +21,10 @@ macro_rules! copyable {
 
 #[macro_export]
 macro_rules! cloneable {
-    ($outer_type:ident, $inner_type: ident) => {
-        #[derive(Clone,Debug)]
+    ($outer_type:ident, $inner_type: ty) => {
+        #[derive(Clone,Debug, Eq, PartialEq)]
         pub struct $outer_type(pub $inner_type);
+
     }
 }
 
@@ -32,11 +33,5 @@ macro_rules! reffable {
     ($outer_type:ident, $inner_type: ident) => {
         #[derive(Debug)]
         pub struct $outer_type($inner_type);
-
-        impl $outer_type {
-            pub fn inner_ref() -> &$inner_type {
-                &self.0
-            }
-        }
     };
 }

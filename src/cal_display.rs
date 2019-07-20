@@ -1,6 +1,6 @@
 use crate::display::Operation as Op;
 use crate::{
-    cal_machine::evs::{Appointments, Email, Event},
+    cal_machine::evs::{Appointments, Email, EndDate, Event, StartDate},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
@@ -38,7 +38,7 @@ const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";
 const SUMMARY_DELIMITER: &str = "";
 
-const STATUS_FLASH_OFF: &str=" ";
+const STATUS_FLASH_OFF: &str = " ";
 
 const TIME_LEN: usize = 5;
 
@@ -77,7 +77,7 @@ struct EventContent {
 pub enum Status {
     AllOk,
     NetworkDown,
-    NetworkPending
+    NetworkPending,
 }
 
 impl Status {
@@ -88,9 +88,25 @@ impl Status {
             match self {
                 Status::AllOk => "!",
                 Status::NetworkDown => "i",
-                Status::NetworkPending => "G"
+                Status::NetworkPending => "G",
             }
         }
+    }
+}
+
+pub struct DatedDescription {
+    pub desc: String,
+    pub start: StartDate,
+    pub end: EndDate,
+}
+
+impl DatedDescription {
+    pub fn new(start: &StartDate, end: &EndDate, desc: String) -> DatedDescription {
+        DatedDescription { desc, start:start.clone(), end:end.clone() }
+    }
+
+    pub fn description(&self) -> &str {
+        &self.desc
     }
 }
 
@@ -130,7 +146,7 @@ impl Renderer {
                 + 1,
         );
 
-        event_str.push_str(&event.start.format(TIME_FORMAT).to_string());
+        event_str.push_str(&event.start.0.format(TIME_FORMAT).to_string());
         event_str.push_str(START_DELIMITER);
         event_str.push_str(&event.end.format(TIME_FORMAT).to_string());
         event_str.push_str(END_DELIMITER);
@@ -150,13 +166,13 @@ impl Renderer {
     }
 
     pub fn display_status(&mut self, status: Status, on: bool) -> Result<(), Error> {
-        if on == self.pulse_on && self.status==status {
+        if on == self.pulse_on && self.status == status {
             return Ok(());
         }
 
         self.pulse_on = on;
-        self.status=status;
-        
+        self.status = status;
+
         let mut ops: Vec<Op> = Vec::with_capacity(3);
         ops.push(Op::UpdateText(
             PULSE_ID.to_string(),
@@ -276,7 +292,14 @@ impl Renderer {
                 let mut events = content.apps.events.clone();
                 events.sort();
 
-                let ev_strs: Vec<String> = events.iter().map(|ev| Renderer::format(&ev)).collect();
+                let evs: Vec<DatedDescription> = events
+                    .iter()
+                    .map(|ev| {
+                        Ok(DatedDescription::new(&ev.start, &ev.end, self.formatter.just(&Renderer::format(&ev))?))
+                    })
+                    .collect::<Result<Vec<DatedDescription>, Error>>()?;
+
+                /*
                 let ev_ref_strs = &ev_strs;
                 let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
                 let mut all_events = String::with_capacity(event_len);
@@ -291,6 +314,10 @@ impl Renderer {
                     println!("line. idx: {:?} text: {:?}", line_idx, line);
                     line_idx += 1;
                 }
+                 */
+
+                let joined=evs.iter().map(|ev| ev.description()).collect::<Vec<&str>>().join("\n");
+                let lines= joined.lines().collect::<Vec<&str>>();
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
 
@@ -339,7 +366,10 @@ impl Renderer {
                 ops.push(Op::WriteAll(PartialUpdate(false)));
             } else {
                 ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
-                ops.push(Op::UpdateText(PULSE_ID.to_string(), STATUS_FLASH_OFF.to_string()));
+                ops.push(Op::UpdateText(
+                    PULSE_ID.to_string(),
+                    STATUS_FLASH_OFF.to_string(),
+                ));
                 ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
                 ops.push(Op::WriteAll(PartialUpdate(true)));
             }
