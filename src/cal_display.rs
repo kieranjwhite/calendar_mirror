@@ -1,6 +1,6 @@
 use crate::display::Operation as Op;
 use crate::{
-    cal_machine::evs::{Appointments, Email, EndDate, Event, StartDate},
+    cal_machine::evs::{Appointments, Email, EndDate, Event, Now, StartDate},
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
@@ -36,6 +36,7 @@ const NO_EMAIL: &str = "Email unknown";
 const NO_EVENTS: &str = "No events";
 const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";
+const IN_PROGRESS_DELIMITER: &str = "<";
 const SUMMARY_DELIMITER: &str = "";
 
 const STATUS_FLASH_OFF: &str = " ";
@@ -135,7 +136,7 @@ impl Renderer {
         Ok(())
     }
 
-    fn format(event: &Event) -> String {
+    fn format(event: &Event, now: &Now) -> String {
         let mut event_str = String::with_capacity(
             TIME_LEN
                 + START_DELIMITER.len()
@@ -149,7 +150,13 @@ impl Renderer {
         event_str.push_str(&event.start.0.format(TIME_FORMAT).to_string());
         event_str.push_str(START_DELIMITER);
         event_str.push_str(&event.end.format(TIME_FORMAT).to_string());
-        event_str.push_str(END_DELIMITER);
+
+        if event.in_progress(now) {
+            event_str.push_str(IN_PROGRESS_DELIMITER);
+        } else {
+            event_str.push_str(END_DELIMITER);
+        }
+        
         event_str.push_str(&event.summary);
         event_str.push_str(SUMMARY_DELIMITER);
         event_str.push('\n');
@@ -262,14 +269,16 @@ impl Renderer {
 
     pub fn scroll_events(
         &mut self,
+        now: Now,
         pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        self.render_events(RefreshType::Partial, pos_calculator)
+        self.render_events(RefreshType::Partial, now, pos_calculator)
     }
 
     fn render_events(
         &mut self,
         render_type: RefreshType,
+        now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
         if let Some(ref content) = self.events {
@@ -295,26 +304,9 @@ impl Renderer {
                 let evs: Vec<DatedDescription> = events
                     .iter()
                     .map(|ev| {
-                        Ok(DatedDescription::new(&ev.start, &ev.end, self.formatter.just(&Renderer::format(&ev))?))
+                        Ok(DatedDescription::new(&ev.start, &ev.end, self.formatter.just(&Renderer::format(&ev, &now))?))
                     })
                     .collect::<Result<Vec<DatedDescription>, Error>>()?;
-
-                /*
-                let ev_ref_strs = &ev_strs;
-                let event_len = ev_ref_strs.iter().fold(0, |s, ev| s + ev.len());
-                let mut all_events = String::with_capacity(event_len);
-                for ev in ev_strs {
-                    all_events.push_str(&ev);
-                }
-
-                let joined = self.formatter.just_lines(&all_events)?.join("\n");
-                let lines = joined.lines().collect::<Vec<&str>>();
-                let mut line_idx = 0;
-                for line in lines.iter() {
-                    println!("line. idx: {:?} text: {:?}", line_idx, line);
-                    line_idx += 1;
-                }
-                 */
 
                 let joined=evs.iter().map(|ev| ev.description()).collect::<Vec<&str>>().join("\n");
                 let lines= joined.lines().collect::<Vec<&str>>();
@@ -387,10 +379,11 @@ impl Renderer {
         date: DateTime<Local>,
         apps: Appointments,
         render_type: RefreshType,
+        now: Now,
         pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
         let content = EventContent { date, apps };
         self.events = Some(content);
-        self.render_events(render_type, pos_calculator)
+        self.render_events(render_type, now, pos_calculator)
     }
 }

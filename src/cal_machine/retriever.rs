@@ -152,8 +152,8 @@ pub struct PollErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DateTimeStamp {
     //#[serde(rename = "dateTime")]
-    pub date_time: Option<String>,
-    pub date: Option<String>
+    pub date_time: Option<String>, //most events provide date and time
+    pub date: Option<String> //but all-day events only provide the date
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]

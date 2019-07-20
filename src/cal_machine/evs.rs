@@ -67,6 +67,7 @@ copyable!(MissingDateTimeError, PeriodMarker);
 cloneable!(TimeZoneAmbiguousError, TwoDateTimes);
 cloneable!(StartDate, DateTime<Local>);
 cloneable!(EndDate, DateTime<Local>);
+cloneable!(Now, DateTime<Local>);
 
 macro_rules! delegate_date_time {
     ($outer_type:ident) => {
@@ -78,12 +79,17 @@ macro_rules! delegate_date_time {
             pub fn cmp(&self, other: &Self) -> Ordering {
                 self.0.cmp(&other.0)
             }
-        }
+
+            pub fn cmp_date_time(&self, other: &DateTime<Local>) -> Ordering {
+                self.0.cmp(&other)
+            }
+}
     };
 }
 
 delegate_date_time!(StartDate);
 delegate_date_time!(EndDate);
+delegate_date_time!(Now);
 
 #[derive(Debug)]
 pub struct TimeZoneInvalidError();
@@ -95,8 +101,15 @@ pub struct Email(pub String);
 pub struct Event {
     pub summary: String,
     pub description: Option<String>,
+    pub all_consuming: bool, //if an event is all consuming it is treated as being something that a person will be occupied with between the start and end date and the display should indicate that. Most events are treated as all consuming. All-day events aren't.
     pub start: StartDate,
     pub end: EndDate,
+}
+
+impl Event {
+    pub fn in_progress(&self, now: &Now) -> bool {
+        return now.cmp_date_time(&self.start.0)!=Ordering::Less && now.cmp_date_time(&self.end.0)==Ordering::Less
+    }
 }
 
 impl Ord for Event {
@@ -125,10 +138,15 @@ impl From<&retriever::Event> for Result<Event, Error> {
         Ok(Event {
             summary: ev.summary.to_string(),
             description: ev.description.clone(),
-            start: StartDate(PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
-                .select(&ev.start.date_time, &ev.start.date)?),
-            end: EndDate(PeriodMarker::End(NaiveTime::from_hms(23, 59, 59))
-                .select(&ev.end.date_time, &ev.end.date)?),
+            all_consuming: !(ev.start.date_time.is_none() && ev.end.date_time.is_none()),
+            start: StartDate(
+                PeriodMarker::Start(NaiveTime::from_hms(0, 0, 0))
+                    .select(&ev.start.date_time, &ev.start.date)?,
+            ),
+            end: EndDate(
+                PeriodMarker::End(NaiveTime::from_hms(23, 59, 59))
+                    .select(&ev.end.date_time, &ev.end.date)?,
+            ),
         })
     }
 }

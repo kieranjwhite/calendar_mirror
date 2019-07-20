@@ -4,7 +4,7 @@ mod retriever;
 use crate::{
     cal_display::{Error as CalDisplayError, RefreshType, Renderer, Status},
     cal_machine::{
-        evs::{Appointments, Error as EvError},
+        evs::{Appointments, Error as EvError, Now},
         instant_types::*,
     },
     display::{self},
@@ -506,6 +506,7 @@ pub fn run(
                 pending_display_date,
             ) => {
                 if let None = page_token {
+                    let now=Local::now();
                     let new_today = Local::today().and_hms(0, 0, 0);
                     if new_today != today && new_today != pending_display_date.0 {
                         RefreshAuth(
@@ -526,6 +527,7 @@ pub fn run(
                             display_date.clone(),
                             events,
                             refresh_type,
+                            Now(now),
                             pos_calculator,
                         )?;
                         println!("PageEvents. after display {:?}", v_pos);
@@ -646,7 +648,7 @@ pub fn run(
                                 v_pos = new_pos(v_pos, num_event_rows, screen_height);
                                 v_pos
                             };
-                        renderer.scroll_events(pos_calculator)?;
+                        renderer.scroll_events( Now(Local::now()), pos_calculator)?;
                         println!("PollEvents. after scroll v_pos: {:?}", v_pos);
                         PollEvents(
                             st.into(),
@@ -713,7 +715,7 @@ pub fn run(
             CachedDisplay(st, refresh_token, net_error_at) => {
                 let pos_calculator =
                     |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
-                renderer.scroll_events(pos_calculator)?;
+                renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                 NetworkOutage(st.into(), refresh_token, net_error_at)
             }
             NetworkOutage(st, refresh_token, net_error_at) => {
@@ -754,7 +756,7 @@ pub fn run(
                                 println!("pos_calculator. v_pos {:?} num_event_rows {:?} screen_height {:?} v_pos {:?}", v_pos, num_event_rows, screen_height, v_pos);
                                 v_pos
                             };
-                        renderer.scroll_events(pos_calculator)?;
+                        renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                         println!("NetworkOutage. after scroll. v_pos: {:?}", v_pos);
                         NetworkOutage(st.into(), refresh_token, net_error_at)
                     } else {
