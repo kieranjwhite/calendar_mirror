@@ -316,6 +316,8 @@ impl Renderer {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
             } else {
+                println!("render_events. now: {:?}", now);
+                
                 let mut events = content.apps.events.clone();
                 events.sort();
 
@@ -342,6 +344,7 @@ impl Renderer {
                                     Some(Ordering::Less) => Before(st),
                                     Some(Ordering::Equal) => InProgress(st.into()),
                                     Some(Ordering::Greater) => {
+                                        println!("will insert time before: {:?}", ev);
                                         insert_time = true;
                                         After(st.into())
                                     }
@@ -371,7 +374,7 @@ impl Renderer {
                             None
                         };
 
-                        let (_, time_displayable) = match Minute::new(&now, "Now") {
+                        let (_, time_displayable) = match Minute::new(&now, "      Now") {
                             Ok(instant) => Renderer::format(&instant, &now),
                             Err(error) => return Some(Err(error.into())),
                         };
