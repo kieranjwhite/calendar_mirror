@@ -1,11 +1,19 @@
 use crate::display::Operation as Op;
 use crate::{
-    cal_machine::evs::{Appointments, Email, EndDate, Event, Now, StartDate},
+    cal_machine::evs::{
+        Appointments, DisplayableOccasion, Email, Error as EventError, Minute, Now,
+        TIME_FORMAT,
+    },
+    cloneable,
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
     err,
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
+    stm,
 };
+use Machine::*;
+
 use chrono::prelude::*;
+use core::cmp::Ordering;
 
 const HEADING_ID: &str = "heading";
 const PULSE_ID: &str = "pulse";
@@ -30,23 +38,25 @@ const EMAIL_SIZE: u32 = 10;
 const EVENTS_SIZE: u32 = 16;
 
 const DATE_FORMAT: &str = "%e %b";
-const TIME_FORMAT: &str = "%H:%M";
 
 const NO_EMAIL: &str = "Email unknown";
 const NO_EVENTS: &str = "No events";
-const START_DELIMITER: &str = "-";
 const END_DELIMITER: &str = " ";
 const IN_PROGRESS_DELIMITER: &str = "<";
-const SUMMARY_DELIMITER: &str = "";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-const TIME_LEN: usize = 5;
+stm!(appointment_stm, Machine, []=> Before(), {
+    [Before] => InProgress();
+    [Before, InProgress] => After();
+    [InProgress, After] => Error()
+});
 
 #[derive(Debug)]
 pub struct InvalidStateError(&'static str);
 
 err!(Error {
+    Events(EventError),
     Display(DisplayError),
     Format(formatter::Error),
     InvalidState(InvalidStateError)
@@ -94,7 +104,7 @@ impl Status {
         }
     }
 }
-
+/*
 pub struct DatedDescription {
     pub desc: String,
     pub start: StartDate,
@@ -103,12 +113,28 @@ pub struct DatedDescription {
 
 impl DatedDescription {
     pub fn new(start: &StartDate, end: &EndDate, desc: String) -> DatedDescription {
-        DatedDescription { desc, start:start.clone(), end:end.clone() }
+        DatedDescription {
+            desc,
+            start: start.clone(),
+            end: end.clone(),
+        }
     }
 
     pub fn description(&self) -> &str {
         &self.desc
     }
+}
+*/
+cloneable!(EventDescription, String);
+cloneable!(NowDescription, String);
+
+enum DisplayRecord {
+    Event(EventDescription),
+    TimeBeforeEvent(NowDescription, EventDescription),
+}
+
+struct MutableMachineWrapper {
+    mach_opt: Option<Machine>,
 }
 
 impl Renderer {
@@ -136,32 +162,24 @@ impl Renderer {
         Ok(())
     }
 
-    fn format(event: &Event, now: &Now) -> String {
-        let mut event_str = String::with_capacity(
-            TIME_LEN
-                + START_DELIMITER.len()
-                + TIME_LEN
-                + END_DELIMITER.len()
-                + event.summary.len()
-                + SUMMARY_DELIMITER.len()
-                + 1,
-        );
+    fn format(event: &impl DisplayableOccasion, now: &Now) -> (Option<Ordering>, String) {
+        let mut event_str = String::with_capacity(40);
 
-        event_str.push_str(&event.start.0.format(TIME_FORMAT).to_string());
-        event_str.push_str(START_DELIMITER);
-        event_str.push_str(&event.end.format(TIME_FORMAT).to_string());
+        event_str.push_str(&event.period());
 
-        if event.in_progress(now) {
+        let ordering = event.partial_chron_cmp(now);
+        if let Some(Ordering::Equal) = ordering {
             event_str.push_str(IN_PROGRESS_DELIMITER);
         } else {
             event_str.push_str(END_DELIMITER);
         }
-        
-        event_str.push_str(&event.summary);
-        event_str.push_str(SUMMARY_DELIMITER);
+
+        event_str.push_str(END_DELIMITER);
+
+        event_str.push_str(&event.description());
         event_str.push('\n');
 
-        event_str
+        (ordering, event_str)
     }
 
     pub fn clear(&mut self) -> Result<(), Error> {
@@ -301,15 +319,94 @@ impl Renderer {
                 let mut events = content.apps.events.clone();
                 events.sort();
 
-                let evs: Vec<DatedDescription> = events
-                    .iter()
-                    .map(|ev| {
-                        Ok(DatedDescription::new(&ev.start, &ev.end, self.formatter.just(&Renderer::format(&ev, &now))?))
-                    })
-                    .collect::<Result<Vec<DatedDescription>, Error>>()?;
+                let mach = Before(appointment_stm::Before);
+                let wrapper = MutableMachineWrapper {
+                    mach_opt: Some(mach),
+                };
 
-                let joined=evs.iter().map(|ev| ev.description()).collect::<Vec<&str>>().join("\n");
-                let lines= joined.lines().collect::<Vec<&str>>();
+                //let mut busy_now = false;
+                let joined = events
+                    .iter()
+                    .scan(wrapper, |wrapper, ev| {
+                        let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
+
+                        //if let Some(Ordering::Equal) = partial_ordering {
+                        //    busy_now = true;
+                        //}
+
+                        let mut insert_time = false;
+                        let mach_opt = wrapper.mach_opt.take();
+                        wrapper.mach_opt = if let Some(mach) = mach_opt {
+                            Some(match mach {
+                                Before(st) => match partial_ordering {
+                                    Some(Ordering::Less) => Before(st),
+                                    Some(Ordering::Equal) => InProgress(st.into()),
+                                    Some(Ordering::Greater) => {
+                                        insert_time = true;
+                                        After(st.into())
+                                    }
+                                    None => Before(st),
+                                },
+                                InProgress(st) => match partial_ordering {
+                                    Some(Ordering::Less) => Error(st.into()),
+                                    Some(Ordering::Equal) => InProgress(st),
+                                    Some(Ordering::Greater) => After(st.into()),
+                                    None => InProgress(st),
+                                },
+                                After(st) => match partial_ordering {
+                                    Some(Ordering::Less) => Error(st.into()),
+                                    Some(Ordering::Equal) => Error(st.into()),
+                                    Some(Ordering::Greater) => After(st),
+                                    None => After(st),
+                                },
+                                Error(st) => {
+                                    eprintln!(
+                                        "overlapping events in cal_display: {:?}",
+                                        content.date
+                                    );
+                                    Error(st)
+                                }
+                            })
+                        } else {
+                            None
+                        };
+
+                        let (_, time_displayable) = match Minute::new(&now, "Now") {
+                            Ok(instant) => Renderer::format(&instant, &now),
+                            Err(error) => return Some(Err(error.into())),
+                        };
+
+                        match self.formatter.just(&ev_displayable) {
+                            Ok(formatted) => {
+                                let event = EventDescription(formatted);
+                                if insert_time {
+                                    Some(Ok(DisplayRecord::TimeBeforeEvent(
+                                        NowDescription(time_displayable),
+                                        event,
+                                    )))
+                                } else {
+                                    Some(Ok(DisplayRecord::Event(event)))
+                                }
+                            }
+                            Err(error) => return Some(Err(error.into())),
+                        }
+                    })
+                    .flat_map(|action| match action {
+                        Ok(DisplayRecord::TimeBeforeEvent(now, event)) => {
+                            vec![Ok(now.as_ref().clone()), Ok(event.as_ref().clone())].into_iter()
+                        }
+                        Ok(DisplayRecord::Event(event)) => vec![Ok(event.as_ref().clone())].into_iter(),
+                        Err(error) => vec![Err(error)].into_iter(),
+                    })
+                    .collect::<Result<Vec<String>, Error>>()?
+                    .join("\n");
+
+                //let joined = evs
+                //    .iter()
+                //    .map(|ev| ev.description())
+                //    .collect::<Vec<&str>>()
+                //    .join("\n");
+                let lines = joined.lines().collect::<Vec<&str>>();
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
 

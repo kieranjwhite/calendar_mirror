@@ -2,7 +2,7 @@ pub mod evs;
 mod retriever;
 
 use crate::{
-    cal_display::{Error as CalDisplayError, RefreshType, Renderer, Status},
+    cal_display::{Error as CalDisplayError, RefreshType, Renderer, self, Status},
     cal_machine::{
         evs::{Appointments, Error as EvError, Now},
         instant_types::*,
@@ -178,6 +178,10 @@ pub fn render_stms() -> Result<(), Error> {
 
     f = File::create("docs/tokenising_stm.dot")?;
     formatter::Machine::render_to(&mut f);
+    f.flush()?;
+
+    f = File::create("docs/appointments_stm.dot")?;
+    cal_display::Machine::render_to(&mut f);
     f.flush()?;
 
     Ok(())
@@ -506,7 +510,7 @@ pub fn run(
                 pending_display_date,
             ) => {
                 if let None = page_token {
-                    let now=Local::now();
+                    let now = Local::now();
                     let new_today = Local::today().and_hms(0, 0, 0);
                     if new_today != today && new_today != pending_display_date.0 {
                         RefreshAuth(
@@ -648,7 +652,7 @@ pub fn run(
                                 v_pos = new_pos(v_pos, num_event_rows, screen_height);
                                 v_pos
                             };
-                        renderer.scroll_events( Now(Local::now()), pos_calculator)?;
+                        renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                         println!("PollEvents. after scroll v_pos: {:?}", v_pos);
                         PollEvents(
                             st.into(),
@@ -713,8 +717,7 @@ pub fn run(
                 }
             }
             CachedDisplay(st, refresh_token, net_error_at) => {
-                let pos_calculator =
-                    |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
+                let pos_calculator = |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
                 renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                 NetworkOutage(st.into(), refresh_token, net_error_at)
             }

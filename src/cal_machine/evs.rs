@@ -2,16 +2,16 @@ use crate::{
     cal_machine::retriever::{self, EventsResponse},
     cloneable, copyable, err, stm,
 };
-use chrono::{
-    format::{strftime::StrftimeItems, DelayedFormat, ParseError},
-    offset::LocalResult,
-    prelude::*,
-};
+use chrono::{format::ParseError, offset::LocalResult, prelude::*, Duration};
 use std::cmp::Ordering;
 use Machine::*;
 
+#[derive(Debug)]
+pub struct ArgumentOutOfRange();
+
 err!(Error {
     Chrono(ParseError),
+    ArgumentOutOfRange(ArgumentOutOfRange),
     MissingDateTime(MissingDateTimeError),
     TimeZoneInvalid(TimeZoneInvalidError),
     TimeZoneAmbiguous(TimeZoneAmbiguousError)
@@ -21,6 +21,8 @@ stm!(ev_stm, Machine, [] => Uninitialised(), {
         [Uninitialised] => OneCreator(Email);
         [OneCreator] => NotOneCreator()
     });
+
+pub const TIME_FORMAT: &str = "%H:%M";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PeriodMarker {
@@ -69,33 +71,56 @@ cloneable!(StartDate, DateTime<Local>);
 cloneable!(EndDate, DateTime<Local>);
 cloneable!(Now, DateTime<Local>);
 
-macro_rules! delegate_date_time {
-    ($outer_type:ident) => {
-        impl $outer_type {
-            pub fn format<'a>(&self, fmt: &'a str) -> DelayedFormat<StrftimeItems<'a>> {
-                self.0.format(fmt)
-            }
-
-            pub fn cmp(&self, other: &Self) -> Ordering {
-                self.0.cmp(&other.0)
-            }
-
-            pub fn cmp_date_time(&self, other: &DateTime<Local>) -> Ordering {
-                self.0.cmp(&other)
-            }
-}
-    };
-}
-
-delegate_date_time!(StartDate);
-delegate_date_time!(EndDate);
-delegate_date_time!(Now);
-
 #[derive(Debug)]
 pub struct TimeZoneInvalidError();
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Email(pub String);
+
+pub trait DisplayableOccasion {
+    fn description(&self) -> String;
+    fn period(&self) -> String;
+    //fn in_progress(&self, now: &Now) -> bool;
+    fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering>;
+    //fn all_consuming(&self) -> bool;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Minute {
+    pub label: String,
+    pub time: Now,
+    pub after: DateTime<Local>,
+}
+
+impl Minute {
+    pub fn new(time: &Now, label: &str) -> Result<Minute, Error> {
+        Ok(Minute {
+            time: Now(time
+                .0
+                .with_hour(0)
+                .and_then(|today| today.with_minute(0))
+                .and_then(|today| today.with_second(0))
+                .and_then(|today| today.with_nanosecond(0))
+                .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?),
+            label: label.to_string(),
+            after: time.0 + Duration::minutes(1),
+        })
+    }
+}
+
+impl DisplayableOccasion for Minute {
+    fn description(&self) -> String {
+        self.label.clone()
+    }
+
+    fn period(&self) -> String {
+        self.time.as_ref().format(TIME_FORMAT).to_string()
+    }
+
+    fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering> {
+        self.time.as_ref().partial_cmp(other.as_ref())
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Event {
@@ -106,16 +131,38 @@ pub struct Event {
     pub end: EndDate,
 }
 
-impl Event {
-    pub fn in_progress(&self, now: &Now) -> bool {
-        return now.cmp_date_time(&self.start.0)!=Ordering::Less && now.cmp_date_time(&self.end.0)==Ordering::Less
+impl DisplayableOccasion for Event {
+    fn description(&self) -> String {
+        self.summary.clone()
+    }
+
+    fn period(&self) -> String {
+        let mut result = String::new();
+        result.push_str(&self.start.as_ref().format(TIME_FORMAT).to_string());
+        result.push_str("-");
+        result.push_str(&self.end.as_ref().format(TIME_FORMAT).to_string());
+        result
+    }
+
+    fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering> {
+        if self.all_consuming {
+            match other.as_ref().cmp(self.start.as_ref()) {
+                Ordering::Less => Some(Ordering::Less),
+                _ => match other.as_ref().cmp(self.end.as_ref()) {
+                    Ordering::Less => Some(Ordering::Equal),
+                    _ => Some(Ordering::Greater),
+                },
+            }
+        } else {
+            None
+        }
     }
 }
 
 impl Ord for Event {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.start.cmp(&other.start) {
-            Ordering::Equal => match self.end.cmp(&other.end) {
+        match self.start.as_ref().cmp(other.start.as_ref()) {
+            Ordering::Equal => match self.end.as_ref().cmp(other.end.as_ref()) {
                 Ordering::Equal => match self.summary.cmp(&other.summary) {
                     Ordering::Equal => self.description.cmp(&other.description),
                     other => other,
