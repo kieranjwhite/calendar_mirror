@@ -146,11 +146,11 @@ impl DisplayableOccasion for Event {
 
     fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering> {
         if self.all_consuming {
-            match other.as_ref().cmp(self.start.as_ref()) {
-                Ordering::Less => Some(Ordering::Less),
-                _ => match other.as_ref().cmp(self.end.as_ref()) {
-                    Ordering::Less => Some(Ordering::Equal),
-                    _ => Some(Ordering::Greater),
+            match self.start.as_ref().cmp(other.as_ref()) {
+                Ordering::Greater => Some(Ordering::Greater),
+                _ => match self.end.as_ref().cmp(other.as_ref()) {
+                    Ordering::Greater => Some(Ordering::Equal),
+                    _ => Some(Ordering::Less),
                 },
             }
         } else {
