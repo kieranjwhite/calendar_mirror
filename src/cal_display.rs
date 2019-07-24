@@ -402,10 +402,14 @@ impl Renderer {
                             None
                         };
 
-                        let (_, time_displayable) = match Minute::new(&now, "Now") {
-                            Ok(instant) => Renderer::format(&instant, &now),
-                            Err(error) => return Some(Err(error.into())),
-                        };
+                        let time_displayable: String=match Minute::new(&now, "Now")
+                            .or_else(|e| Err(Error::from(e)))
+                            .and_then(|n|self.formatter.just(&Renderer::format(&n, &now).1)
+                                      .or_else(|e| Err(Error::from(e))))
+                             {
+                                Ok(just_time) => just_time,
+                                Err(error) => return Some(Err(error))
+                            };
 
                         let result=match self.formatter.just(&ev_displayable) {
                             Ok(formatted) => {
@@ -445,12 +449,12 @@ impl Renderer {
                     })
                     .collect::<Result<Vec<String>, Error>>()?
                     .join("\n");
-                println!("joined: {:?}",joined);
+                println!("joined: {:?}", joined);
                 let lines = joined.lines().collect::<Vec<&str>>();
-                println!("lines: {:?}",lines);
+                println!("lines: {:?}", lines);
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
-                println!("justified events: {:?}",justified_events);
+                println!("justified events: {:?}", justified_events);
 
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
