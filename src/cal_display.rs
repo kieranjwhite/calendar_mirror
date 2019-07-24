@@ -386,7 +386,7 @@ impl Renderer {
                                     },
                                     Some(Ordering::Equal) => {
                                         eprintln!(
-                                            "overlapping events in cal_display from After when less: {:?}",
+                                            "overlapping events in cal_display from After when equal: {:?}",
                                             content.date);
                                         Error(st.into())
                                     },
@@ -442,15 +442,12 @@ impl Renderer {
                     })
                     .collect::<Result<Vec<String>, Error>>()?
                     .join("\n");
-
-                //let joined = evs
-                //    .iter()
-                //    .map(|ev| ev.description())
-                //    .collect::<Vec<&str>>()
-                //    .join("\n");
+                println!("joined: {:?}",joined);
                 let lines = joined.lines().collect::<Vec<&str>>();
+                println!("lines: {:?}",lines);
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
+                println!("justified events: {:?}",justified_events);
 
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
