@@ -111,7 +111,7 @@ impl DisplayableOccasion for Minute {
     }
 
     fn period(&self) -> String {
-        self.time.as_ref().format(TIME_FORMAT).to_string()
+        self.time.as_ref().format(TIME_FORMAT).to_string()+"<<<<<<"
     }
 
     fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering> {
