@@ -1,8 +1,7 @@
 use crate::display::Operation as Op;
 use crate::{
     cal_machine::evs::{
-        Appointments, DisplayableOccasion, Email, Error as EventError, Minute, Now,
-        TIME_FORMAT,
+        Appointments, DisplayableOccasion, Email, Error as EventError, Minute, Now, TIME_FORMAT,
     },
     cloneable,
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
@@ -13,7 +12,7 @@ use crate::{
 use Machine::*;
 
 use chrono::prelude::*;
-use core::cmp::Ordering;
+use core::{cmp::Ordering, fmt::Debug};
 
 const HEADING_ID: &str = "heading";
 const PULSE_ID: &str = "pulse";
@@ -169,19 +168,21 @@ impl Renderer {
         Ok(())
     }
 
-    fn format(event: &impl DisplayableOccasion, now: &Now) -> (Option<Ordering>, String) {
+    fn format<E: DisplayableOccasion + Debug>(event: &E, now: &Now) -> (Option<Ordering>, String) {
         let mut event_str = String::with_capacity(40);
 
         event_str.push_str(&event.period());
 
         let ordering = event.partial_chron_cmp(now);
+        println!(
+            "format: compared: {:?} with {:?}. Result: {:?}",
+            event, now, ordering
+        );
         if let Some(Ordering::Equal) = ordering {
             event_str.push_str(IN_PROGRESS_DELIMITER);
         } else {
             event_str.push_str(END_DELIMITER);
         }
-
-        event_str.push_str(END_DELIMITER);
 
         event_str.push_str(&event.description());
         event_str.push('\n');
@@ -339,6 +340,7 @@ impl Renderer {
                     .iter()
                     .enumerate()
                     .scan(wrapper, |wrapper, (idx, ev)| {
+                        println!("before event vs now comparison: now {:?}", now);
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
                         let mut display_action = DisplayAction::Event;
