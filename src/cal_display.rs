@@ -366,22 +366,34 @@ impl Renderer {
                                     None => Before(st),
                                 },
                                 InProgress(st) => match partial_ordering {
-                                    Some(Ordering::Less) => Error(st.into()),
+                                    Some(Ordering::Less) => {
+                                        eprintln!(
+                                            "overlapping events in cal_display from InProgress when less: {:?}",
+                                            content.date);
+                                        Error(st.into())
+                                    },
                                     Some(Ordering::Equal) => InProgress(st),
                                     Some(Ordering::Greater) => After(st.into()),
                                     None => InProgress(st),
                                 },
                                 After(st) => match partial_ordering {
-                                    Some(Ordering::Less) => Error(st.into()),
-                                    Some(Ordering::Equal) => Error(st.into()),
+                                    Some(Ordering::Less) => {
+                                        eprintln!(
+                                            "overlapping events in cal_display from After when less: {:?}",
+                                            content.date
+                                        );
+                                        Error(st.into())
+                                    },
+                                    Some(Ordering::Equal) => {
+                                        eprintln!(
+                                            "overlapping events in cal_display from After when less: {:?}",
+                                            content.date);
+                                        Error(st.into())
+                                    },
                                     Some(Ordering::Greater) => After(st),
                                     None => After(st),
                                 },
                                 Error(st) => {
-                                    eprintln!(
-                                        "overlapping events in cal_display: {:?}",
-                                        content.date
-                                    );
                                     Error(st)
                                 }
                             })
