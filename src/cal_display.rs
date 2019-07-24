@@ -402,7 +402,7 @@ impl Renderer {
                             None
                         };
 
-                        let time_displayable: String=match Minute::new(&now, "Now")
+                        let time_displayable: String=match Minute::new(&now, "      Now")
                             .or_else(|e| Err(Error::from(e)))
                             .and_then(|n|self.formatter.just(&Renderer::format(&n, &now).1)
                                       .or_else(|e| Err(Error::from(e))))
