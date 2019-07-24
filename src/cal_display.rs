@@ -133,6 +133,7 @@ enum DisplayAction {
     EventAndTime,
 }
 
+#[derive(Debug)]
 enum DisplayRecord {
     Event(EventDescription),
     TimeAndEvent(NowDescription, EventDescription),
@@ -406,7 +407,7 @@ impl Renderer {
                             Err(error) => return Some(Err(error.into())),
                         };
 
-                        match self.formatter.just(&ev_displayable) {
+                        let result=match self.formatter.just(&ev_displayable) {
                             Ok(formatted) => {
                                 let event = EventDescription(formatted);
                                 match display_action {
@@ -426,7 +427,9 @@ impl Renderer {
                                 }
                             }
                             Err(error) => return Some(Err(error.into())),
-                        }
+                        };
+                        println!("result of scan: {:?}", result);
+                        result
                     })
                     .flat_map(|action| match action {
                         Ok(DisplayRecord::EventAndTime(event, now)) => {
