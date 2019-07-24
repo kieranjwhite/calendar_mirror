@@ -128,9 +128,16 @@ impl DatedDescription {
 cloneable!(EventDescription, String);
 cloneable!(NowDescription, String);
 
+enum DisplayAction {
+    Event,
+    TimeAndEvent,
+    EventAndTime,
+}
+
 enum DisplayRecord {
     Event(EventDescription),
-    TimeBeforeEvent(NowDescription, EventDescription),
+    TimeAndEvent(NowDescription, EventDescription),
+    EventAndTime(EventDescription, NowDescription),
 }
 
 struct MutableMachineWrapper {
@@ -317,7 +324,7 @@ impl Renderer {
                 }
             } else {
                 println!("render_events. now: {:?}", now);
-                
+
                 let mut events = content.apps.events.clone();
                 events.sort();
 
@@ -327,25 +334,31 @@ impl Renderer {
                 };
 
                 //let mut busy_now = false;
+                let num_events = events.len();
                 let joined = events
                     .iter()
-                    .scan(wrapper, |wrapper, ev| {
+                    .enumerate()
+                    .scan(wrapper, |wrapper, (idx, ev)| {
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
-                        //if let Some(Ordering::Equal) = partial_ordering {
-                        //    busy_now = true;
-                        //}
-
-                        let mut insert_time = false;
+                        let mut display_action = DisplayAction::Event;
                         let mach_opt = wrapper.mach_opt.take();
                         wrapper.mach_opt = if let Some(mach) = mach_opt {
                             Some(match mach {
                                 Before(st) => match partial_ordering {
-                                    Some(Ordering::Less) => Before(st),
+                                    Some(Ordering::Less) => {
+                                        if idx + 1 == num_events {
+                                            println!("will append time at end");
+                                            display_action = DisplayAction::EventAndTime;
+                                            After(st.into())
+                                        } else {
+                                            Before(st)
+                                        }
+                                    }
                                     Some(Ordering::Equal) => InProgress(st.into()),
                                     Some(Ordering::Greater) => {
                                         println!("will insert time before: {:?}", ev);
-                                        insert_time = true;
+                                        display_action = DisplayAction::TimeAndEvent;
                                         After(st.into())
                                     }
                                     None => Before(st),
@@ -382,23 +395,35 @@ impl Renderer {
                         match self.formatter.just(&ev_displayable) {
                             Ok(formatted) => {
                                 let event = EventDescription(formatted);
-                                if insert_time {
-                                    Some(Ok(DisplayRecord::TimeBeforeEvent(
-                                        NowDescription(time_displayable),
-                                        event,
-                                    )))
-                                } else {
-                                    Some(Ok(DisplayRecord::Event(event)))
+                                match display_action {
+                                    DisplayAction::Event => Some(Ok(DisplayRecord::Event(event))),
+                                    DisplayAction::EventAndTime => {
+                                        Some(Ok(DisplayRecord::EventAndTime(
+                                            event,
+                                            NowDescription(time_displayable),
+                                        )))
+                                    }
+                                    DisplayAction::TimeAndEvent => {
+                                        Some(Ok(DisplayRecord::TimeAndEvent(
+                                            NowDescription(time_displayable),
+                                            event,
+                                        )))
+                                    }
                                 }
                             }
                             Err(error) => return Some(Err(error.into())),
                         }
                     })
                     .flat_map(|action| match action {
-                        Ok(DisplayRecord::TimeBeforeEvent(now, event)) => {
+                        Ok(DisplayRecord::EventAndTime(event, now)) => {
+                            vec![Ok(event.as_ref().clone()), Ok(now.as_ref().clone())].into_iter()
+                        }
+                        Ok(DisplayRecord::TimeAndEvent(now, event)) => {
                             vec![Ok(now.as_ref().clone()), Ok(event.as_ref().clone())].into_iter()
                         }
-                        Ok(DisplayRecord::Event(event)) => vec![Ok(event.as_ref().clone())].into_iter(),
+                        Ok(DisplayRecord::Event(event)) => {
+                            vec![Ok(event.as_ref().clone())].into_iter()
+                        }
                         Err(error) => vec![Err(error)].into_iter(),
                     })
                     .collect::<Result<Vec<String>, Error>>()?
