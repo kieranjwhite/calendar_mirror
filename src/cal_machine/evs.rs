@@ -95,11 +95,8 @@ pub struct Minute {
 impl Minute {
     pub fn new(time: &Now, label: &str) -> Result<Minute, Error> {
         Ok(Minute {
-            time: Now(time
-                .0
-                .with_hour(0)
-                .and_then(|today| today.with_minute(0))
-                .and_then(|today| today.with_second(0))
+            time: Now(time.as_ref()
+                .with_second(0)
                 .and_then(|today| today.with_nanosecond(0))
                 .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?),
             label: label.to_string(),

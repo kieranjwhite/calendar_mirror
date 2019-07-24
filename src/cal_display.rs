@@ -401,7 +401,7 @@ impl Renderer {
                             None
                         };
 
-                        let (_, time_displayable) = match Minute::new(&now, "      Now") {
+                        let (_, time_displayable) = match Minute::new(&now, "Now") {
                             Ok(instant) => Renderer::format(&instant, &now),
                             Err(error) => return Some(Err(error.into())),
                         };
