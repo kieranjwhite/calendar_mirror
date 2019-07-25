@@ -38,8 +38,8 @@ const EMAIL_SIZE: u32 = 10;
 const EVENTS_SIZE: u32 = 16;
 
 const DATE_FORMAT: &str = "%e %b";
-
-const NO_EMAIL: &str = "Email unknown";
+const NO_EVENTS: &str="No events";
+const NO_EMAIL: &str = "Email not listed";
 const END_DELIMITER: &str = " ";
 const IN_PROGRESS_DELIMITER: &str = "<";
 
@@ -303,6 +303,14 @@ impl Renderer {
         self.render_events(RefreshType::Partial, now, pos_calculator)
     }
 
+    fn date_start(date: &DateTime<Local>) -> Result<DateTime<Local>, Error> {
+        date.with_hour(0)
+            .and_then(|date| date.with_minute(0))
+            .and_then(|date| date.with_second(0))
+            .and_then(|date| date.with_nanosecond(0))
+            .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))
+    }
+
     fn render_events(
         &mut self,
         render_type: RefreshType,
@@ -310,9 +318,10 @@ impl Renderer {
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
         if let Some(ref content) = self.events {
+            let display_date = Renderer::date_start(&content.date)?;
+            let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-            /*
-            if content.apps.events.len() == 0 {
+            if display_date != today && content.apps.events.len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -325,39 +334,35 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
-            } else { */
-            println!("render_events. now: {:?}", now);
+            } else {
+                println!("render_events. now: {:?}", now);
 
-            let mut events = content.apps.events.clone();
-            events.sort();
+                let mut events = content.apps.events.clone();
+                events.sort();
 
-            let display_date_start = Minute::new(&Now(content
-                .date
-                .with_hour(0)
-                .and_then(|t| t.with_minute(0))
-                .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?))?;
+                let display_date_start = Minute::new(&Now(display_date))?;
 
-            let following_date_start = Minute::new(&Now(
-                *display_date_start.time.as_ref() + chrono::Duration::days(1)
-            ))?;
+                let following_date_start = Minute::new(&Now(
+                    *display_date_start.time.as_ref() + chrono::Duration::days(1)
+                ))?;
 
-            let mut mach = Before(appointment_stm::Before);
+                let mut mach = Before(appointment_stm::Before);
 
-            if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
-                mach = if let Before(st) = mach {
-                    After(st.into())
-                } else {
-                    mach
+                if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
+                    mach = if let Before(st) = mach {
+                        After(st.into())
+                    } else {
+                        mach
+                    };
                 };
-            };
 
-            let wrapper = MutableMachineWrapper {
-                mach_opt: Some(mach),
-            };
+                let wrapper = MutableMachineWrapper {
+                    mach_opt: Some(mach),
+                };
 
-            //let mut busy_now = false;
-            let num_events = events.len();
-            let joined = events
+                //let mut busy_now = false;
+                let num_events = events.len();
+                let joined = events
                     .iter()
                     .enumerate()
                     .scan(wrapper, |wrapper, (idx, ev)| {
@@ -474,66 +479,66 @@ impl Renderer {
                     })
                     .collect::<Result<Vec<String>, Error>>()?
                     .join("\n");
-            println!("joined: {:?}", joined);
-            let lines = joined.lines().collect::<Vec<&str>>();
-            println!("lines: {:?}", lines);
-            let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
-            let justified_events = lines[pos.0..].join("\n");
-            println!("justified events: {:?}", justified_events);
+                println!("joined: {:?}", joined);
+                let lines = joined.lines().collect::<Vec<&str>>();
+                println!("lines: {:?}", lines);
+                let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
+                let justified_events = lines[pos.0..].join("\n");
+                println!("justified events: {:?}", justified_events);
 
-            if render_type == RefreshType::Full {
-                ops.push(Op::Clear);
+                if render_type == RefreshType::Full {
+                    ops.push(Op::Clear);
 
-                ops.push(Op::AddText(
-                    justified_events,
-                    EVENTS_POS,
-                    EVENTS_SIZE,
-                    EVENTS_ID.to_string(),
-                ));
-            } else {
-                ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
+                    ops.push(Op::AddText(
+                        justified_events,
+                        EVENTS_POS,
+                        EVENTS_SIZE,
+                        EVENTS_ID.to_string(),
+                    ));
+                } else {
+                    ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
+                }
+                //}
+
+                let heading = content.date.format(DATE_FORMAT).to_string();
+                let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
+                    email_address
+                } else {
+                    NO_EMAIL.to_string()
+                };
+                if render_type == RefreshType::Full {
+                    ops.push(Op::AddText(
+                        heading,
+                        HEADING_POS,
+                        HEADING_SIZE,
+                        HEADING_ID.to_string(),
+                    ));
+
+                    ops.push(Op::AddText(
+                        STATUS_FLASH_OFF.to_string(),
+                        PULSE_POS,
+                        PULSE_SIZE,
+                        PULSE_ID.to_string(),
+                    ));
+
+                    ops.push(Op::AddText(
+                        displayable_email,
+                        EMAIL_POS,
+                        EMAIL_SIZE,
+                        EMAIL_ID.to_string(),
+                    ));
+
+                    ops.push(Op::WriteAll(PartialUpdate(false)));
+                } else {
+                    ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
+                    ops.push(Op::UpdateText(
+                        PULSE_ID.to_string(),
+                        STATUS_FLASH_OFF.to_string(),
+                    ));
+                    ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
+                    ops.push(Op::WriteAll(PartialUpdate(true)));
+                }
             }
-            //}
-
-            let heading = content.date.format(DATE_FORMAT).to_string();
-            let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
-                email_address
-            } else {
-                NO_EMAIL.to_string()
-            };
-            if render_type == RefreshType::Full {
-                ops.push(Op::AddText(
-                    heading,
-                    HEADING_POS,
-                    HEADING_SIZE,
-                    HEADING_ID.to_string(),
-                ));
-
-                ops.push(Op::AddText(
-                    STATUS_FLASH_OFF.to_string(),
-                    PULSE_POS,
-                    PULSE_SIZE,
-                    PULSE_ID.to_string(),
-                ));
-
-                ops.push(Op::AddText(
-                    displayable_email,
-                    EMAIL_POS,
-                    EMAIL_SIZE,
-                    EMAIL_ID.to_string(),
-                ));
-
-                ops.push(Op::WriteAll(PartialUpdate(false)));
-            } else {
-                ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
-                ops.push(Op::UpdateText(
-                    PULSE_ID.to_string(),
-                    STATUS_FLASH_OFF.to_string(),
-                ));
-                ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
-                ops.push(Op::WriteAll(PartialUpdate(true)));
-            }
-
             self.pipe.send(ops.iter(), false)?;
         } else {
             println!("no events");
