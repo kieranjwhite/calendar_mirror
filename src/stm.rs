@@ -140,9 +140,9 @@ macro_rules! stm {
             #[allow(dead_code)]
             pub fn state(&self) -> &'static str {
                 match self {
-                    $enum_name::$start(_st $(, stm!(@sub_pattern ($start_arg) _ ))*) => stringify!(_st),
+                    $enum_name::$start(_st $(, stm!(@sub_pattern ($start_arg) _ ))*) => stringify!($start),
                     $(
-                        $enum_name::$node(_st $(, stm!(@sub_pattern ($arg) _))*) => stringify!(_st),
+                        $enum_name::$node(_st $(, stm!(@sub_pattern ($arg) _))*) => stringify!($node),
                     )*
                 }
             }
