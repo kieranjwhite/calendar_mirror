@@ -363,7 +363,6 @@ impl Renderer {
                                     Some(Ordering::Less) => {
                                         if idx + 1 == num_events {
                                             if let Some(Ordering::Greater) = following_date_start.partial_chron_cmp(&now) {
-
                                                 display_action = DisplayAction::EventAndTime;
                                                 After(st.into())
                                             } else {

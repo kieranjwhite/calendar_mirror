@@ -44,7 +44,7 @@ stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
     [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate);
     [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
-    [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt)
+    [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt, TimeUpdatedAt)
 });
 
 type PeriodSeconds = u64;
@@ -79,7 +79,7 @@ pub struct RefreshToken(String);
 macro_rules! instant {
     ($name:ident) => {
         #[derive(Debug)]
-        pub struct $name(Instant);
+        pub struct $name(pub Instant);
 
         impl $name {
             pub fn now() -> $name {
@@ -754,9 +754,9 @@ pub fn run(
             CachedDisplay(st, refresh_token, net_error_at) => {
                 let pos_calculator = |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
                 renderer.scroll_events(Now(Local::now()), pos_calculator)?;
-                NetworkOutage(st.into(), refresh_token, net_error_at)
+                NetworkOutage(st.into(), refresh_token, net_error_at, TimeUpdatedAt(*TimeUpdatedAt::now().as_ref()-TIME_UPDATE_PERIOD))
             }
-            NetworkOutage(st, refresh_token, net_error_at) => {
+            NetworkOutage(st, refresh_token, net_error_at, time_updated_at) => {
                 let elapsed_since_outage = net_error_at.as_ref().elapsed();
                 let seconds_since_outage = elapsed_since_outage.as_secs();
                 renderer.display_status(
@@ -784,7 +784,7 @@ pub fn run(
                     } else if opt_filter(&reset_event, short_check) {
                         println!("network outage. shutdown event");
                         shutdown()?;
-                        NetworkOutage(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at, time_updated_at)
                     } else if opt_filter(&scroll_event, short_check) {
                         println!("NetworkOutage. before scroll. v_pos: {:?}", v_pos);
                         v_pos = GlyphYCnt(v_pos.0 + V_POS_INC).into();
@@ -796,9 +796,9 @@ pub fn run(
                             };
                         renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                         println!("NetworkOutage. after scroll. v_pos: {:?}", v_pos);
-                        NetworkOutage(st.into(), refresh_token, net_error_at)
+                        NetworkOutage(st.into(), refresh_token, net_error_at, time_updated_at)
                     } else {
-                        NetworkOutage(st, refresh_token, net_error_at)
+                        NetworkOutage(st, refresh_token, net_error_at, time_updated_at)
                     }
                 }
             }
