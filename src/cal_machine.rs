@@ -42,7 +42,7 @@ stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
     [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
     [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
-    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, PendingDisplayDate);
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate);
     [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
     [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt)
 });
@@ -52,6 +52,7 @@ type AuthTokens = (RefreshToken, RefreshResponse);
 
 const PREEMPTIVE_REFRESH_OFFSET_MINS: Duration = Duration::from_secs(240);
 const RECHECK_PERIOD: Duration = Duration::from_secs(300);
+const TIME_UPDATE_PERIOD: Duration = Duration::from_secs(60);
 const BUTTON_POLL_PERIOD: Duration = Duration::from_millis(25);
 const V_POS_INC: usize = 5;
 
@@ -84,9 +85,11 @@ macro_rules! instant {
             pub fn now() -> $name {
                 $name(Instant::now())
             }
+        }
 
-            pub fn instant(&self) -> Instant {
-                self.0
+        impl AsRef<Instant> for $name {
+            fn as_ref(&self) -> &Instant {
+                &self.0
             }
         }
     };
@@ -96,6 +99,7 @@ mod instant_types {
     use std::time::Instant;
     instant!(RefreshedAt);
     instant!(DownloadedAt);
+    instant!(TimeUpdatedAt);
     instant!(LastNetErrorAt);
 }
 
@@ -542,6 +546,7 @@ pub fn run(
                             credentials_tokens,
                             refreshed_at,
                             downloaded_at,
+                            TimeUpdatedAt::now(),
                             pending_display_date,
                         )
                     }
@@ -597,9 +602,17 @@ pub fn run(
                     }
                 }
             }
-            PollEvents(st, credentials, refreshed_at, started_wait_at, pending_display_date) => {
-                let waiting_for = started_wait_at.instant().elapsed();
-                let elapsed_since_token_refresh = refreshed_at.instant().elapsed();
+            PollEvents(
+                st,
+                credentials,
+                refreshed_at,
+                started_wait_at,
+                time_updated_at,
+                pending_display_date,
+            ) => {
+                let waiting_for = started_wait_at.as_ref().elapsed();
+                let same_time_for = time_updated_at.as_ref().elapsed();
+                let elapsed_since_token_refresh = refreshed_at.as_ref().elapsed();
 
                 let seconds_since_refresh = elapsed_since_token_refresh.as_secs();
                 renderer.display_status(
@@ -635,6 +648,7 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             started_wait_at,
+                            time_updated_at,
                             pending_display_date,
                         )
                     } else if opt_filter(&scroll_event, long_check) {
@@ -661,6 +675,7 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             started_wait_at,
+                            time_updated_at,
                             pending_display_date,
                         )
                     } else if waiting_for >= RECHECK_PERIOD {
@@ -670,6 +685,21 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             RefreshType::Full,
+                            pending_display_date,
+                        )
+                    } else if same_time_for >= TIME_UPDATE_PERIOD {
+                        println!("time update due");
+                        let pos_calculator =
+                            |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| {
+                                v_pos
+                            };
+                        renderer.scroll_events(Now(Local::now()), pos_calculator)?;
+                        PollEvents(
+                            st.into(),
+                            credentials,
+                            refreshed_at,
+                            started_wait_at,
+                            TimeUpdatedAt::now(),
                             pending_display_date,
                         )
                     } else if opt_filter(&back_event, release_check)
@@ -695,6 +725,7 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             started_wait_at,
+                            time_updated_at,
                             PendingDisplayDate(new_display_date),
                         )
                     } else if opt_filter(&next_event, short_check) {
@@ -705,6 +736,7 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             started_wait_at,
+                            time_updated_at,
                             PendingDisplayDate(new_display_date),
                         )
                     } else {
@@ -713,6 +745,7 @@ pub fn run(
                             credentials,
                             refreshed_at,
                             started_wait_at,
+                            time_updated_at,
                             pending_display_date,
                         )
                     }
@@ -724,7 +757,7 @@ pub fn run(
                 NetworkOutage(st.into(), refresh_token, net_error_at)
             }
             NetworkOutage(st, refresh_token, net_error_at) => {
-                let elapsed_since_outage = net_error_at.instant().elapsed();
+                let elapsed_since_outage = net_error_at.as_ref().elapsed();
                 let seconds_since_outage = elapsed_since_outage.as_secs();
                 renderer.display_status(
                     Status::NetworkDown,
@@ -770,7 +803,7 @@ pub fn run(
                 }
             }
             ErrorWait(st, started_wait_at) => {
-                let waiting_for = started_wait_at.instant().elapsed();
+                let waiting_for = started_wait_at.as_ref().elapsed();
                 if waiting_for >= RECHECK_PERIOD {
                     LoadAuth(st.into())
                 } else {
