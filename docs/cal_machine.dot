@@ -37,5 +37,5 @@ digraph cal_stm {
     RefreshAuth -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"RefreshAuth" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
     ReadFirstEvents -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"ReadFirstEvents" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
     PageEvents -> CachedDisplay[label=<<TABLE BORDER="0"><TR><TD><I>"PageEvents" -&gt; "CachedDisplay"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
-    CachedDisplay -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"CachedDisplay" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR></TABLE>>];
+    CachedDisplay -> NetworkOutage[label=<<TABLE BORDER="0"><TR><TD><I>"CachedDisplay" -&gt; "NetworkOutage"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>LastNetErrorAt</TD></TR><TR><TD>TimeUpdatedAt</TD></TR></TABLE>>];
 }
