@@ -141,10 +141,6 @@ enum DisplayRecord {
     EventAndTime(EventDescription, NowDescription),
 }
 
-struct MutableMachineWrapper {
-    mach_opt: Option<Machine>,
-}
-
 impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
@@ -351,21 +347,17 @@ impl Renderer {
                         );
                     };
                 };
-
-                let wrapper = MutableMachineWrapper {
-                    mach_opt: Some(mach),
-                };
+                let mach_opt=Some(mach);
 
                 let num_events = events.len();
                 let joined = events
                     .iter()
                     .enumerate()
-                    .scan(wrapper, |wrapper, (idx, ev)| {
+                    .scan(mach_opt, |mach_opt, (idx, ev)| {
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
                         let mut display_action = DisplayAction::Event;
-                        wrapper.mach_opt = Some(match wrapper
-                                                .mach_opt.take()
+                        *mach_opt = Some(match mach_opt.take()
                                                 .expect("missing state in appointments stm") {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
