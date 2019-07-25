@@ -1,5 +1,6 @@
 #[macro_export]
 macro_rules! stm {
+    (@sub_pattern $_t:tt $sub:pat) => {$sub};
     ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+} ) => {
 
         pub mod $mod_name
@@ -136,6 +137,16 @@ macro_rules! stm {
         }
 
         impl $enum_name {
+            #[allow(dead_code)]
+            pub fn state(&self) -> &'static str {
+                match self {
+                    $enum_name::$start(_st $(, stm!(@sub_pattern ($start_arg) _ ))*) => stringify!(_st),
+                    $(
+                        $enum_name::$node(_st $(, stm!(@sub_pattern ($arg) _))*) => stringify!(_st),
+                    )*
+                }
+            }
+            
             #[allow(unused_variables)]
             pub fn render_to<W: std::io::Write>(output: &mut W) {
                 #[cfg(feature = "render_stm")]

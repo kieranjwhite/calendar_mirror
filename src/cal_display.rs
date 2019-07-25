@@ -38,7 +38,7 @@ const EMAIL_SIZE: u32 = 10;
 const EVENTS_SIZE: u32 = 16;
 
 const DATE_FORMAT: &str = "%e %b";
-const NO_EVENTS: &str="No events";
+const NO_EVENTS: &str = "No events";
 const NO_EMAIL: &str = "Email not listed";
 const END_DELIMITER: &str = " ";
 const IN_PROGRESS_DELIMITER: &str = "<";
@@ -176,10 +176,6 @@ impl Renderer {
         event_str.push_str(&event.period());
 
         let ordering = event.partial_chron_cmp(now);
-        println!(
-            "format: compared: {:?} with {:?}. Result: {:?}",
-            event, now, ordering
-        );
         if let Some(Ordering::Equal) = ordering {
             event_str.push_str(IN_PROGRESS_DELIMITER);
         } else {
@@ -335,8 +331,6 @@ impl Renderer {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
             } else {
-                println!("render_events. now: {:?}", now);
-
                 let mut events = content.apps.events.clone();
                 events.sort();
 
@@ -347,12 +341,14 @@ impl Renderer {
                 ))?;
 
                 let mut mach = Before(appointment_stm::Before);
-
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
-                    mach = if let Before(st) = mach {
+                    mach = if let InProgress(st) = mach {
                         After(st.into())
                     } else {
-                        mach
+                        panic!(
+                            "appointments state machine has the wrong state: {:?}",
+                            mach.state()
+                        );
                     };
                 };
 
@@ -360,25 +356,22 @@ impl Renderer {
                     mach_opt: Some(mach),
                 };
 
-                //let mut busy_now = false;
                 let num_events = events.len();
                 let joined = events
                     .iter()
                     .enumerate()
                     .scan(wrapper, |wrapper, (idx, ev)| {
-                        println!("before event vs now comparison: now {:?}", now);
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
                         let mut display_action = DisplayAction::Event;
-                        let mach_opt = wrapper.mach_opt.take();
-                        wrapper.mach_opt = if let Some(mach) = mach_opt {
-                            Some(match mach {
+                        wrapper.mach_opt = Some(match wrapper
+                                                .mach_opt.take()
+                                                .expect("missing state in appointments stm") {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
                                         if idx + 1 == num_events {
                                             if let Some(Ordering::Greater) = following_date_start.partial_chron_cmp(&now) {
 
-                                                println!("will append time at end");
                                                 display_action = DisplayAction::EventAndTime;
                                                 After(st.into())
                                             } else {
@@ -390,7 +383,6 @@ impl Renderer {
                                     }
                                     Some(Ordering::Equal) => InProgress(st.into()),
                                     Some(Ordering::Greater) => {
-                                        println!("will insert time before: {:?}", ev);
                                         display_action = DisplayAction::TimeAndEvent;
                                         After(st.into())
                                     }
@@ -427,10 +419,7 @@ impl Renderer {
                                 Error(st) => {
                                     Error(st)
                                 }
-                            })
-                        } else {
-                            None
-                        };
+                            });
 
                         let time_displayable: String=match Minute::new(&now)
                             .or_else(|e| Err(Error::from(e)))
@@ -462,7 +451,6 @@ impl Renderer {
                             }
                             Err(error) => return Some(Err(error.into())),
                         };
-                        println!("result of scan: {:?}", result);
                         result
                     })
                     .flat_map(|action| match action {
@@ -479,12 +467,9 @@ impl Renderer {
                     })
                     .collect::<Result<Vec<String>, Error>>()?
                     .join("\n");
-                println!("joined: {:?}", joined);
                 let lines = joined.lines().collect::<Vec<&str>>();
-                println!("lines: {:?}", lines);
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
-                println!("justified events: {:?}", justified_events);
 
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -498,7 +483,6 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
                 }
-                //}
 
                 let heading = content.date.format(DATE_FORMAT).to_string();
                 let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
@@ -542,7 +526,6 @@ impl Renderer {
             self.pipe.send(ops.iter(), false)?;
         } else {
             println!("no events");
-            //Err(Error::InvalidState(InvalidStateError("self.render_events should have been the last rendering optation to have been invoked")))
         }
         Ok(())
     }
