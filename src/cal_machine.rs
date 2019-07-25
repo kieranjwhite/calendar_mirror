@@ -2,11 +2,12 @@ pub mod evs;
 mod retriever;
 
 use crate::{
-    cal_display::{Error as CalDisplayError, RefreshType, Renderer, self, Status},
+    cal_display::{self, Error as CalDisplayError, RefreshType, Renderer, Status},
     cal_machine::{
         evs::{Appointments, Error as EvError, Now},
         instant_types::*,
     },
+    cloneable,
     display::{self},
     err,
     formatter::{self, GlyphYCnt},
@@ -98,7 +99,8 @@ mod instant_types {
     instant!(LastNetErrorAt);
 }
 
-pub struct PendingDisplayDate(DateTime<Local>);
+//pub struct PendingDisplayDate(DateTime<Local>);
+cloneable!(PendingDisplayDate, DateTime<Local>);
 
 impl RefreshToken {
     pub fn load(path: &Path) -> io::Result<Option<Self>> {
@@ -453,7 +455,7 @@ pub fn run(
                 match retriever.read(
                     &format!("Bearer {}", credentials_tokens.volatiles.access_token),
                     &pending_display_date.0,
-                    &(pending_display_date.0 + chrono::Duration::days(1)
+                    &(*pending_display_date.as_ref() + chrono::Duration::days(1)
                         - chrono::Duration::seconds(1)),
                     &Option::<PageToken>::None,
                 ) {

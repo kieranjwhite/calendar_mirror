@@ -87,19 +87,19 @@ pub trait DisplayableOccasion {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Minute {
-    pub label: String,
+    //pub label: String,
     pub time: Now,
     pub after: DateTime<Local>,
 }
 
 impl Minute {
-    pub fn new(time: &Now, label: &str) -> Result<Minute, Error> {
+    pub fn new(time: &Now) -> Result<Minute, Error> {
         Ok(Minute {
             time: Now(time.as_ref()
                 .with_second(0)
                 .and_then(|today| today.with_nanosecond(0))
                 .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?),
-            label: label.to_string(),
+            //label: label.to_string(),
             after: time.0 + Duration::minutes(1),
         })
     }
@@ -107,7 +107,7 @@ impl Minute {
 
 impl DisplayableOccasion for Minute {
     fn description(&self) -> String {
-        self.label.clone()
+        "".to_string()
     }
 
     fn period(&self) -> String {

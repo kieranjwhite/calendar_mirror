@@ -1,7 +1,8 @@
 use crate::display::Operation as Op;
 use crate::{
     cal_machine::evs::{
-        Appointments, DisplayableOccasion, Email, Error as EventError, Minute, Now, TIME_FORMAT,
+        Appointments, ArgumentOutOfRange, DisplayableOccasion, Email, Error as EventError, Minute,
+        Now, TIME_FORMAT,
     },
     cloneable,
     display::{Error as DisplayError, PartialUpdate, Pos, RenderPipeline},
@@ -58,7 +59,8 @@ err!(Error {
     Events(EventError),
     Display(DisplayError),
     Format(formatter::Error),
-    InvalidState(InvalidStateError)
+    InvalidState(InvalidStateError),
+    ArgumentOutOfRange(ArgumentOutOfRange)
 });
 
 const SCREEN_DIMS: Dims = Dims(GlyphXCnt(26), GlyphYCnt(9));
@@ -310,7 +312,7 @@ impl Renderer {
     ) -> Result<(), Error> {
         if let Some(ref content) = self.events {
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-
+            /*
             if content.apps.events.len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
@@ -324,20 +326,39 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
-            } else {
-                println!("render_events. now: {:?}", now);
+            } else { */
+            println!("render_events. now: {:?}", now);
 
-                let mut events = content.apps.events.clone();
-                events.sort();
+            let mut events = content.apps.events.clone();
+            events.sort();
 
-                let mach = Before(appointment_stm::Before);
-                let wrapper = MutableMachineWrapper {
-                    mach_opt: Some(mach),
+            let display_date_start = Minute::new(&Now(content
+                .date
+                .with_hour(0)
+                .and_then(|t| t.with_minute(0))
+                .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?))?;
+
+            let following_date_start = Minute::new(&Now(
+                *display_date_start.time.as_ref() + chrono::Duration::days(1)
+            ))?;
+
+            let mut mach = Before(appointment_stm::Before);
+
+            if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
+                mach = if let Before(st) = mach {
+                    After(st.into())
+                } else {
+                    mach
                 };
+            };
 
-                //let mut busy_now = false;
-                let num_events = events.len();
-                let joined = events
+            let wrapper = MutableMachineWrapper {
+                mach_opt: Some(mach),
+            };
+
+            //let mut busy_now = false;
+            let num_events = events.len();
+            let joined = events
                     .iter()
                     .enumerate()
                     .scan(wrapper, |wrapper, (idx, ev)| {
@@ -351,9 +372,14 @@ impl Renderer {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
                                         if idx + 1 == num_events {
-                                            println!("will append time at end");
-                                            display_action = DisplayAction::EventAndTime;
-                                            After(st.into())
+                                            if let Some(Ordering::Greater) = following_date_start.partial_chron_cmp(&now) {
+
+                                                println!("will append time at end");
+                                                display_action = DisplayAction::EventAndTime;
+                                                After(st.into())
+                                            } else {
+                                                Before(st)
+                                            }
                                         } else {
                                             Before(st)
                                         }
@@ -402,7 +428,7 @@ impl Renderer {
                             None
                         };
 
-                        let time_displayable: String=match Minute::new(&now, "")
+                        let time_displayable: String=match Minute::new(&now)
                             .or_else(|e| Err(Error::from(e)))
                             .and_then(|n|self.formatter.just(&Renderer::format(&n, &now).1)
                                       .or_else(|e| Err(Error::from(e))))
@@ -449,26 +475,26 @@ impl Renderer {
                     })
                     .collect::<Result<Vec<String>, Error>>()?
                     .join("\n");
-                println!("joined: {:?}", joined);
-                let lines = joined.lines().collect::<Vec<&str>>();
-                println!("lines: {:?}", lines);
-                let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
-                let justified_events = lines[pos.0..].join("\n");
-                println!("justified events: {:?}", justified_events);
+            println!("joined: {:?}", joined);
+            let lines = joined.lines().collect::<Vec<&str>>();
+            println!("lines: {:?}", lines);
+            let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
+            let justified_events = lines[pos.0..].join("\n");
+            println!("justified events: {:?}", justified_events);
 
-                if render_type == RefreshType::Full {
-                    ops.push(Op::Clear);
+            if render_type == RefreshType::Full {
+                ops.push(Op::Clear);
 
-                    ops.push(Op::AddText(
-                        justified_events,
-                        EVENTS_POS,
-                        EVENTS_SIZE,
-                        EVENTS_ID.to_string(),
-                    ));
-                } else {
-                    ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
-                }
+                ops.push(Op::AddText(
+                    justified_events,
+                    EVENTS_POS,
+                    EVENTS_SIZE,
+                    EVENTS_ID.to_string(),
+                ));
+            } else {
+                ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
             }
+            //}
 
             let heading = content.date.format(DATE_FORMAT).to_string();
             let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
