@@ -347,7 +347,7 @@ impl Renderer {
                         );
                     };
                 };
-                let mach_opt=Some(mach);
+                let mach_opt = Some(mach);
 
                 let num_events = events.len();
                 let joined = events
@@ -362,7 +362,8 @@ impl Renderer {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
                                         if idx + 1 == num_events {
-                                            if let Some(Ordering::Greater) = following_date_start.partial_chron_cmp(&now) {
+                                            if let Some(Ordering::Greater) = following_date_start
+                                                .partial_chron_cmp(&now) {
                                                 display_action = DisplayAction::EventAndTime;
                                                 After(st.into())
                                             } else {
