@@ -94,13 +94,14 @@ pub struct Minute {
 
 impl Minute {
     pub fn new(time: &Now) -> Result<Minute, Error> {
+        let minute_start = Now(time
+            .as_ref()
+            .with_second(0)
+            .and_then(|today| today.with_nanosecond(0))
+            .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?);
         Ok(Minute {
-            time: Now(time.as_ref()
-                .with_second(0)
-                .and_then(|today| today.with_nanosecond(0))
-                .ok_or(Error::ArgumentOutOfRange(ArgumentOutOfRange()))?),
-            //label: label.to_string(),
-            after: time.0 + Duration::minutes(1),
+            time: minute_start.clone(),
+            after: *minute_start.as_ref() + Duration::minutes(1),
         })
     }
 }
@@ -111,11 +112,19 @@ impl DisplayableOccasion for Minute {
     }
 
     fn period(&self) -> String {
-        self.time.as_ref().format(TIME_FORMAT).to_string()+"<<<<<<"
+        self.time.as_ref().format(TIME_FORMAT).to_string() + "<<<<<<"
     }
 
     fn partial_chron_cmp(&self, other: &Now) -> Option<Ordering> {
-        self.time.as_ref().partial_cmp(other.as_ref())
+        if let Some(Ordering::Greater) = self.time.as_ref().partial_cmp(other.as_ref()) {
+            Some(Ordering::Greater)
+        } else {
+            match self.after.partial_cmp(other.as_ref()) {
+                Some(Ordering::Greater) => Some(Ordering::Equal),
+                None => None,
+                _ => Some(Ordering::Less)
+            }
+        }
     }
 }
 

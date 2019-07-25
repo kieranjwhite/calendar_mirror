@@ -40,7 +40,6 @@ const EVENTS_SIZE: u32 = 16;
 const DATE_FORMAT: &str = "%e %b";
 
 const NO_EMAIL: &str = "Email unknown";
-const NO_EVENTS: &str = "No events";
 const END_DELIMITER: &str = " ";
 const IN_PROGRESS_DELIMITER: &str = "<";
 
