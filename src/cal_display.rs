@@ -475,45 +475,45 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
                 }
+            }
 
-                let heading = content.date.format(DATE_FORMAT).to_string();
-                let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
-                    email_address
-                } else {
-                    NO_EMAIL.to_string()
-                };
-                if render_type == RefreshType::Full {
-                    ops.push(Op::AddText(
-                        heading,
-                        HEADING_POS,
-                        HEADING_SIZE,
-                        HEADING_ID.to_string(),
-                    ));
+            let heading = content.date.format(DATE_FORMAT).to_string();
+            let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
+                email_address
+            } else {
+                NO_EMAIL.to_string()
+            };
+            if render_type == RefreshType::Full {
+                ops.push(Op::AddText(
+                    heading,
+                    HEADING_POS,
+                    HEADING_SIZE,
+                    HEADING_ID.to_string(),
+                ));
 
-                    ops.push(Op::AddText(
-                        STATUS_FLASH_OFF.to_string(),
-                        PULSE_POS,
-                        PULSE_SIZE,
-                        PULSE_ID.to_string(),
-                    ));
+                ops.push(Op::AddText(
+                    STATUS_FLASH_OFF.to_string(),
+                    PULSE_POS,
+                    PULSE_SIZE,
+                    PULSE_ID.to_string(),
+                ));
 
-                    ops.push(Op::AddText(
-                        displayable_email,
-                        EMAIL_POS,
-                        EMAIL_SIZE,
-                        EMAIL_ID.to_string(),
-                    ));
+                ops.push(Op::AddText(
+                    displayable_email,
+                    EMAIL_POS,
+                    EMAIL_SIZE,
+                    EMAIL_ID.to_string(),
+                ));
 
-                    ops.push(Op::WriteAll(PartialUpdate(false)));
-                } else {
-                    ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
-                    ops.push(Op::UpdateText(
-                        PULSE_ID.to_string(),
-                        STATUS_FLASH_OFF.to_string(),
-                    ));
-                    ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
-                    ops.push(Op::WriteAll(PartialUpdate(true)));
-                }
+                ops.push(Op::WriteAll(PartialUpdate(false)));
+            } else {
+                ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
+                ops.push(Op::UpdateText(
+                    PULSE_ID.to_string(),
+                    STATUS_FLASH_OFF.to_string(),
+                ));
+                ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
+                ops.push(Op::WriteAll(PartialUpdate(true)));
             }
             self.pipe.send(ops.iter(), false)?;
         } else {
