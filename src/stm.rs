@@ -1,7 +1,9 @@
+//(foo $empty:ty)?
 #[macro_export]
 macro_rules! stm {
+    (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+ $(;)? } ) => {
+    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $bar:tt |)? );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
@@ -47,7 +49,6 @@ macro_rules! stm {
             #[cfg(feature = "render_stm")]
             pub const START_NODE_NAME:&str="_start";
 
-
             #[cfg(feature = "render_stm")]
             impl<'a> dot::GraphWalk<'a, Nd, Ed> for MachineEdges {
                 fn nodes(&self) -> dot::Nodes<'a, Nd> {
@@ -81,7 +82,16 @@ macro_rules! stm {
                     if &START_NODE_NAME==node {
                         Some(dot::LabelText::LabelStr("point".into()))
                     } else {
-                        Some(dot::LabelText::LabelStr("ellipse".into()))
+                        let mut shape=Some(dot::LabelText::LabelStr("ellipse".into()));
+                        $(
+                            if node==&stringify!($node) {
+                                $( crate::stm!(@sub_end_block $bar {
+                                    shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
+
+                                } ) )*
+                            }
+                        )*
+                        shape
                     }
                 }
 
@@ -145,7 +155,7 @@ macro_rules! stm {
                     )*
                 }
             }
-            
+
             #[allow(unused_variables)]
             pub fn render_to<W: std::io::Write>(output: &mut W) {
                 #[cfg(feature = "render_stm")]

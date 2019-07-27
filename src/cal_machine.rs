@@ -42,7 +42,7 @@ stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
     [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
     [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
-    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate);
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate) |end|;
     [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
     [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt, TimeUpdatedAt)
 });
@@ -690,9 +690,7 @@ pub fn run(
                     } else if same_time_for >= TIME_UPDATE_PERIOD {
                         println!("time update due");
                         let pos_calculator =
-                            |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| {
-                                v_pos
-                            };
+                            |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
                         renderer.scroll_events(Now(Local::now()), pos_calculator)?;
                         PollEvents(
                             st.into(),
@@ -754,7 +752,12 @@ pub fn run(
             CachedDisplay(st, refresh_token, net_error_at) => {
                 let pos_calculator = |_num_event_rows: GlyphYCnt, _screen_height: GlyphYCnt| v_pos;
                 renderer.scroll_events(Now(Local::now()), pos_calculator)?;
-                NetworkOutage(st.into(), refresh_token, net_error_at, TimeUpdatedAt(*TimeUpdatedAt::now().as_ref()-TIME_UPDATE_PERIOD))
+                NetworkOutage(
+                    st.into(),
+                    refresh_token,
+                    net_error_at,
+                    TimeUpdatedAt(*TimeUpdatedAt::now().as_ref() - TIME_UPDATE_PERIOD),
+                )
             }
             NetworkOutage(st, refresh_token, net_error_at, time_updated_at) => {
                 let elapsed_since_outage = net_error_at.as_ref().elapsed();

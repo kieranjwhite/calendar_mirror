@@ -1,6 +1,6 @@
 digraph ev_stm {
-    NotOneCreator[label="NotOneCreator"][shape="ellipse"];
-    OneCreator[label="OneCreator"][shape="ellipse"];
+    NotOneCreator[label="NotOneCreator"][shape="doublecircle"];
+    OneCreator[label="OneCreator"][shape="doublecircle"];
     Uninitialised[label="Uninitialised"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> Uninitialised[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Uninitialised"</I></B></TD></TR></TABLE>>];

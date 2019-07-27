@@ -49,13 +49,13 @@ const STATUS_FLASH_OFF: &str = " ";
 
 stm!(appointment_stm, AppMachine, []=> Before(), {
     [Before] => InProgress();
-    [Before, InProgress] => After();
+    [Before, InProgress] => After() |end|;
     [InProgress, After] => Error()
 });
 
 stm!(display_stm, DisplayMachine, [] => NotDisplayable(), {
     [NotDisplayable] => EventsQueued();
-    [EventsQueued] => AllDisplayable();
+    [EventsQueued] => AllDisplayable()  |end|;
 });
 
 #[derive(Debug)]

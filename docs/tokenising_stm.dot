@@ -1,9 +1,9 @@
 digraph tokenising_stm {
-    BuildingBreakable[label="BuildingBreakable"][shape="ellipse"];
+    BuildingBreakable[label="BuildingBreakable"][shape="doublecircle"];
     Empty[label="Empty"][shape="ellipse"];
-    NotStartedBuildingNonBreakable[label="NotStartedBuildingNonBreakable"][shape="ellipse"];
-    StartedBuildingNonBreakable[label="StartedBuildingNonBreakable"][shape="ellipse"];
-    TokenComplete[label="TokenComplete"][shape="ellipse"];
+    NotStartedBuildingNonBreakable[label="NotStartedBuildingNonBreakable"][shape="doublecircle"];
+    StartedBuildingNonBreakable[label="StartedBuildingNonBreakable"][shape="doublecircle"];
+    TokenComplete[label="TokenComplete"][shape="doublecircle"];
     _start[label="_start"][shape="point"];
     _start -> Empty[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Empty"</I></B></TD></TR></TABLE>>];
     TokenComplete -> BuildingBreakable[label=<<TABLE BORDER="0"><TR><TD><I>"TokenComplete" -&gt; "BuildingBreakable"</I></TD></TR></TABLE>>];

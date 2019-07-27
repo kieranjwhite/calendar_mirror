@@ -216,10 +216,10 @@ impl Pending {
 }
 
 stm!(tokenising_stm, Machine, []=> Empty(), {
-    [TokenComplete] => BuildingBreakable();
-    [TokenComplete] => NotStartedBuildingNonBreakable();
-    [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable();
-    [Empty, BuildingBreakable, StartedBuildingNonBreakable] => TokenComplete()
+    [TokenComplete] => BuildingBreakable() |end|;
+    [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
+    [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;
+    [Empty, BuildingBreakable, StartedBuildingNonBreakable] => TokenComplete() |end|
 });
 
 pub struct LeftFormatter {

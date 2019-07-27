@@ -54,79 +54,79 @@
 <!-- ReadFirstEvents -->
 <g id="node9" class="node">
 <title>ReadFirstEvents</title>
-<ellipse fill="none" stroke="#000000" cx="525" cy="-1241.5" rx="68.7879" ry="18"/>
-<text text-anchor="middle" x="525" y="-1237.8" font-family="Times,serif" font-size="14.00" fill="#000000">ReadFirstEvents</text>
+<ellipse fill="none" stroke="#000000" cx="533" cy="-1241.5" rx="68.7879" ry="18"/>
+<text text-anchor="middle" x="533" y="-1237.8" font-family="Times,serif" font-size="14.00" fill="#000000">ReadFirstEvents</text>
 </g>
 <!-- DeviceAuthPoll&#45;&gt;ReadFirstEvents -->
 <g id="edge12" class="edge">
 <title>DeviceAuthPoll&#45;&gt;ReadFirstEvents</title>
-<path fill="none" stroke="#000000" d="M603.4352,-375.0358C619.5939,-429.4189 665.2873,-589.1576 650,-607 616.0545,-646.6192 568.2338,-585.6297 534,-625 495.1306,-669.7015 516.7517,-1098.0424 523.3147,-1213.1458"/>
-<polygon fill="#000000" stroke="#000000" points="519.8293,-1213.5021 523.9003,-1223.2836 526.8177,-1213.0984 519.8293,-1213.5021"/>
-<text text-anchor="start" x="538" y="-717.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;DeviceAuthPoll&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
-<text text-anchor="start" x="609" y="-695.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
-<text text-anchor="start" x="614.5" y="-674.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
-<text text-anchor="start" x="614" y="-653.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
-<text text-anchor="start" x="593" y="-632.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M601.1626,-375.0179C610.5035,-429.3492 636.4362,-588.9547 622,-607 599.2333,-635.4583 564.9738,-596.7086 542,-625 504.6582,-670.9852 525.1651,-1098.3898 531.3986,-1213.2163"/>
+<polygon fill="#000000" stroke="#000000" points="527.9108,-1213.5368 531.9548,-1223.3295 534.9003,-1213.1523 527.9108,-1213.5368"/>
+<text text-anchor="start" x="546" y="-717.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;DeviceAuthPoll&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
+<text text-anchor="start" x="617" y="-695.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
+<text text-anchor="start" x="622.5" y="-674.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
+<text text-anchor="start" x="622" y="-653.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
+<text text-anchor="start" x="601" y="-632.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- ErrorWait -->
 <g id="node4" class="node">
 <title>ErrorWait</title>
-<ellipse fill="none" stroke="#000000" cx="982" cy="-117" rx="46.5926" ry="18"/>
-<text text-anchor="middle" x="982" y="-113.3" font-family="Times,serif" font-size="14.00" fill="#000000">ErrorWait</text>
+<ellipse fill="none" stroke="#000000" cx="946" cy="-117" rx="46.5926" ry="18"/>
+<text text-anchor="middle" x="946" y="-113.3" font-family="Times,serif" font-size="14.00" fill="#000000">ErrorWait</text>
 </g>
 <!-- DisplayError&#45;&gt;ErrorWait -->
 <g id="edge3" class="edge">
 <title>DisplayError&#45;&gt;ErrorWait</title>
-<path fill="none" stroke="#000000" d="M519.5287,-226.2452C614.5533,-203.7984 833.3393,-152.1167 932.0625,-128.7963"/>
-<polygon fill="#000000" stroke="#000000" points="933.1543,-132.1348 942.0818,-126.4295 931.545,-125.3222 933.1543,-132.1348"/>
-<text text-anchor="start" x="807" y="-186.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;DisplayError&quot; &#45;&gt; &quot;ErrorWait&quot;</text>
-<text text-anchor="start" x="853.5" y="-164.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
+<path fill="none" stroke="#000000" d="M518.4046,-225.7107C606.883,-203.2162 804.5733,-152.9559 896.8268,-129.5016"/>
+<polygon fill="#000000" stroke="#000000" points="897.9168,-132.836 906.746,-126.9798 896.1919,-126.0518 897.9168,-132.836"/>
+<text text-anchor="start" x="783" y="-186.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;DisplayError&quot; &#45;&gt; &quot;ErrorWait&quot;</text>
+<text text-anchor="start" x="829.5" y="-164.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
 </g>
 <!-- LoadAuth -->
 <g id="node5" class="node">
 <title>LoadAuth</title>
-<ellipse fill="none" stroke="#000000" cx="982" cy="-18" rx="46.2923" ry="18"/>
-<text text-anchor="middle" x="982" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">LoadAuth</text>
+<ellipse fill="none" stroke="#000000" cx="946" cy="-18" rx="46.2923" ry="18"/>
+<text text-anchor="middle" x="946" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">LoadAuth</text>
 </g>
 <!-- ErrorWait&#45;&gt;LoadAuth -->
 <g id="edge2" class="edge">
 <title>ErrorWait&#45;&gt;LoadAuth</title>
-<path fill="none" stroke="#000000" d="M982,-98.8419C982,-84.1888 982,-63.311 982,-46.443"/>
-<polygon fill="#000000" stroke="#000000" points="985.5001,-46.043 982,-36.043 978.5001,-46.043 985.5001,-46.043"/>
-<text text-anchor="start" x="986.5" y="-62.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ErrorWait&quot; &#45;&gt; &quot;LoadAuth&quot;</text>
+<path fill="none" stroke="#000000" d="M946,-98.8419C946,-84.1888 946,-63.311 946,-46.443"/>
+<polygon fill="#000000" stroke="#000000" points="949.5001,-46.043 946,-36.043 942.5001,-46.043 949.5001,-46.043"/>
+<text text-anchor="start" x="950.5" y="-62.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ErrorWait&quot; &#45;&gt; &quot;LoadAuth&quot;</text>
 </g>
 <!-- RequestCodes -->
 <g id="node11" class="node">
 <title>RequestCodes</title>
-<ellipse fill="none" stroke="#000000" cx="908" cy="-512.5" rx="61.1893" ry="18"/>
-<text text-anchor="middle" x="908" y="-508.8" font-family="Times,serif" font-size="14.00" fill="#000000">RequestCodes</text>
+<ellipse fill="none" stroke="#000000" cx="898" cy="-512.5" rx="61.1893" ry="18"/>
+<text text-anchor="middle" x="898" y="-508.8" font-family="Times,serif" font-size="14.00" fill="#000000">RequestCodes</text>
 </g>
 <!-- ErrorWait&#45;&gt;RequestCodes -->
 <g id="edge4" class="edge">
 <title>ErrorWait&#45;&gt;RequestCodes</title>
-<path fill="none" stroke="#000000" d="M1004.7142,-132.8114C1040.2645,-159.4501 1101.6747,-214.3457 1068,-255 1040.5872,-288.0946 1002.5282,-241.7782 973,-273 914.7786,-334.5607 981.0509,-383.9801 948,-462 944.2195,-470.9243 938.4151,-479.5933 932.3901,-487.1572"/>
-<polygon fill="#000000" stroke="#000000" points="929.6351,-484.9948 925.8512,-494.8909 934.9805,-489.5144 929.6351,-484.9948"/>
+<path fill="none" stroke="#000000" d="M959.506,-134.3047C978.4024,-160.7536 1008.5513,-212.6273 991,-255 986.6704,-265.4525 978.007,-262.8546 973,-273 935.5009,-348.9821 985.31,-385.9249 948,-462 943.1921,-471.8033 935.7329,-480.8639 928.0301,-488.5236"/>
+<polygon fill="#000000" stroke="#000000" points="925.2665,-486.3147 920.3352,-495.692 930.0379,-491.4365 925.2665,-486.3147"/>
 <text text-anchor="start" x="977" y="-291.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ErrorWait&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
 </g>
 <!-- LoadAuth&#45;&gt;DisplayError -->
 <g id="edge16" class="edge">
 <title>LoadAuth&#45;&gt;DisplayError</title>
-<path fill="none" stroke="#000000" d="M938.8241,-24.5512C879.7967,-34.539 771.4853,-56.5849 686,-95 615.001,-126.9053 541.591,-181.9098 502.5277,-213.2735"/>
-<polygon fill="#000000" stroke="#000000" points="499.8366,-210.9492 494.2699,-219.9637 504.2432,-216.3882 499.8366,-210.9492"/>
-<text text-anchor="start" x="690" y="-124.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;LoadAuth&quot; &#45;&gt; &quot;DisplayError&quot;</text>
-<text text-anchor="start" x="759" y="-102.8" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
+<path fill="none" stroke="#000000" d="M899.9168,-20.1545C832.0591,-25.1026 703.1343,-41.396 609,-95 558.2042,-123.9252 514.7728,-178.0021 491.7072,-210.4303"/>
+<polygon fill="#000000" stroke="#000000" points="488.6048,-208.7601 485.7524,-218.9637 494.3453,-212.7659 488.6048,-208.7601"/>
+<text text-anchor="start" x="613" y="-124.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;LoadAuth&quot; &#45;&gt; &quot;DisplayError&quot;</text>
+<text text-anchor="start" x="682" y="-102.8" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
 </g>
 <!-- RefreshAuth -->
 <g id="node10" class="node">
 <title>RefreshAuth</title>
-<ellipse fill="none" stroke="#000000" cx="525" cy="-1449.5" rx="55.7903" ry="18"/>
-<text text-anchor="middle" x="525" y="-1445.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshAuth</text>
+<ellipse fill="none" stroke="#000000" cx="533" cy="-1449.5" rx="55.7903" ry="18"/>
+<text text-anchor="middle" x="533" y="-1445.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshAuth</text>
 </g>
 <!-- LoadAuth&#45;&gt;RefreshAuth -->
 <g id="edge8" class="edge">
 <title>LoadAuth&#45;&gt;RefreshAuth</title>
-<path fill="none" stroke="#000000" d="M1026.9696,-22.7027C1070.5452,-28.1008 1132.6605,-38.2892 1151,-54 1173.755,-73.4933 1175,-87.0371 1175,-117 1175,-585 1175,-585 1175,-585 1175,-722.5922 1120.0722,-1073.7942 1048,-1191 970.4848,-1317.0573 922.3743,-1337.0111 788,-1399 724.7392,-1428.1831 645.4298,-1440.5046 590.5323,-1445.7052"/>
-<polygon fill="#000000" stroke="#000000" points="589.8822,-1442.2492 580.2331,-1446.6246 590.5047,-1449.2215 589.8822,-1442.2492"/>
+<path fill="none" stroke="#000000" d="M989.4413,-24.2622C1032.1311,-30.9446 1093.8568,-42.178 1115,-54 1148.7493,-72.8705 1175,-78.3333 1175,-117 1175,-585 1175,-585 1175,-585 1175,-863.5628 1159.8548,-953.0624 1015,-1191 943.3306,-1308.7237 908.0972,-1337.0127 785,-1399 752.3257,-1415.4536 658.117,-1431.5485 594.61,-1440.9934"/>
+<polygon fill="#000000" stroke="#000000" points="594.0797,-1437.5337 584.6952,-1442.4512 595.098,-1444.4592 594.0797,-1437.5337"/>
 <text text-anchor="start" x="1179" y="-530.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;LoadAuth&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
 <text text-anchor="start" x="1223.5" y="-508.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
 <text text-anchor="start" x="1206" y="-487.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
@@ -134,15 +134,15 @@
 <!-- LoadAuth&#45;&gt;RequestCodes -->
 <g id="edge5" class="edge">
 <title>LoadAuth&#45;&gt;RequestCodes</title>
-<path fill="none" stroke="#000000" d="M967.4164,-35.1322C955.1556,-50.1644 937.791,-73.001 926,-95 898.2317,-146.8086 890.3856,-161.1437 880,-219 877.1731,-234.7483 876.324,-239.428 880,-255 889.1332,-293.6889 910.8668,-296.3111 920,-335 924.4929,-354.0324 920.8763,-359.4641 920,-379 918.3687,-415.3691 914.2497,-457.1439 911.2928,-484.1349"/>
-<polygon fill="#000000" stroke="#000000" points="907.7784,-484.0697 910.1463,-494.3965 914.7351,-484.847 907.7784,-484.0697"/>
-<text text-anchor="start" x="884" y="-233.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;LoadAuth&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
+<path fill="none" stroke="#000000" d="M928.2993,-34.7046C895.8189,-66.7332 827.7628,-140.5914 803,-219 798.1815,-234.2572 795.5332,-240.8491 803,-255 832.3975,-310.7134 890.6025,-279.2866 920,-335 945.4318,-383.1977 925.6548,-448.7323 910.7022,-485.1816"/>
+<polygon fill="#000000" stroke="#000000" points="907.3662,-484.0814 906.6543,-494.6523 913.8029,-486.8326 907.3662,-484.0814"/>
+<text text-anchor="start" x="807" y="-233.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;LoadAuth&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
 </g>
 <!-- NetworkOutage&#45;&gt;RefreshAuth -->
 <g id="edge9" class="edge">
 <title>NetworkOutage&#45;&gt;RefreshAuth</title>
-<path fill="none" stroke="#000000" d="M914.0528,-1597.2474C912.1424,-1568.1199 906.7669,-1513.0711 893,-1500 871.4106,-1479.5018 689.495,-1462.2998 589.7797,-1454.3041"/>
-<polygon fill="#000000" stroke="#000000" points="590.0521,-1450.8148 579.8067,-1453.5131 589.4986,-1457.7929 590.0521,-1450.8148"/>
+<path fill="none" stroke="#000000" d="M914.0485,-1597.252C912.1317,-1568.1311 906.7474,-1513.0917 893,-1500 872.0052,-1480.0066 695.6829,-1462.6975 597.8259,-1454.5196"/>
+<polygon fill="#000000" stroke="#000000" points="597.9962,-1451.0218 587.7418,-1453.6859 597.4194,-1457.998 597.9962,-1451.0218"/>
 <text text-anchor="start" x="915.5" y="-1550.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;NetworkOutage&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
 <text text-anchor="start" x="976.5" y="-1528.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
 <text text-anchor="start" x="959" y="-1507.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
@@ -150,29 +150,29 @@
 <!-- NetworkOutage&#45;&gt;RequestCodes -->
 <g id="edge6" class="edge">
 <title>NetworkOutage&#45;&gt;RequestCodes</title>
-<path fill="none" stroke="#000000" d="M976.2695,-1608.2424C1030.0952,-1600.5451 1102.7515,-1586.4945 1122,-1565 1156.5328,-1526.4378 1137,-1501.2644 1137,-1449.5 1137,-1449.5 1137,-1449.5 1137,-678.5 1137,-619.8127 1118.6002,-599.9434 1073,-563 1045.1548,-540.441 1007.3043,-527.938 974.8792,-521.0189"/>
-<polygon fill="#000000" stroke="#000000" points="975.4996,-517.5737 965.0075,-519.0459 974.1276,-524.438 975.4996,-517.5737"/>
+<path fill="none" stroke="#000000" d="M976.2695,-1608.2424C1030.0952,-1600.5451 1102.7515,-1586.4945 1122,-1565 1156.5328,-1526.4378 1137,-1501.2644 1137,-1449.5 1137,-1449.5 1137,-1449.5 1137,-678.5 1137,-619.155 1116.6863,-599.6363 1070,-563 1040.2516,-539.6554 999.9949,-527.0946 965.9066,-520.3398"/>
+<polygon fill="#000000" stroke="#000000" points="966.4786,-516.8863 956.0081,-518.5044 965.2024,-523.769 966.4786,-516.8863"/>
 <text text-anchor="start" x="1141" y="-1102.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;NetworkOutage&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
 </g>
 <!-- PageEvents -->
 <g id="node7" class="node">
 <title>PageEvents</title>
-<ellipse fill="none" stroke="#000000" cx="234" cy="-949.5" rx="51.9908" ry="18"/>
-<text text-anchor="middle" x="234" y="-945.8" font-family="Times,serif" font-size="14.00" fill="#000000">PageEvents</text>
+<ellipse fill="none" stroke="#000000" cx="244" cy="-949.5" rx="51.9908" ry="18"/>
+<text text-anchor="middle" x="244" y="-945.8" font-family="Times,serif" font-size="14.00" fill="#000000">PageEvents</text>
 </g>
 <!-- PageEvents&#45;&gt;CachedDisplay -->
 <g id="edge26" class="edge">
 <title>PageEvents&#45;&gt;CachedDisplay</title>
-<path fill="none" stroke="#000000" d="M228.1159,-967.5327C223.6398,-981.8784 217.6476,-1002.538 214,-1021 194.8735,-1117.8076 188,-1142.8211 188,-1241.5 188,-1615.5 188,-1615.5 188,-1615.5 188,-1681.7328 388.68,-1745.223 490.3758,-1773.1449"/>
-<polygon fill="#000000" stroke="#000000" points="489.6268,-1776.5683 500.1948,-1775.8147 491.4635,-1769.8135 489.6268,-1776.5683"/>
-<text text-anchor="start" x="192.5" y="-1467.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;CachedDisplay&quot;</text>
-<text text-anchor="start" x="250.5" y="-1445.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
-<text text-anchor="start" x="246.5" y="-1424.3" font-family="Times,serif" font-size="14.00" fill="#000000">LastNetErrorAt</text>
+<path fill="none" stroke="#000000" d="M238.1159,-967.5327C233.6398,-981.8784 227.6476,-1002.538 224,-1021 204.8735,-1117.8076 198,-1142.8211 198,-1241.5 198,-1615.5 198,-1615.5 198,-1615.5 198,-1680.0933 392.2194,-1744.1747 491.3006,-1772.6633"/>
+<polygon fill="#000000" stroke="#000000" points="490.5844,-1776.0984 501.1606,-1775.4711 492.5016,-1769.3661 490.5844,-1776.0984"/>
+<text text-anchor="start" x="202.5" y="-1467.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;CachedDisplay&quot;</text>
+<text text-anchor="start" x="260.5" y="-1445.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
+<text text-anchor="start" x="256.5" y="-1424.3" font-family="Times,serif" font-size="14.00" fill="#000000">LastNetErrorAt</text>
 </g>
 <!-- PageEvents&#45;&gt;DisplayError -->
 <g id="edge17" class="edge">
 <title>PageEvents&#45;&gt;DisplayError</title>
-<path fill="none" stroke="#000000" d="M232.6468,-931.4349C229.5085,-887.9266 222,-773.8668 222,-678.5 222,-678.5 222,-678.5 222,-357 222,-313.4655 346.146,-271.9263 420.1655,-251.0284"/>
+<path fill="none" stroke="#000000" d="M241.5191,-931.4638C235.7655,-888.0186 222,-774.0869 222,-678.5 222,-678.5 222,-678.5 222,-357 222,-313.4655 346.146,-271.9263 420.1655,-251.0284"/>
 <polygon fill="#000000" stroke="#000000" points="421.1225,-254.3952 429.8166,-248.3401 419.2441,-247.6519 421.1225,-254.3952"/>
 <text text-anchor="start" x="226.5" y="-520.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;DisplayError&quot;</text>
 <text text-anchor="start" x="301" y="-498.3" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
@@ -180,61 +180,62 @@
 <!-- PollEvents -->
 <g id="node8" class="node">
 <title>PollEvents</title>
-<ellipse fill="none" stroke="#000000" cx="822" cy="-678.5" rx="48.9926" ry="18"/>
-<text text-anchor="middle" x="822" y="-674.8" font-family="Times,serif" font-size="14.00" fill="#000000">PollEvents</text>
+<ellipse fill="none" stroke="#000000" cx="834" cy="-678.5" rx="48.9738" ry="48.9738"/>
+<ellipse fill="none" stroke="#000000" cx="834" cy="-678.5" rx="52.9925" ry="52.9925"/>
+<text text-anchor="middle" x="834" y="-674.8" font-family="Times,serif" font-size="14.00" fill="#000000">PollEvents</text>
 </g>
 <!-- PageEvents&#45;&gt;PollEvents -->
 <g id="edge23" class="edge">
 <title>PageEvents&#45;&gt;PollEvents</title>
-<path fill="none" stroke="#000000" d="M253.6188,-932.8264C301.8185,-892.9587 431.4307,-792.2961 559,-750 643.7134,-721.913 676.6895,-766.4995 759,-732 774.4835,-725.5103 788.9734,-713.7776 800.1438,-702.9499"/>
-<polygon fill="#000000" stroke="#000000" points="802.7891,-705.252 807.3182,-695.674 797.8047,-700.3372 802.7891,-705.252"/>
-<text text-anchor="start" x="563.5" y="-863.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;PollEvents&quot;</text>
-<text text-anchor="start" x="608" y="-841.8" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
-<text text-anchor="start" x="613.5" y="-820.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
-<text text-anchor="start" x="606.5" y="-799.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
-<text text-anchor="start" x="603.5" y="-778.8" font-family="Times,serif" font-size="14.00" fill="#000000">TimeUpdatedAt</text>
-<text text-anchor="start" x="592" y="-757.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M263.833,-932.5289C311.9702,-892.4574 440.3712,-792.178 567,-750 651.6746,-721.7962 684.1779,-765.2526 767,-732 773.9327,-729.2166 780.7222,-725.4683 787.1582,-721.2405"/>
+<polygon fill="#000000" stroke="#000000" points="789.5379,-723.8452 795.6957,-715.2236 785.5054,-718.1234 789.5379,-723.8452"/>
+<text text-anchor="start" x="571.5" y="-863.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;PollEvents&quot;</text>
+<text text-anchor="start" x="616" y="-841.8" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
+<text text-anchor="start" x="621.5" y="-820.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
+<text text-anchor="start" x="614.5" y="-799.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
+<text text-anchor="start" x="611.5" y="-778.8" font-family="Times,serif" font-size="14.00" fill="#000000">TimeUpdatedAt</text>
+<text text-anchor="start" x="600" y="-757.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- PageEvents&#45;&gt;RefreshAuth -->
 <g id="edge10" class="edge">
 <title>PageEvents&#45;&gt;RefreshAuth</title>
-<path fill="none" stroke="#000000" d="M230.1346,-967.5125C219.9602,-1019.8213 197.4484,-1174.331 262,-1274 314.2587,-1354.6884 418.1004,-1407.1121 478.4917,-1432.1809"/>
-<polygon fill="#000000" stroke="#000000" points="477.2149,-1435.44 487.7965,-1435.9696 479.8547,-1428.9569 477.2149,-1435.44"/>
-<text text-anchor="start" x="266.5" y="-1259.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
-<text text-anchor="start" x="316.5" y="-1237.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
-<text text-anchor="start" x="299" y="-1216.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M240.0071,-967.8186C229.631,-1020.3027 206.8079,-1173.8689 270,-1274 321.3062,-1355.2974 425.4987,-1407.4968 486.2066,-1432.3632"/>
+<polygon fill="#000000" stroke="#000000" points="484.9777,-1435.6414 495.5617,-1436.1197 487.5861,-1429.1455 484.9777,-1435.6414"/>
+<text text-anchor="start" x="274.5" y="-1259.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PageEvents&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
+<text text-anchor="start" x="324.5" y="-1237.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
+<text text-anchor="start" x="307" y="-1216.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- PollEvents&#45;&gt;ReadFirstEvents -->
 <g id="edge14" class="edge">
 <title>PollEvents&#45;&gt;ReadFirstEvents</title>
-<path fill="none" stroke="#000000" d="M816.686,-696.6387C803.2297,-741.3014 766.6971,-854.6557 736,-878 689.2208,-913.5743 648.2555,-856.2157 605,-896 506.1136,-986.9508 571.6232,-1060.6685 539,-1191 537.1681,-1198.3185 535.0541,-1206.1943 533.0329,-1213.4986"/>
-<polygon fill="#000000" stroke="#000000" points="529.6071,-1212.7526 530.2765,-1223.3263 536.3471,-1214.643 529.6071,-1212.7526"/>
-<text text-anchor="start" x="609.5" y="-988.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
-<text text-anchor="start" x="667" y="-966.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
-<text text-anchor="start" x="672.5" y="-945.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
-<text text-anchor="start" x="672" y="-924.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
-<text text-anchor="start" x="651" y="-903.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M817.4718,-729.0701C799.2113,-781.7449 769.0704,-859.1816 744,-878 698.4068,-912.2233 659.1257,-857.5891 617,-896 517.427,-986.7924 580.561,-1060.4945 547,-1191 545.121,-1198.3065 542.9904,-1206.1782 540.9684,-1213.4822"/>
+<polygon fill="#000000" stroke="#000000" points="537.5421,-1212.7387 538.2196,-1223.3119 544.2834,-1214.6239 537.5421,-1212.7387"/>
+<text text-anchor="start" x="621.5" y="-988.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
+<text text-anchor="start" x="679" y="-966.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
+<text text-anchor="start" x="684.5" y="-945.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
+<text text-anchor="start" x="684" y="-924.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
+<text text-anchor="start" x="663" y="-903.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- PollEvents&#45;&gt;RefreshAuth -->
 <g id="edge11" class="edge">
 <title>PollEvents&#45;&gt;RefreshAuth</title>
-<path fill="none" stroke="#000000" d="M826.6954,-696.4271C849.0395,-786.2354 935.6421,-1191.1187 740,-1399 719.4984,-1420.7841 644.1126,-1434.7741 588.3658,-1442.3781"/>
-<polygon fill="#000000" stroke="#000000" points="587.6567,-1438.9414 578.2028,-1443.7241 588.5758,-1445.8808 587.6567,-1438.9414"/>
-<text text-anchor="start" x="868" y="-1123.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
-<text text-anchor="start" x="915.5" y="-1101.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
-<text text-anchor="start" x="898" y="-1080.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M835.5109,-731.4435C838.6195,-881.2211 838.9608,-1303.2923 748,-1399 727.392,-1420.6834 652.0295,-1434.6955 596.3171,-1442.3321"/>
+<polygon fill="#000000" stroke="#000000" points="595.6113,-1438.8951 586.1607,-1443.6842 596.5351,-1445.8338 595.6113,-1438.8951"/>
+<text text-anchor="start" x="835" y="-1123.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;RefreshAuth&quot;</text>
+<text text-anchor="start" x="882.5" y="-1101.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
+<text text-anchor="start" x="865" y="-1080.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- PollEvents&#45;&gt;RequestCodes -->
 <g id="edge7" class="edge">
 <title>PollEvents&#45;&gt;RequestCodes</title>
-<path fill="none" stroke="#000000" d="M831.2035,-660.7351C846.294,-631.607 876.3863,-573.5218 894.0905,-539.3486"/>
-<polygon fill="#000000" stroke="#000000" points="897.2403,-540.8773 898.7327,-530.3881 891.0249,-537.6572 897.2403,-540.8773"/>
-<text text-anchor="start" x="884.5" y="-581.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
+<path fill="none" stroke="#000000" d="M853.0288,-629.144C864.2486,-600.0426 878.0293,-564.299 887.3563,-540.107"/>
+<polygon fill="#000000" stroke="#000000" points="890.7289,-541.0889 891.0605,-530.4992 884.1975,-538.5707 890.7289,-541.0889"/>
+<text text-anchor="start" x="881.5" y="-581.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;PollEvents&quot; &#45;&gt; &quot;RequestCodes&quot;</text>
 </g>
 <!-- ReadFirstEvents&#45;&gt;CachedDisplay -->
 <g id="edge25" class="edge">
 <title>ReadFirstEvents&#45;&gt;CachedDisplay</title>
-<path fill="none" stroke="#000000" d="M589.5583,-1247.9007C645.895,-1254.978 721.4569,-1268.5967 740,-1292 769.5331,-1329.2737 755.495,-1354.0396 740,-1399 721.4311,-1452.8795 681.5543,-1446.8462 661,-1500 637.2107,-1561.5198 672.736,-1586.0832 650,-1648 633.3725,-1693.2816 597.5358,-1736.783 573.0905,-1762.9571"/>
+<path fill="none" stroke="#000000" d="M597.5583,-1247.9007C653.895,-1254.978 729.4569,-1268.5967 748,-1292 777.5331,-1329.2737 764.5536,-1354.4185 748,-1399 727.3769,-1454.5411 683.6687,-1445.2619 661,-1500 635.7629,-1560.9402 672.736,-1586.0832 650,-1648 633.3725,-1693.2816 597.5358,-1736.783 573.0905,-1762.9571"/>
 <polygon fill="#000000" stroke="#000000" points="570.2637,-1760.8504 565.9037,-1770.5066 575.3337,-1765.677 570.2637,-1760.8504"/>
 <text text-anchor="start" x="665" y="-1550.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ReadFirstEvents&quot; &#45;&gt; &quot;CachedDisplay&quot;</text>
 <text text-anchor="start" x="736.5" y="-1528.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
@@ -243,29 +244,29 @@
 <!-- ReadFirstEvents&#45;&gt;DisplayError -->
 <g id="edge19" class="edge">
 <title>ReadFirstEvents&#45;&gt;DisplayError</title>
-<path fill="none" stroke="#000000" d="M518.9143,-1223.4396C515.8791,-1213.8856 512.3617,-1201.9052 510,-1191 480.2168,-1053.4765 421.2718,-703.4992 429,-563 436.1219,-433.5245 431.6627,-399.3089 461,-273 461.6267,-270.3017 462.3941,-267.5275 463.2396,-264.7738"/>
-<polygon fill="#000000" stroke="#000000" points="466.6361,-265.6562 466.533,-255.0618 460.0069,-263.4081 466.6361,-265.6562"/>
-<text text-anchor="start" x="433.5" y="-592.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ReadFirstEvents&quot; &#45;&gt; &quot;DisplayError&quot;</text>
-<text text-anchor="start" x="521" y="-570.8" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
+<path fill="none" stroke="#000000" d="M527.5977,-1223.3568C524.8409,-1213.7802 521.5422,-1201.8046 519,-1191 501.3722,-1116.0799 501.0732,-1096.4755 486,-1021 445.4544,-817.9776 327.425,-756.5168 401,-563 404.8039,-552.9951 412.4069,-554.6681 417,-545 469.5492,-434.3875 430.2928,-391.5479 461,-273 461.6946,-270.3184 462.5077,-267.5555 463.3823,-264.8089"/>
+<polygon fill="#000000" stroke="#000000" points="466.7764,-265.7018 466.7175,-255.1071 460.1566,-263.4261 466.7764,-265.7018"/>
+<text text-anchor="start" x="405.5" y="-592.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ReadFirstEvents&quot; &#45;&gt; &quot;DisplayError&quot;</text>
+<text text-anchor="start" x="493" y="-570.8" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
 </g>
 <!-- ReadFirstEvents&#45;&gt;PageEvents -->
 <g id="edge22" class="edge">
 <title>ReadFirstEvents&#45;&gt;PageEvents</title>
-<path fill="none" stroke="#000000" d="M484.785,-1226.7103C466.2054,-1220.3914 443.713,-1213.4589 423,-1209 389.1006,-1201.7025 292.7498,-1215.2872 268,-1191 240.7906,-1164.2992 250.4541,-1058.7298 245,-1021 242.93,-1006.6802 240.4954,-990.769 238.4436,-977.5987"/>
-<polygon fill="#000000" stroke="#000000" points="241.8996,-977.0447 236.8944,-967.7067 234.9839,-978.1278 241.8996,-977.0447"/>
-<text text-anchor="start" x="272" y="-1176.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ReadFirstEvents&quot; &#45;&gt; &quot;PageEvents&quot;</text>
-<text text-anchor="start" x="332" y="-1154.8" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
-<text text-anchor="start" x="314.5" y="-1133.8" font-family="Times,serif" font-size="14.00" fill="#000000">Option&lt;PageToken&gt;</text>
-<text text-anchor="start" x="333" y="-1112.8" font-family="Times,serif" font-size="14.00" fill="#000000">Appointments</text>
-<text text-anchor="start" x="337.5" y="-1091.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
-<text text-anchor="start" x="330.5" y="-1070.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
-<text text-anchor="start" x="337" y="-1049.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
-<text text-anchor="start" x="316" y="-1028.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M493.5966,-1226.6913C475.386,-1220.3686 453.3319,-1213.4383 433,-1209 399.1219,-1201.6046 302.7498,-1215.2872 278,-1191 250.7906,-1164.2992 260.4541,-1058.7298 255,-1021 252.93,-1006.6802 250.4954,-990.769 248.4436,-977.5987"/>
+<polygon fill="#000000" stroke="#000000" points="251.8996,-977.0447 246.8944,-967.7067 244.9839,-978.1278 251.8996,-977.0447"/>
+<text text-anchor="start" x="282" y="-1176.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;ReadFirstEvents&quot; &#45;&gt; &quot;PageEvents&quot;</text>
+<text text-anchor="start" x="342" y="-1154.8" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
+<text text-anchor="start" x="324.5" y="-1133.8" font-family="Times,serif" font-size="14.00" fill="#000000">Option&lt;PageToken&gt;</text>
+<text text-anchor="start" x="343" y="-1112.8" font-family="Times,serif" font-size="14.00" fill="#000000">Appointments</text>
+<text text-anchor="start" x="347.5" y="-1091.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
+<text text-anchor="start" x="340.5" y="-1070.8" font-family="Times,serif" font-size="14.00" fill="#000000">DownloadedAt</text>
+<text text-anchor="start" x="347" y="-1049.8" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
+<text text-anchor="start" x="326" y="-1028.8" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- RefreshAuth&#45;&gt;CachedDisplay -->
 <g id="edge24" class="edge">
 <title>RefreshAuth&#45;&gt;CachedDisplay</title>
-<path fill="none" stroke="#000000" d="M509.199,-1467.0146C480.2832,-1501.2704 423.7764,-1579.7568 446,-1648 461.0011,-1694.0648 497.5145,-1737.594 522.5249,-1763.537"/>
+<path fill="none" stroke="#000000" d="M515.9439,-1466.8384C484.697,-1500.7892 423.4554,-1578.7711 446,-1648 461.0011,-1694.0648 497.5145,-1737.594 522.5249,-1763.537"/>
 <polygon fill="#000000" stroke="#000000" points="520.0551,-1766.0173 529.5634,-1770.6912 525.0451,-1761.1081 520.0551,-1766.0173"/>
 <text text-anchor="start" x="450" y="-1633.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RefreshAuth&quot; &#45;&gt; &quot;CachedDisplay&quot;</text>
 <text text-anchor="start" x="509.5" y="-1611.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshToken</text>
@@ -274,7 +275,7 @@
 <!-- RefreshAuth&#45;&gt;DisplayError -->
 <g id="edge20" class="edge">
 <title>RefreshAuth&#45;&gt;DisplayError</title>
-<path fill="none" stroke="#000000" d="M482.1262,-1437.8637C456.4134,-1431.1558 422.9868,-1422.9085 393,-1417 205.317,-1380.0197 0,-1432.7915 0,-1241.5 0,-1241.5 0,-1241.5 0,-357 0,-273.9372 277.0007,-247.743 407.4936,-240.0116"/>
+<path fill="none" stroke="#000000" d="M490.4988,-1437.737C465.2208,-1431.0263 432.441,-1422.8193 403,-1417 211.3498,-1379.1185 0,-1436.8581 0,-1241.5 0,-1241.5 0,-1241.5 0,-357 0,-273.9372 277.0007,-247.743 407.4936,-240.0116"/>
 <polygon fill="#000000" stroke="#000000" points="407.9811,-243.4895 417.7646,-239.4233 407.5808,-236.5009 407.9811,-243.4895"/>
 <text text-anchor="start" x="4" y="-686.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RefreshAuth&quot; &#45;&gt; &quot;DisplayError&quot;</text>
 <text text-anchor="start" x="80" y="-664.3" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
@@ -282,27 +283,27 @@
 <!-- RefreshAuth&#45;&gt;ReadFirstEvents -->
 <g id="edge13" class="edge">
 <title>RefreshAuth&#45;&gt;ReadFirstEvents</title>
-<path fill="none" stroke="#000000" d="M525,-1431.4052C525,-1395.1409 525,-1313.3286 525,-1269.8719"/>
-<polygon fill="#000000" stroke="#000000" points="528.5001,-1269.701 525,-1259.7011 521.5001,-1269.7011 528.5001,-1269.701"/>
-<text text-anchor="start" x="529.5" y="-1384.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RefreshAuth&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
-<text text-anchor="start" x="591" y="-1362.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
-<text text-anchor="start" x="596.5" y="-1341.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
-<text text-anchor="start" x="596" y="-1320.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
-<text text-anchor="start" x="575" y="-1299.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
+<path fill="none" stroke="#000000" d="M533,-1431.4052C533,-1395.1409 533,-1313.3286 533,-1269.8719"/>
+<polygon fill="#000000" stroke="#000000" points="536.5001,-1269.701 533,-1259.7011 529.5001,-1269.7011 536.5001,-1269.701"/>
+<text text-anchor="start" x="537.5" y="-1384.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RefreshAuth&quot; &#45;&gt; &quot;ReadFirstEvents&quot;</text>
+<text text-anchor="start" x="599" y="-1362.3" font-family="Times,serif" font-size="14.00" fill="#000000">Authenticators</text>
+<text text-anchor="start" x="604.5" y="-1341.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshedAt</text>
+<text text-anchor="start" x="604" y="-1320.3" font-family="Times,serif" font-size="14.00" fill="#000000">RefreshType</text>
+<text text-anchor="start" x="583" y="-1299.3" font-family="Times,serif" font-size="14.00" fill="#000000">PendingDisplayDate</text>
 </g>
 <!-- RequestCodes&#45;&gt;DeviceAuthPoll -->
 <g id="edge15" class="edge">
 <title>RequestCodes&#45;&gt;DeviceAuthPoll</title>
-<path fill="none" stroke="#000000" d="M848.9091,-507.6393C782.4635,-501.0368 680.0364,-487.0772 651,-462 627.8079,-441.9703 642.4705,-424.0123 628,-397 625.5021,-392.3372 622.4936,-387.6278 619.359,-383.1581"/>
-<polygon fill="#000000" stroke="#000000" points="622.037,-380.8929 613.277,-374.9336 616.4087,-385.055 622.037,-380.8929"/>
-<text text-anchor="start" x="655" y="-447.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RequestCodes&quot; &#45;&gt; &quot;DeviceAuthPoll&quot;</text>
-<text text-anchor="start" x="742" y="-425.3" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
-<text text-anchor="start" x="718.5" y="-404.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeriodSeconds</text>
+<path fill="none" stroke="#000000" d="M838.9091,-507.6393C772.4635,-501.0368 670.0364,-487.0772 641,-462 617.8079,-441.9703 629.9862,-425.2027 618,-397 616.2092,-392.7864 614.1822,-388.3915 612.1229,-384.1226"/>
+<polygon fill="#000000" stroke="#000000" points="615.2239,-382.4978 607.6421,-375.0973 608.9541,-385.6106 615.2239,-382.4978"/>
+<text text-anchor="start" x="645" y="-447.3" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RequestCodes&quot; &#45;&gt; &quot;DeviceAuthPoll&quot;</text>
+<text text-anchor="start" x="732" y="-425.3" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
+<text text-anchor="start" x="708.5" y="-404.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeriodSeconds</text>
 </g>
 <!-- RequestCodes&#45;&gt;DisplayError -->
 <g id="edge21" class="edge">
 <title>RequestCodes&#45;&gt;DisplayError</title>
-<path fill="none" stroke="#000000" d="M907.2163,-494.3271C905.0355,-468.2974 896.9212,-420.909 867,-397 814.1999,-354.8094 767.0076,-423.3411 716,-379 679.2256,-347.0318 723.9964,-305.8418 688,-273 666.7445,-253.6072 594.6704,-244.5402 539.9867,-240.3808"/>
+<path fill="none" stroke="#000000" d="M897.1899,-494.3599C894.9763,-468.3712 886.8214,-421.0333 857,-397 807.8105,-357.3578 763.5056,-420.6453 716,-379 679.359,-346.879 723.9964,-305.8418 688,-273 666.7445,-253.6072 594.6704,-244.5402 539.9867,-240.3808"/>
 <polygon fill="#000000" stroke="#000000" points="540.2206,-236.8887 529.9946,-239.6599 539.7168,-243.8705 540.2206,-236.8887"/>
 <text text-anchor="start" x="720" y="-364.8" font-family="Times,serif" font-style="italic" font-size="14.00" fill="#000000">&quot;RequestCodes&quot; &#45;&gt; &quot;DisplayError&quot;</text>
 <text text-anchor="start" x="801" y="-342.8" font-family="Times,serif" font-size="14.00" fill="#000000">String</text>
@@ -315,8 +316,8 @@
 <!-- _start&#45;&gt;LoadAuth -->
 <g id="edge1" class="edge">
 <title>_start&#45;&gt;LoadAuth</title>
-<path fill="none" stroke="#000000" d="M1207.9813,-115.081C1207.7859,-106.4374 1205.7687,-70.8121 1186,-54 1164.1685,-35.4336 1090.4536,-26.0317 1037.9177,-21.5794"/>
-<polygon fill="#000000" stroke="#000000" points="1037.9643,-18.0718 1027.7145,-20.7536 1037.3996,-25.049 1037.9643,-18.0718"/>
+<path fill="none" stroke="#000000" d="M1207.9914,-115.069C1207.8397,-106.3733 1205.9838,-70.5559 1186,-54 1158.8005,-31.4661 1064.2806,-23.0068 1002.2899,-19.852"/>
+<polygon fill="#000000" stroke="#000000" points="1002.4121,-16.3539 992.2565,-19.3729 1002.0781,-23.3459 1002.4121,-16.3539"/>
 <text text-anchor="start" x="1204" y="-62.3" font-family="Times,serif" font-weight="bold" font-style="italic" font-size="14.00" fill="#000000"> &#45;&gt; &quot;LoadAuth&quot;</text>
 </g>
 </g>

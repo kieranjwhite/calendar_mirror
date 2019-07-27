@@ -6,7 +6,7 @@ digraph cal_stm {
     LoadAuth[label="LoadAuth"][shape="ellipse"];
     NetworkOutage[label="NetworkOutage"][shape="ellipse"];
     PageEvents[label="PageEvents"][shape="ellipse"];
-    PollEvents[label="PollEvents"][shape="ellipse"];
+    PollEvents[label="PollEvents"][shape="doublecircle"];
     ReadFirstEvents[label="ReadFirstEvents"][shape="ellipse"];
     RefreshAuth[label="RefreshAuth"][shape="ellipse"];
     RequestCodes[label="RequestCodes"][shape="ellipse"];

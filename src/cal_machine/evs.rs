@@ -18,8 +18,8 @@ err!(Error {
     });
 
 stm!(ev_stm, Machine, [] => Uninitialised(), {
-        [Uninitialised] => OneCreator(Email);
-        [OneCreator] => NotOneCreator()
+        [Uninitialised] => OneCreator(Email) |end|;
+        [OneCreator] => NotOneCreator() |end|
     });
 
 pub const TIME_FORMAT: &str = "%H:%M";
