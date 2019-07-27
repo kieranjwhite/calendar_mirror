@@ -10,6 +10,7 @@ use crate::{
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
     stm,
 };
+use DisplayMachine::*;
 use AppMachine::*;
 
 use chrono::prelude::*;
@@ -55,7 +56,6 @@ stm!(appointment_stm, AppMachine, []=> Before(), {
 stm!(display_stm, DisplayMachine, [] => NotDisplayable(), {
     [NotDisplayable] => EventsQueued();
     [EventsQueued] => AllDisplayable();
-    [NotDisplayable] => Error();
 });
 
 #[derive(Debug)]
@@ -317,11 +317,13 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        if let Some(ref content) = self.events {
+        let not_displayable=display_stm::NotDisplayable;
+        
+        let all_displayable=if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-            if display_date != today && content.apps.events.len() == 0 {
+            let events_queued=if display_date != today && content.apps.events.len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -334,6 +336,7 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
+                display_stm::EventsQueued::from(not_displayable)
             } else {
                 let mut events = content.apps.events.clone();
                 events.sort();
@@ -484,7 +487,8 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
                 }
-            }
+                display_stm::EventsQueued::from(not_displayable)
+            };
 
             let heading = content.date.format(DATE_FORMAT).to_string();
             let displayable_email = if let Some(Email(email_address)) = content.apps.email() {
@@ -524,10 +528,12 @@ impl Renderer {
                 ops.push(Op::UpdateText(EMAIL_ID.to_string(), displayable_email));
                 ops.push(Op::WriteAll(PartialUpdate(true)));
             }
+
             self.pipe.send(ops.iter(), false)?;
+            display_stm::AllDisplayable::from(events_queued)
         } else {
-            println!("no events");
-        }
+            panic!("no events");
+        };
         Ok(())
     }
 

@@ -15,7 +15,6 @@ macro_rules! stm {
                         $start
                     }
                 }
-
             )*
 
             $(
