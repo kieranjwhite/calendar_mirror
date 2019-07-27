@@ -3,7 +3,7 @@
 macro_rules! stm {
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $bar:tt |)? );+ $(;)? } ) => {
+    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
@@ -83,9 +83,14 @@ macro_rules! stm {
                         Some(dot::LabelText::LabelStr("point".into()))
                     } else {
                         let mut shape=Some(dot::LabelText::LabelStr("ellipse".into()));
+                        if node==&stringify!($start) {
+                            $( crate::stm!(@sub_end_block $start_tag {
+                                shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
+                            } ) )*
+                        }
                         $(
                             if node==&stringify!($node) {
-                                $( crate::stm!(@sub_end_block $bar {
+                                $( crate::stm!(@sub_end_block $tag {
                                     shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
 
                                 } ) )*
@@ -97,6 +102,45 @@ macro_rules! stm {
 
                 fn node_id(&'a self, n: &Nd) -> dot::Id<'a> {
                     dot::Id::new(*n).unwrap()
+                }
+
+                fn node_label(&'a self, node: &Nd) -> dot::LabelText<'a> {
+                    let mut last: Option<char>=None;
+                    let mut rows=1.0;
+                    let mut cols=0.0;
+                    let mut name=String::new();
+                    for ch in node.chars() {
+                        if let Some(last)=last {
+                            $(
+                                if node==&stringify!($start) {
+                                    $( crate::stm!(@sub_end_block $tag {
+                                        if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
+                                            name.push('\n');
+
+                                            rows+=1.0;
+                                            cols=0.0;
+                                        }
+                                    } ) )*
+                                }
+                                if node==&stringify!($node) {
+                                    $( crate::stm!(@sub_end_block $tag {
+                                        if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
+                                            name.push('\n');
+
+                                            rows+=1.0;
+                                            cols=0.0;
+                                        }
+                                    } ) )*
+                                }
+                            )*
+                        }
+
+                        cols+=1.0;
+                        name.push(ch);
+                        last=Some(ch);
+                    }
+
+                    dot::LabelText::LabelStr(name.into())
                 }
 
                 fn edge_label(&'a self, (f, to): &Ed) -> dot::LabelText<'a> {
@@ -135,7 +179,6 @@ macro_rules! stm {
                     dot::LabelText::EscStr("".into())
                 }
             }
-
         }
 
         pub enum $enum_name {

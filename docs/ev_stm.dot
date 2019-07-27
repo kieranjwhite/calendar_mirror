@@ -1,5 +1,5 @@
 digraph ev_stm {
-    NotOneCreator[label="NotOneCreator"][shape="doublecircle"];
+    NotOneCreator[label="NotOne\nCreator"][shape="doublecircle"];
     OneCreator[label="OneCreator"][shape="doublecircle"];
     Uninitialised[label="Uninitialised"][shape="ellipse"];
     _start[label="_start"][shape="point"];

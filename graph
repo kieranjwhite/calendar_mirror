@@ -2,7 +2,6 @@
 
 for dot in docs/*.dot ; do
 	base=`basename $dot`
-	echo "base: $base"
 	dest=docs/$(echo $base | cut -f 1 -d '.').svg	
 	echo "dest: $dest"
 	cat $dot | dot -Tsvg > $dest
