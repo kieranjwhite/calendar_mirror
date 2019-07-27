@@ -10,10 +10,11 @@ use crate::{
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
     stm,
 };
-use Machine::*;
+use AppMachine::*;
 
 use chrono::prelude::*;
 use core::{cmp::Ordering, fmt::Debug};
+use std::iter::from_fn;
 
 const HEADING_ID: &str = "heading";
 const PULSE_ID: &str = "pulse";
@@ -45,10 +46,16 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(appointment_stm, Machine, []=> Before(), {
+stm!(appointment_stm, AppMachine, []=> Before(), {
     [Before] => InProgress();
     [Before, InProgress] => After();
     [InProgress, After] => Error()
+});
+
+stm!(display_stm, DisplayMachine, [] => NotDisplayable(), {
+    [NotDisplayable] => EventsQueued();
+    [EventsQueued] => AllDisplayable();
+    [NotDisplayable] => Error();
 });
 
 #[derive(Debug)]
@@ -137,8 +144,9 @@ enum DisplayAction {
 #[derive(Debug)]
 enum DisplayRecord {
     Event(EventDescription),
-    TimeAndEvent(NowDescription, EventDescription),
     EventAndTime(EventDescription, NowDescription),
+    Time(NowDescription),
+    TimeAndEvent(NowDescription, EventDescription),
 }
 
 impl Renderer {
@@ -336,18 +344,22 @@ impl Renderer {
                     *display_date_start.time.as_ref() + chrono::Duration::days(1)
                 ))?;
 
-                let mut mach = Before(appointment_stm::Before);
+                let mut app_mach = Before(appointment_stm::Before);
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
-                    mach = if let InProgress(st) = mach {
+                    app_mach = if let InProgress(st) = app_mach {
                         After(st.into())
                     } else {
                         panic!(
                             "appointments state machine has the wrong state: {:?}",
-                            mach.state()
+                            app_mach.state()
                         );
                     };
                 };
-                let mach_opt = Some(mach);
+                let mach_opt = Some(app_mach);
+
+                let time_displayable: String = self
+                    .formatter
+                    .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
                 let num_events = events.len();
                 let joined = events
@@ -413,15 +425,6 @@ impl Renderer {
                                 }
                             });
 
-                        let time_displayable: String=match Minute::new(&now)
-                            .or_else(|e| Err(Error::from(e)))
-                            .and_then(|n|self.formatter.just(&Renderer::format(&n, &now).1)
-                                      .or_else(|e| Err(Error::from(e))))
-                             {
-                                Ok(just_time) => just_time,
-                                Err(error) => return Some(Err(error))
-                            };
-
                         let result=match self.formatter.just(&ev_displayable) {
                             Ok(formatted) => {
                                 let event = EventDescription(formatted);
@@ -430,12 +433,12 @@ impl Renderer {
                                     DisplayAction::EventAndTime => {
                                         Some(Ok(DisplayRecord::EventAndTime(
                                             event,
-                                            NowDescription(time_displayable),
+                                            NowDescription(time_displayable.clone()),
                                         )))
                                     }
                                     DisplayAction::TimeAndEvent => {
                                         Some(Ok(DisplayRecord::TimeAndEvent(
-                                            NowDescription(time_displayable),
+                                            NowDescription(time_displayable.clone()),
                                             event,
                                         )))
                                     }
@@ -445,6 +448,9 @@ impl Renderer {
                         };
                         result
                     })
+                    .chain(from_fn(|| if num_events==0 {
+                        Some(Ok(DisplayRecord::Time(NowDescription(time_displayable.clone()))))
+                    } else {None}))
                     .flat_map(|action| match action {
                         Ok(DisplayRecord::EventAndTime(event, now)) => {
                             vec![Ok(event.as_ref().clone()), Ok(now.as_ref().clone())].into_iter()
@@ -454,6 +460,9 @@ impl Renderer {
                         }
                         Ok(DisplayRecord::Event(event)) => {
                             vec![Ok(event.as_ref().clone())].into_iter()
+                        }
+                        Ok(DisplayRecord::Time(now)) => {
+                            vec![Ok(now.as_ref().clone())].into_iter()
                         }
                         Err(error) => vec![Err(error)].into_iter(),
                     })

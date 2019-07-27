@@ -187,7 +187,7 @@ pub fn render_stms() -> Result<(), Error> {
     f.flush()?;
 
     f = File::create("docs/appointments_stm.dot")?;
-    cal_display::Machine::render_to(&mut f);
+    cal_display::AppMachine::render_to(&mut f);
     f.flush()?;
 
     Ok(())

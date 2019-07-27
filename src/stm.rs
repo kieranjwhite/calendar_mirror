@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! stm {
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+} ) => {
+    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*), { $( [$($e:ident), +] => $node:ident($($arg:ty),*) );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
