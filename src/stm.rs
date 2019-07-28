@@ -1,41 +1,111 @@
 //(foo $empty:ty)?
 #[macro_export]
 macro_rules! stm {
+    (@sub_wall nowall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
+        #[allow(dead_code)]
+        pub enum $enum_name {
+            $(
+                $var($mod_name::$var $(, $arg )*),
+            )*
+        }
+    };
+    (@sub_wall wall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
+        #[warn(dead_code)]
+        pub enum $enum_name {
+            $(
+                $var($mod_name::$var $(, $arg )*),
+            )*
+        }
+    };
+    (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+    (@private | $machine_tag:tt | $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
             #[derive(Debug)]
-            pub struct $start;
+            pub struct $start {
+                term: bool
+            }
 
             $(
                 impl From<$start_e> for $start {
-                    fn from(_st: $start_e) -> $start {
+                    fn from(mut old_st: $start_e) -> $start {
+                        old_st.term=true;
                         println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
-                        $start
+                        $start::inst()
                     }
                 }
+
             )*
+
+            impl $start {
+                pub fn inst() -> $start {
+                    $start {
+                        term: false
+                    }
+                }
+
+                pub fn terminable(&self) -> bool {
+                    self.term
+                }
+            }
+
+            impl Drop for $start {
+                fn drop(&mut self) {
+                    if !self.terminable() {panic!("unable to drop non terminating state: {:?}", stringify!(self))}
+                }
+            }
+
+            $( crate::stm!{@sub_end_fn $start_tag
+                impl $start {
+                    pub fn allow_termination(&mut self) {
+                        self.term=true;
+                    }
+                }
+
+            } )*
 
             $(
                 #[derive(Debug)]
                 pub struct $node {
-                    _secret: ()
+                    term: bool
                 }
 
                 $(
                     impl From<$e> for $node {
-                        fn from(_st: $e) -> $node {
+                        fn from(mut old_st: $e) -> $node {
+                            old_st.term=true;
                             println!("{:?} -> {:?}", stringify!($e), stringify!($node));
                             $node {
-                                _secret: ()
+                                term: false
                             }
                         }
                     }
-
                 )*
+
+                impl $node {
+                    pub fn terminable(&self) -> bool {
+                        self.term
+                    }
+                }
+
+                impl Drop for $node {
+                    fn drop(&mut self) {
+                        if !self.terminable() {panic!("unable to drop non terminating state: {:?}", stringify!(self))}
+                    }
+                }
+
+                $( crate::stm!{@sub_end_fn $tag
+                    impl $node {
+                        pub fn allow_termination(&mut self) {
+                            self.term=true;
+                        }
+                    }
+
+                 } )*
+
             )*
 
             #[cfg(feature = "render_stm")]
@@ -181,12 +251,7 @@ macro_rules! stm {
             }
         }
 
-        pub enum $enum_name {
-            $start($mod_name::$start $(, $start_arg)*),
-            $(
-                $node($mod_name::$node $(, $arg )*),
-            )*
-        }
+        stm!(@sub_wall $machine_tag $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
 
         impl $enum_name {
             #[allow(dead_code)]
@@ -229,6 +294,12 @@ macro_rules! stm {
                 }
             }
         }
-
+    };
+    (states $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private |nowall| $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+            $([$($e),*] => $node() $(|$tag|)*);* });
+    };
+    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private |wall| $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
 }

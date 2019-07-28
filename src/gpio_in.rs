@@ -93,7 +93,7 @@ impl LongPressButton {
             pin,
             detectable_after,
             long_release_after,
-            state: LongPressMachine::NotPressed(long_press_button_stm::NotPressed),
+            state: LongPressMachine::NotPressed(long_press_button_stm::NotPressed::inst()),
         }
     }
 }
@@ -105,7 +105,7 @@ impl Button<LongButtonEvent> for LongPressButton {
         use std::mem::replace;
         let mut state = replace(
             &mut self.state,
-            NotPressed(long_press_button_stm::NotPressed),
+            NotPressed(long_press_button_stm::NotPressed::inst()),
         );
 
         state = match state {

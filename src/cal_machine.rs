@@ -42,7 +42,7 @@ stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
     [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
     [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
-    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate) |end|;
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate);
     [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
     [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt, TimeUpdatedAt)
 });
@@ -186,6 +186,10 @@ pub fn render_stms() -> Result<(), Error> {
     formatter::Machine::render_to(&mut f);
     f.flush()?;
 
+    f = File::create("docs/display_stm.dot")?;
+    cal_display::DisplayMachine::render_to(&mut f);
+    f.flush()?;
+
     f = File::create("docs/appointments_stm.dot")?;
     cal_display::AppMachine::render_to(&mut f);
     f.flush()?;
@@ -259,7 +263,7 @@ pub fn run(
     let mut display_date = today; //don't delete this variable -- it's needed after a network outage to display events from that last date we navigated to, while at the same time reverting date changes due to the previous failed date navigation operation
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
-    let mut mach: Machine = LoadAuth(cal_stm::LoadAuth);
+    let mut mach: Machine = LoadAuth(cal_stm::LoadAuth::inst());
     let mut gpio = GPIO::new()?;
     let mut reset_button = LongPressButton::new(
         Pin(SW3_GPIO),
@@ -535,7 +539,7 @@ pub fn run(
                             };
                         renderer.display_events(
                             display_date.clone(),
-                            events,
+                            events.finalise(),
                             refresh_type,
                             Now(now),
                             pos_calculator,

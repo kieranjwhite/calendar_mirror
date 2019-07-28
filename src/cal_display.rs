@@ -1,7 +1,7 @@
 use crate::display::Operation as Op;
 use crate::{
     cal_machine::evs::{
-        Appointments, ArgumentOutOfRange, DisplayableOccasion, Email, Error as EventError, Minute,
+        AppsReadonly, ArgumentOutOfRange, DisplayableOccasion, Email, Error as EventError, Minute,
         Now, TIME_FORMAT,
     },
     cloneable,
@@ -10,7 +10,6 @@ use crate::{
     formatter::{self, Dims, GlyphXCnt, GlyphYCnt, LeftFormatter},
     stm,
 };
-use DisplayMachine::*;
 use AppMachine::*;
 
 use chrono::prelude::*;
@@ -53,9 +52,9 @@ stm!(appointment_stm, AppMachine, []=> Before(), {
     [InProgress, After] => Error()
 });
 
-stm!(display_stm, DisplayMachine, [] => NotDisplayable(), {
-    [NotDisplayable] => EventsQueued();
-    [EventsQueued] => AllDisplayable()  |end|;
+stm!(states display_stm, DisplayMachine, [] => NotDisplayable, {
+    [NotDisplayable] => EventsQueued;
+    [EventsQueued] => AllDisplayable  |end|;
 });
 
 #[derive(Debug)]
@@ -88,7 +87,7 @@ pub struct Renderer {
 
 struct EventContent {
     date: DateTime<Local>,
-    apps: Appointments,
+    apps: AppsReadonly,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -317,13 +316,13 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let not_displayable=display_stm::NotDisplayable;
+        let not_displayable=display_stm::NotDisplayable::inst();
         
-        let all_displayable=if let Some(ref content) = self.events {
+        let mut all_displayable=if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-            let events_queued=if display_date != today && content.apps.events.len() == 0 {
+            let events_queued=if display_date != today && content.apps.events().len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -338,7 +337,7 @@ impl Renderer {
                 }
                 display_stm::EventsQueued::from(not_displayable)
             } else {
-                let mut events = content.apps.events.clone();
+                let mut events = content.apps.events();
                 events.sort();
 
                 let display_date_start = Minute::new(&Now(display_date))?;
@@ -347,7 +346,7 @@ impl Renderer {
                     *display_date_start.time.as_ref() + chrono::Duration::days(1)
                 ))?;
 
-                let mut app_mach = Before(appointment_stm::Before);
+                let mut app_mach = Before(appointment_stm::Before::inst());
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
                     app_mach = if let InProgress(st) = app_mach {
                         After(st.into())
@@ -379,8 +378,10 @@ impl Renderer {
                                         if idx + 1 == num_events {
                                             if let Some(Ordering::Greater) = following_date_start
                                                 .partial_chron_cmp(&now) {
-                                                display_action = DisplayAction::EventAndTime;
-                                                After(st.into())
+                                                    display_action = DisplayAction::EventAndTime;
+                                                    let mut new_st=appointment_stm::After::from(st);
+                                                    new_st.allow_termination();
+                                                    After(new_st)
                                             } else {
                                                 Before(st)
                                             }
@@ -534,13 +535,15 @@ impl Renderer {
         } else {
             panic!("no events");
         };
+        all_displayable.allow_termination();
+
         Ok(())
     }
 
     pub fn display_events(
         &mut self,
         date: DateTime<Local>,
-        apps: Appointments,
+        apps: AppsReadonly,
         render_type: RefreshType,
         now: Now,
         pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,

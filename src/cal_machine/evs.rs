@@ -17,7 +17,7 @@ err!(Error {
     TimeZoneAmbiguous(TimeZoneAmbiguousError)
     });
 
-stm!(ev_stm, Machine, [] => Uninitialised(), {
+stm!(ev_stm, Machine, [] => Uninitialised() |end|, {
         [Uninitialised] => OneCreator(Email) |end|;
         [OneCreator] => NotOneCreator() |end|
     });
@@ -122,7 +122,7 @@ impl DisplayableOccasion for Minute {
             match self.after.partial_cmp(other.as_ref()) {
                 Some(Ordering::Greater) => Some(Ordering::Equal),
                 None => None,
-                _ => Some(Ordering::Less)
+                _ => Some(Ordering::Less),
             }
         }
     }
@@ -213,11 +213,11 @@ impl Appointments {
     pub fn new() -> Appointments {
         Appointments {
             events: Vec::new(),
-            state: Uninitialised(ev_stm::Uninitialised),
+            state: Uninitialised(ev_stm::Uninitialised::inst()),
         }
     }
 
-    pub fn email(&self) -> Option<Email> {
+    fn email(&self) -> Option<Email> {
         match self.state {
             Uninitialised(_) => None,
             OneCreator(_, ref email) => Some(email.clone()),
@@ -228,7 +228,10 @@ impl Appointments {
     pub fn add(&mut self, received: &EventsResponse) -> Result<(), Error> {
         use std::mem::replace;
 
-        let mut state = replace(&mut self.state, Uninitialised(ev_stm::Uninitialised));
+        let mut state = replace(
+            &mut self.state,
+            Uninitialised(ev_stm::Uninitialised::inst()),
+        );
         for ev in received.items.iter() {
             state = match state {
                 Uninitialised(st) => OneCreator(st.into(), Email(ev.creator.email.clone())),
@@ -248,5 +251,42 @@ impl Appointments {
         replace(&mut self.state, state);
 
         Ok(())
+    }
+
+    pub fn finalise(mut self) -> AppsReadonly {
+        self.state=match self.state {
+            Uninitialised(mut st) => {
+                st.allow_termination();
+                Uninitialised(st)
+            }
+            OneCreator(mut st, email) => {
+                st.allow_termination();
+                OneCreator(st, email)
+            }
+            NotOneCreator(mut st) => {
+                st.allow_termination();
+                NotOneCreator(st)
+            }
+        };
+
+        AppsReadonly {
+            email: self.email(),
+            events: self.events,
+        }
+    }
+}
+
+pub struct AppsReadonly {
+    email: Option<Email>,
+    events: Vec<Event>,
+}
+
+impl AppsReadonly {
+    pub fn email(&self) -> Option<Email> {
+        self.email.clone()
+    }
+
+    pub fn events(&self) -> Vec<Event> {
+        self.events.clone()
     }
 }

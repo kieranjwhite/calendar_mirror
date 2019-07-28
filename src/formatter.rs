@@ -289,7 +289,7 @@ impl LeftFormatter {
         Ok(unformatted
             .lines()
             .map(|l| {
-                let mut mach = Empty(tokenising_stm::Empty);
+                let mut mach = Empty(tokenising_stm::Empty::inst());
                 let mut col = GlyphXCnt(0);
                 let mut output = None;
                 let mut pending = Pending::new(GlyphXCnt(self.size.width()));
