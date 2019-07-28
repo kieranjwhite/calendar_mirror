@@ -17,10 +17,12 @@ macro_rules! stm {
             )*
         }
     };
+    (@sub_ignore_fn ignorable $($sub:tt)*) => {};
+    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {$($sub)*};
     (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    (@private | $machine_tag:tt | $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+    (@private $machine_tag:tt $ignorable_tag:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
@@ -34,17 +36,25 @@ macro_rules! stm {
                     fn from(mut old_st: $start_e) -> $start {
                         old_st.term=true;
                         println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
-                        $start::inst()
+                        let mut new_st=$start::inst();
+                        new_st.term=false;
+                        new_st
                     }
                 }
 
             )*
 
             impl $start {
+                #[allow(unused_mut)]
                 pub fn inst() -> $start {
-                    $start {
+                    let mut st=$start {
                         term: false
+                    };
+
+                    crate::stm!{@sub_ignore_fn $ignorable_tag
+                                st.term=true;
                     }
+                    st
                 }
 
                 pub fn terminable(&self) -> bool {
@@ -63,6 +73,7 @@ macro_rules! stm {
                     pub fn allow_termination(&mut self) {
                         self.term=true;
                     }
+
                 }
 
             } )*
@@ -103,7 +114,6 @@ macro_rules! stm {
                             self.term=true;
                         }
                     }
-
                  } )*
 
             )*
@@ -152,6 +162,7 @@ macro_rules! stm {
                     if &START_NODE_NAME==node {
                         Some(dot::LabelText::LabelStr("point".into()))
                     } else {
+                        #[allow(unused_mut)]
                         let mut shape=Some(dot::LabelText::LabelStr("ellipse".into()));
                         if node==&stringify!($start) {
                             $( crate::stm!(@sub_end_block $start_tag {
@@ -174,6 +185,7 @@ macro_rules! stm {
                     dot::Id::new(*n).unwrap()
                 }
 
+                #[allow(unused_mut, unused_variables)]
                 fn node_label(&'a self, node: &Nd) -> dot::LabelText<'a> {
                     let mut last: Option<char>=None;
                     let mut rows=1.0;
@@ -295,11 +307,18 @@ macro_rules! stm {
             }
         }
     };
-    (states $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private |nowall| $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+    (states ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall ignorable $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
-    ($mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private |wall| $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    (machine ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    };
+    (states not_ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall not_ignorable $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+            $([$($e),*] => $node() $(|$tag|)*);* });
+    };
+    (machine not_ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall not_ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
 }

@@ -17,7 +17,7 @@ err!(Error {
     TimeZoneAmbiguous(TimeZoneAmbiguousError)
     });
 
-stm!(ev_stm, Machine, [] => Uninitialised() |end|, {
+stm!(machine ignorable ev_stm, Machine, [] => Uninitialised() |end|, {
         [Uninitialised] => OneCreator(Email) |end|;
         [OneCreator] => NotOneCreator() |end|
     });

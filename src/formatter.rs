@@ -215,7 +215,7 @@ impl Pending {
     }
 }
 
-stm!(tokenising_stm, Machine, []=> Empty(), {
+stm!(machine not_ignorable tokenising_stm, Machine, []=> Empty(), {
     [TokenComplete] => BuildingBreakable() |end|;
     [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
     [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;

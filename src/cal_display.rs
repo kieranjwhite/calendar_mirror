@@ -46,13 +46,13 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(appointment_stm, AppMachine, []=> Before(), {
+stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before(), {
     [Before] => InProgress();
     [Before, InProgress] => After() |end|;
     [InProgress, After] => Error()
 });
 
-stm!(states display_stm, DisplayMachine, [] => NotDisplayable, {
+stm!(states not_ignorable display_stm, DisplayMachine, [] => NotDisplayable, {
     [NotDisplayable] => EventsQueued;
     [EventsQueued] => AllDisplayable  |end|;
 });

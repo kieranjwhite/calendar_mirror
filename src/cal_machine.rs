@@ -34,7 +34,7 @@ use std::{
     time::Duration,
 };
 
-stm!(cal_stm, Machine, [ErrorWait] => LoadAuth(), {
+stm!(machine ignorable cal_stm, Machine, [ErrorWait] => LoadAuth(), {
     [DisplayError] => ErrorWait(DownloadedAt);
     [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes();
     [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate);
