@@ -17,8 +17,8 @@ macro_rules! stm {
             )*
         }
     };
-    (@sub_ignore_fn ignorable $($sub:tt)*) => {};
-    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_ignore_fn ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {};
     (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
@@ -52,7 +52,7 @@ macro_rules! stm {
                     };
 
                     crate::stm!{@sub_ignore_fn $ignorable_tag
-                                st.term=true;
+                                st.allow_termination();
                     }
                     st
                 }
