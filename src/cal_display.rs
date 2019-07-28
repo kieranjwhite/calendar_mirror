@@ -46,7 +46,7 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before(), {
+stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before() |end|, {
     [Before] => InProgress();
     [Before, InProgress] => After() |end|;
     [InProgress, After] => Error()

@@ -17,8 +17,8 @@ macro_rules! stm {
             )*
         }
     };
-    (@sub_ignore_fn ignorable $($sub:tt)*) => {$($sub)*};
-    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {};
+    (@sub_ignore_fn ignorable $($sub:tt)*) => {};
+    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {$($sub)*};
     (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
@@ -45,21 +45,31 @@ macro_rules! stm {
             )*
 
             impl $start {
-                #[allow(unused_mut)]
+                //#[allow(unused_mut)]
                 pub fn inst() -> $start {
-                    let mut st=$start {
+                    let st=$start {
                         term: false
                     };
-
+                    /*
                     crate::stm!{@sub_ignore_fn $ignorable_tag
                                 st.allow_termination();
                     }
+                     */
                     st
                 }
 
                 pub fn terminable(&self) -> bool {
                     self.term
                 }
+
+                //$( crate::stm!{@sub_end_fn $start_tag
+                crate::stm!{@sub_ignore_fn $ignorable_tag
+                            pub fn allow_immediate_termination(&mut self) {
+                                self.term=true;
+                            }
+                }
+                //} )*
+
             }
 
             impl Drop for $start {
