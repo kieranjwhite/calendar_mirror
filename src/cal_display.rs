@@ -315,8 +315,9 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let not_displayable = display_stm::NotDisplayable::inst();
-
+        let mut not_displayable = display_stm::NotDisplayable::inst();
+        not_displayable.allow_immediate_termination();
+        
         let mut all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
@@ -440,7 +441,8 @@ impl Renderer {
                             let mut out = None;
                             mach_opt = Some(
                                 match mach_opt.take().expect("missing state in appointments stm") {
-                                    Before(st) => {
+                                    Before(mut st) => {
+                                        st.allow_immediate_termination();
                                         if let Some(Ordering::Greater) =
                                             following_date_start.partial_chron_cmp(&now)
                                         {

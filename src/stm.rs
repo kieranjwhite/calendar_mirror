@@ -77,7 +77,6 @@ macro_rules! stm {
                     self.term
                 }
 
-                //$( crate::stm!{@sub_end_fn $start_tag
                 crate::stm!{@sub_unending_mask $pertinence
                             pub fn allow_immediate_termination(&mut self) {
                                 self.term=true;
@@ -85,8 +84,6 @@ macro_rules! stm {
 
                             fn end_tags_found(&self){}
                 }
-                //} )*
-
             }
 
             impl Drop for $start {
