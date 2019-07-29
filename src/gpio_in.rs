@@ -26,7 +26,7 @@ pub trait Button<E> {
     fn event(&mut self, ports: &mut GPIO) -> Result<Option<E>, Error>;
 }
 
-stm!(machine not_ignorable long_press_button_stm, LongPressMachine, [ReleasePending, PressedPending, LongPressed] => NotPressed(), {
+stm!(machine unending long_press_button_stm, LongPressMachine, [ReleasePending, PressedPending, LongPressed] => NotPressed(), {
     [PressedPending, LongPressed] => ReleasePending();
     [NotPressed, ReleasePending, LongPressed] => PressedPending();
     [NotPressed, ReleasePending, PressedPending]=>LongPressed()

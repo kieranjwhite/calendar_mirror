@@ -257,6 +257,7 @@ impl Appointments {
         self.state=match self.state {
             Uninitialised(mut st) => {
                 st.allow_termination();
+                st.allow_immediate_termination();
                 Uninitialised(st)
             }
             OneCreator(mut st, email) => {

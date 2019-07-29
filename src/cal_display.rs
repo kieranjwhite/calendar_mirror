@@ -46,7 +46,7 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before() |end|, {
+stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before(), {
     [Before] => InProgress();
     [Before, InProgress] => After();
     [Before, InProgress, After] => Chained() |end|;
@@ -362,7 +362,7 @@ impl Renderer {
                     .formatter
                     .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
-                let displayed_events = {
+                let displayed_events =
                     events
                     .iter()
                     .map(|ev| {
@@ -431,10 +431,11 @@ impl Renderer {
                             Err(error) => return Err(error.into()),
                         };
                         result
-                    }).collect::<Vec<Result<DisplayRecord,Error>>>()
-                };
+                    }).collect::<Vec<Result<DisplayRecord,Error>>>();
+
                 let joined = {
-                    displayed_events.into_iter()
+                    displayed_events
+                        .into_iter()
                         .chain(from_fn(|| {
                             let mut out = None;
                             mach_opt = Some(

@@ -17,12 +17,19 @@ macro_rules! stm {
             )*
         }
     };
-    (@sub_ignore_fn ignorable $($sub:tt)*) => {};
-    (@sub_ignore_fn not_ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_mask ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_mask unending $($sub:tt)*) => {};
+    (@sub_unending_mask not_ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_filter ignorable $($sub:tt)*) => {};
+    (@sub_unending_filter unending $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_filter not_ignorable $($sub:tt)*) => {};
+    (@sub_not_ignorable_filter ignorable $($sub:tt)*) => {};
+    (@sub_not_ignorable_filter unending $($sub:tt)*) => {};
+    (@sub_not_ignorable_filter not_ignorable $($sub:tt)*) => {$($sub)*};
     (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    (@private $machine_tag:tt $ignorable_tag:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+    (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         pub mod $mod_name
         {
@@ -47,15 +54,23 @@ macro_rules! stm {
             impl $start {
                 //#[allow(unused_mut)]
                 pub fn inst() -> $start {
-                    let st=$start {
+                    let node=$start {
                         term: false
                     };
-                    /*
-                    crate::stm!{@sub_ignore_fn $ignorable_tag
-                                st.allow_termination();
+                    crate::stm!{@sub_unending_mask $pertinence
+
+                                $( crate::stm!{@sub_end_fn $start_tag
+                                               node.end_tags_found();
+                                } )*
+
+                                $(
+                                    $( crate::stm!{@sub_end_fn $tag
+                                                   node.end_tags_found();
+                                    } )*
+                                )*;
+                                
                     }
-                     */
-                    st
+                    node
                 }
 
                 pub fn terminable(&self) -> bool {
@@ -63,10 +78,12 @@ macro_rules! stm {
                 }
 
                 //$( crate::stm!{@sub_end_fn $start_tag
-                crate::stm!{@sub_ignore_fn $ignorable_tag
+                crate::stm!{@sub_unending_mask $pertinence
                             pub fn allow_immediate_termination(&mut self) {
                                 self.term=true;
                             }
+
+                            fn end_tags_found(&self){}
                 }
                 //} )*
 
@@ -78,6 +95,7 @@ macro_rules! stm {
                 }
             }
 
+            crate::stm!{@sub_unending_mask $pertinence
             $( crate::stm!{@sub_end_fn $start_tag
                 impl $start {
                     pub fn allow_termination(&mut self) {
@@ -87,6 +105,14 @@ macro_rules! stm {
                 }
 
             } )*
+            }
+
+            crate::stm!{@sub_unending_filter $pertinence
+                        $( crate::stm!{@sub_end_fn $start_tag
+                                       illegal_end_tag {}
+                        }
+                        )*
+            }
 
             $(
                 #[derive(Debug)]
@@ -118,6 +144,7 @@ macro_rules! stm {
                     }
                 }
 
+            crate::stm!{@sub_unending_mask $pertinence
                 $( crate::stm!{@sub_end_fn $tag
                     impl $node {
                         pub fn allow_termination(&mut self) {
@@ -125,9 +152,16 @@ macro_rules! stm {
                         }
                     }
                  } )*
+            }
 
+                crate::stm!{@sub_unending_filter $pertinence
+                            $( crate::stm!{@sub_end_fn $tag
+                                           illegal_end_tag {}
+                            }
+                            )*
+            }
             )*
-
+                
             #[cfg(feature = "render_stm")]
             pub type Nd = &'static str;
             #[cfg(feature = "render_stm")]
@@ -330,5 +364,12 @@ macro_rules! stm {
     };
     (machine not_ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
         stm!(@private wall not_ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    };
+    (states unending $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall unending $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+            $([$($e),*] => $node() $(|$tag|)*);* });
+    };
+    (machine unending $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall unending $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
 }

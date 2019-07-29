@@ -1,13 +1,17 @@
 digraph appointment_stm {
-    After[label="After"][shape="doublecircle"];
+    After[label="After"][shape="ellipse"];
     Before[label="Before"][shape="ellipse"];
-    Error[label="Error"][shape="ellipse"];
+    Chained[label="Chained"][shape="doublecircle"];
+    Error[label="Error"][shape="doublecircle"];
     InProgress[label="InProgress"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> Before[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Before"</I></B></TD></TR></TABLE>>];
     Before -> InProgress[label=<<TABLE BORDER="0"><TR><TD><I>"Before" -&gt; "InProgress"</I></TD></TR></TABLE>>];
     Before -> After[label=<<TABLE BORDER="0"><TR><TD><I>"Before" -&gt; "After"</I></TD></TR></TABLE>>];
     InProgress -> After[label=<<TABLE BORDER="0"><TR><TD><I>"InProgress" -&gt; "After"</I></TD></TR></TABLE>>];
+    Before -> Chained[label=<<TABLE BORDER="0"><TR><TD><I>"Before" -&gt; "Chained"</I></TD></TR></TABLE>>];
+    InProgress -> Chained[label=<<TABLE BORDER="0"><TR><TD><I>"InProgress" -&gt; "Chained"</I></TD></TR></TABLE>>];
+    After -> Chained[label=<<TABLE BORDER="0"><TR><TD><I>"After" -&gt; "Chained"</I></TD></TR></TABLE>>];
     InProgress -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"InProgress" -&gt; "Error"</I></TD></TR></TABLE>>];
     After -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"After" -&gt; "Error"</I></TD></TR></TABLE>>];
 }
