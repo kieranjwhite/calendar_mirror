@@ -206,19 +206,23 @@ impl From<&retriever::Event> for Result<Event, Error> {
 
 pub struct Appointments {
     pub events: Vec<Event>,
-    state: Machine,
+    state: Option<Machine>,
 }
 
 impl Appointments {
     pub fn new() -> Appointments {
         Appointments {
             events: Vec::new(),
-            state: Uninitialised(ev_stm::Uninitialised::inst()),
+            state: Some(Uninitialised(ev_stm::Uninitialised::inst())),
         }
     }
 
-    fn email(&self) -> Option<Email> {
-        match self.state {
+    fn email(&mut self) -> Option<Email> {
+        match self
+            .state
+            .take()
+            .expect("email(). Appointments.state is in an uninitialised state")
+        {
             Uninitialised(_) => None,
             OneCreator(_, ref email) => Some(email.clone()),
             NotOneCreator(_) => None,
@@ -226,49 +230,56 @@ impl Appointments {
     }
 
     pub fn add(&mut self, received: &EventsResponse) -> Result<(), Error> {
-        use std::mem::replace;
+        self.state = Some({
+            let mut state = self
+                .state
+                .take()
+                .expect("add(). Appointments.state is in an uninitialised state");
 
-        let mut state = replace(
-            &mut self.state,
-            Uninitialised(ev_stm::Uninitialised::inst()),
-        );
-        for ev in received.items.iter() {
-            state = match state {
-                Uninitialised(st) => OneCreator(st.into(), Email(ev.creator.email.clone())),
-                OneCreator(st, Email(email)) => {
-                    if email == ev.creator.email {
-                        OneCreator(st, Email(email))
-                    } else {
-                        NotOneCreator(st.into())
+            for ev in received.items.iter() {
+                state = match state {
+                    Uninitialised(st) => OneCreator(st.into(), Email(ev.creator.email.clone())),
+                    OneCreator(st, Email(email)) => {
+                        if email == ev.creator.email {
+                            OneCreator(st, Email(email))
+                        } else {
+                            NotOneCreator(st.into())
+                        }
                     }
-                }
-                NotOneCreator(st) => NotOneCreator(st),
-            };
-            let ev_res: Result<Event, Error> = ev.into();
-            let typed_ev = ev_res?;
-            self.events.push(typed_ev);
-        }
-        replace(&mut self.state, state);
+                    NotOneCreator(st) => NotOneCreator(st),
+                };
+                let ev_res: Result<Event, Error> = ev.into();
+                let typed_ev = ev_res?;
+                self.events.push(typed_ev);
+            }
+            state
+        });
 
         Ok(())
     }
 
     pub fn finalise(mut self) -> AppsReadonly {
-        self.state=match self.state {
-            Uninitialised(mut st) => {
-                st.allow_termination();
-                st.allow_immediate_termination();
-                Uninitialised(st)
-            }
-            OneCreator(mut st, email) => {
-                st.allow_termination();
-                OneCreator(st, email)
-            }
-            NotOneCreator(mut st) => {
-                st.allow_termination();
-                NotOneCreator(st)
-            }
-        };
+        self.state = Some(
+            match self
+                .state
+                .take()
+                .expect("finalise(). Appoinments.state is in an unitialised state")
+            {
+                Uninitialised(mut st) => {
+                    st.allow_termination();
+                    st.allow_immediate_termination();
+                    Uninitialised(st)
+                }
+                OneCreator(mut st, email) => {
+                    st.allow_termination();
+                    OneCreator(st, email)
+                }
+                NotOneCreator(mut st) => {
+                    st.allow_termination();
+                    NotOneCreator(st)
+                }
+            },
+        );
 
         AppsReadonly {
             email: self.email(),
