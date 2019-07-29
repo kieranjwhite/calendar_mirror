@@ -88,7 +88,7 @@ macro_rules! stm {
 
             impl Drop for $start {
                 fn drop(&mut self) {
-                    if !self.terminable() {panic!("unable to drop non terminating state: {:?}", stringify!(self))}
+                    if !self.terminable() {panic!("unable to drop non terminating state: {:?}", self)}
                 }
             }
 
@@ -137,7 +137,7 @@ macro_rules! stm {
 
                 impl Drop for $node {
                     fn drop(&mut self) {
-                        if !self.terminable() {panic!("unable to drop non terminating state: {:?}", stringify!(self))}
+                        if !self.terminable() {panic!("unable to drop non terminating state: {:?}", self)}
                     }
                 }
 
