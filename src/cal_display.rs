@@ -48,8 +48,9 @@ const STATUS_FLASH_OFF: &str = " ";
 
 stm!(machine not_ignorable appointment_stm, AppMachine, []=> Before() |end|, {
     [Before] => InProgress();
-    [Before, InProgress] => After() |end|;
-    [InProgress, After] => Error()
+    [Before, InProgress] => After();
+    [Before, InProgress, After] => Chained() |end|;
+    [InProgress, After] => Error() |end|
 });
 
 stm!(states not_ignorable display_stm, DisplayMachine, [] => NotDisplayable, {
@@ -137,13 +138,11 @@ cloneable!(NowDescription, String);
 enum DisplayAction {
     Event,
     TimeAndEvent,
-    EventAndTime,
 }
 
 #[derive(Debug)]
 enum DisplayRecord {
     Event(EventDescription),
-    EventAndTime(EventDescription, NowDescription),
     Time(NowDescription),
     TimeAndEvent(NowDescription, EventDescription),
 }
@@ -363,12 +362,10 @@ impl Renderer {
                     .formatter
                     .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
-                let mut chained = false;
-                let num_events = events.len();
-                let joined = events
+                let displayed_events = {
+                    events
                     .iter()
-                    .enumerate()
-                    .map(|(idx, ev)| {
+                    .map(|ev| {
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
                         let mut display_action = DisplayAction::Event;
@@ -376,19 +373,7 @@ impl Renderer {
                                                 .expect("missing state in appointments stm") {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
-                                        if idx + 1 == num_events {
-                                            if let Some(Ordering::Greater) = following_date_start
-                                                .partial_chron_cmp(&now) {
-                                                    display_action = DisplayAction::EventAndTime;
-                                                    let mut new_st=appointment_stm::After::from(st);
-                                                    new_st.allow_termination();
-                                                    After(new_st)
-                                            } else {
-                                                Before(st)
-                                            }
-                                        } else {
-                                            Before(st)
-                                        }
+                                        Before(st)
                                     }
                                     Some(Ordering::Equal) => InProgress(st.into()),
                                     Some(Ordering::Greater) => {
@@ -425,9 +410,9 @@ impl Renderer {
                                     Some(Ordering::Greater) => After(st),
                                     None => After(st),
                                 },
-                                Error(st) => {
-                                    Error(st)
-                                }
+                                Chained(st) => Chained(st),
+                                Error(st) =>
+                                    Error(st),
                             });
 
                         let result=match self.formatter.just(&ev_displayable) {
@@ -435,12 +420,6 @@ impl Renderer {
                                 let event = EventDescription(formatted);
                                 match display_action {
                                     DisplayAction::Event => Ok(DisplayRecord::Event(event)),
-                                    DisplayAction::EventAndTime => {
-                                        Ok(DisplayRecord::EventAndTime(
-                                            event,
-                                            NowDescription(time_displayable.clone()),
-                                        ))
-                                    }
                                     DisplayAction::TimeAndEvent => {
                                         Ok(DisplayRecord::TimeAndEvent(
                                             NowDescription(time_displayable.clone()),
@@ -452,37 +431,56 @@ impl Renderer {
                             Err(error) => return Err(error.into()),
                         };
                         result
-                    })
-                    .chain(from_fn(||
-                                   if chained {
-                                       None
-                                   } else {
-                                       chained=true;
-                                       if num_events==0 {
-                                           Some(Ok(DisplayRecord::Time(NowDescription(time_displayable.clone()))))
-                                       } else {
-                                           None
-                                       }
-                                   }
-                    )
-                    )
-                    .flat_map(|action| match action {
-                        Ok(DisplayRecord::EventAndTime(event, now)) => {
-                            vec![Ok(event.as_ref().clone()), Ok(now.as_ref().clone())].into_iter()
-                        }
-                        Ok(DisplayRecord::TimeAndEvent(now, event)) => {
-                            vec![Ok(now.as_ref().clone()), Ok(event.as_ref().clone())].into_iter()
-                        }
-                        Ok(DisplayRecord::Event(event)) => {
-                            vec![Ok(event.as_ref().clone())].into_iter()
-                        }
-                        Ok(DisplayRecord::Time(now)) => {
-                            vec![Ok(now.as_ref().clone())].into_iter()
-                        }
-                        Err(error) => vec![Err(error)].into_iter(),
-                    })
-                    .collect::<Result<Vec<String>, Error>>()?
-                    .join("\n");
+                    }).collect::<Vec<Result<DisplayRecord,Error>>>()
+                };
+                let joined = {
+                    displayed_events.into_iter()
+                        .chain(from_fn(|| {
+                            let mut out = None;
+                            mach_opt = Some(
+                                match mach_opt.take().expect("missing state in appointments stm") {
+                                    Before(st) => {
+                                        if let Some(Ordering::Greater) =
+                                            following_date_start.partial_chron_cmp(&now)
+                                        {
+                                            out = Some(Ok(DisplayRecord::Time(NowDescription(
+                                                time_displayable.clone(),
+                                            ))));
+                                            After(st.into())
+                                        } else {
+                                            Chained(st.into())
+                                        }
+                                    }
+                                    InProgress(st) => Chained(st.into()),
+                                    After(st) => Chained(st.into()),
+                                    Chained(mut st) => {
+                                        st.allow_termination();
+                                        Chained(st)
+                                    }
+                                    Error(mut st) => {
+                                        st.allow_termination();
+                                        Error(st)
+                                    }
+                                },
+                            );
+                            out
+                        }))
+                        .flat_map(|action| match action {
+                            Ok(DisplayRecord::TimeAndEvent(now, event)) => {
+                                vec![Ok(now.as_ref().clone()), Ok(event.as_ref().clone())]
+                                    .into_iter()
+                            }
+                            Ok(DisplayRecord::Event(event)) => {
+                                vec![Ok(event.as_ref().clone())].into_iter()
+                            }
+                            Ok(DisplayRecord::Time(now)) => {
+                                vec![Ok(now.as_ref().clone())].into_iter()
+                            }
+                            Err(error) => vec![Err(error)].into_iter(),
+                        })
+                        .collect::<Result<Vec<String>, Error>>()?
+                        .join("\n")
+                };
                 let lines = joined.lines().collect::<Vec<&str>>();
                 let pos = pos_calculator(GlyphYCnt(lines.len()), self.dims.1);
                 let justified_events = lines[pos.0..].join("\n");
