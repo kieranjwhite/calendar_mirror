@@ -19,13 +19,13 @@ macro_rules! stm {
     };
     (@sub_unending_mask ignorable $($sub:tt)*) => {$($sub)*};
     (@sub_unending_mask unending $($sub:tt)*) => {};
-    (@sub_unending_mask not_ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_mask attention_seeking $($sub:tt)*) => {$($sub)*};
     (@sub_unending_filter ignorable $($sub:tt)*) => {};
     (@sub_unending_filter unending $($sub:tt)*) => {$($sub)*};
-    (@sub_unending_filter not_ignorable $($sub:tt)*) => {};
-    (@sub_not_ignorable_filter ignorable $($sub:tt)*) => {};
-    (@sub_not_ignorable_filter unending $($sub:tt)*) => {};
-    (@sub_not_ignorable_filter not_ignorable $($sub:tt)*) => {$($sub)*};
+    (@sub_unending_filter attention_seeking $($sub:tt)*) => {};
+    (@sub_attention_seeking_filter ignorable $($sub:tt)*) => {};
+    (@sub_attention_seeking_filter unending $($sub:tt)*) => {};
+    (@sub_attention_seeking_filter attention_seeking $($sub:tt)*) => {$($sub)*};
     (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
     (@sub_end_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
@@ -355,12 +355,12 @@ macro_rules! stm {
     (machine ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
         stm!(@private wall ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
-    (states not_ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall not_ignorable $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+    (states attention_seeking $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall attention_seeking $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
-    (machine not_ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private wall not_ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    (machine attention_seeking $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall attention_seeking $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
     (states unending $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
         stm!(@private nowall unending $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
