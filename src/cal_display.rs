@@ -316,13 +316,13 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let not_displayable=display_stm::NotDisplayable::inst();
-        
-        let mut all_displayable=if let Some(ref content) = self.events {
+        let not_displayable = display_stm::NotDisplayable::inst();
+
+        let mut all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-            let events_queued=if display_date != today && content.apps.events().len() == 0 {
+            let events_queued = if display_date != today && content.apps.events().len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -357,21 +357,22 @@ impl Renderer {
                         );
                     };
                 };
-                let mach_opt = Some(app_mach);
+                let mut mach_opt = Some(app_mach);
 
                 let time_displayable: String = self
                     .formatter
                     .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
+                let mut chained = false;
                 let num_events = events.len();
                 let joined = events
                     .iter()
                     .enumerate()
-                    .scan(mach_opt, |mach_opt, (idx, ev)| {
+                    .map(|(idx, ev)| {
                         let (partial_ordering, ev_displayable) = Renderer::format(ev, &now);
 
                         let mut display_action = DisplayAction::Event;
-                        *mach_opt = Some(match mach_opt.take()
+                        mach_opt = Some(match mach_opt.take()
                                                 .expect("missing state in appointments stm") {
                                 Before(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
@@ -433,28 +434,38 @@ impl Renderer {
                             Ok(formatted) => {
                                 let event = EventDescription(formatted);
                                 match display_action {
-                                    DisplayAction::Event => Some(Ok(DisplayRecord::Event(event))),
+                                    DisplayAction::Event => Ok(DisplayRecord::Event(event)),
                                     DisplayAction::EventAndTime => {
-                                        Some(Ok(DisplayRecord::EventAndTime(
+                                        Ok(DisplayRecord::EventAndTime(
                                             event,
                                             NowDescription(time_displayable.clone()),
-                                        )))
+                                        ))
                                     }
                                     DisplayAction::TimeAndEvent => {
-                                        Some(Ok(DisplayRecord::TimeAndEvent(
+                                        Ok(DisplayRecord::TimeAndEvent(
                                             NowDescription(time_displayable.clone()),
                                             event,
-                                        )))
+                                        ))
                                     }
                                 }
                             }
-                            Err(error) => return Some(Err(error.into())),
+                            Err(error) => return Err(error.into()),
                         };
                         result
                     })
-                    .chain(from_fn(|| if num_events==0 {
-                        Some(Ok(DisplayRecord::Time(NowDescription(time_displayable.clone()))))
-                    } else {None}))
+                    .chain(from_fn(||
+                                   if chained {
+                                       None
+                                   } else {
+                                       chained=true;
+                                       if num_events==0 {
+                                           Some(Ok(DisplayRecord::Time(NowDescription(time_displayable.clone()))))
+                                       } else {
+                                           None
+                                       }
+                                   }
+                    )
+                    )
                     .flat_map(|action| match action {
                         Ok(DisplayRecord::EventAndTime(event, now)) => {
                             vec![Ok(event.as_ref().clone()), Ok(now.as_ref().clone())].into_iter()
