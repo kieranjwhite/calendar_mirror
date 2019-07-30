@@ -102,14 +102,16 @@ macro_rules! stm {
 
             impl Drop for $start {
                 fn drop(&mut self) {
-                    if !self.terminable() {panic!("unable to drop non terminating state: {:?}", self)}
+                    if !self.terminable() {panic!("unable to drop state: {:?}", self)}
                 }
             }
 
             crate::stm!{@sub_unending_mask $pertinence
             $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
-                    pub fn droppable_inst(self) -> $start {
+                    pub fn droppable_inst(mut self) -> $start {
+                        self.term=true;
+                        
                         $start {
                             term: true
                         }
@@ -162,14 +164,16 @@ macro_rules! stm {
 
                 impl Drop for $node {
                     fn drop(&mut self) {
-                        if !self.terminable() {panic!("unable to drop non terminating state: {:?}", self)}
+                        if !self.terminable() {panic!("unable to drop state: {:?}", self)}
                     }
                 }
 
             crate::stm!{@sub_unending_mask $pertinence
                 $( crate::stm!{@sub_end_filter $tag
                     impl $node {
-                        pub fn droppable_inst(self) -> $node {
+                        pub fn droppable_inst(mut self) -> $node {
+                            self.term=true;
+                            
                             $node {
                                 term: true
                             }
