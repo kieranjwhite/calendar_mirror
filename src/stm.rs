@@ -31,7 +31,7 @@ macro_rules! stm {
 
         mod $mod_name
         {
-            trait Quittable {
+            pub trait Quittable {
                 fn terminate(&mut self);
             }
             
@@ -90,14 +90,14 @@ macro_rules! stm {
 
             }
             
-            $( crate::stm!{@sub_end_filter $start_tag
+            //$( crate::stm!{@sub_end_filter $start_tag
                            impl Quittable for $start {
                                fn terminate(&mut self) {
                                    self.term=true;
                                }
                            }
 
-            } )*
+            //} )*
                 
 
             impl Drop for $start {
@@ -109,13 +109,13 @@ macro_rules! stm {
             crate::stm!{@sub_unending_mask $pertinence
             $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
-                    pub fn droppable_inst(mut self) -> $start {
-                        self.term=true;
-                        
-                        $start {
-                            term: true
+                        pub fn droppable<S>(mut old: S) -> $start where $start:From<S>, S: Quittable {
+                            old.terminate();
+
+                            let mut new_st=$start::from(old);
+                            new_st.term=true;
+                            new_st
                         }
-                    }
 
                 }
 
@@ -135,13 +135,13 @@ macro_rules! stm {
                     term: bool
                 }
 
-                    $( crate::stm!{@sub_end_filter $tag
+                    //$( crate::stm!{@sub_end_filter $tag
                                    impl Quittable for $node {
                                        fn terminate(&mut self) {
                                            self.term=true;
                                        }
                                    }
-                    } )*
+                    //} )*
                                 
                 $(
                     impl From<$e> for $node {
@@ -171,12 +171,12 @@ macro_rules! stm {
             crate::stm!{@sub_unending_mask $pertinence
                 $( crate::stm!{@sub_end_filter $tag
                     impl $node {
-                        pub fn droppable_inst(mut self) -> $node {
-                            self.term=true;
-                            
-                            $node {
-                                term: true
-                            }
+                        pub fn droppable<S>(mut old: S) -> $node where $node:From<S>, S: Quittable {
+                            old.terminate();
+
+                            let mut new_st=$node::from(old);
+                            new_st.term=true;
+                            new_st
                         }
                     }
                  } )*

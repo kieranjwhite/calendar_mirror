@@ -1,4 +1,4 @@
-digraph tokenising_stm {
+digraph tok_stm {
     BuildingBreakable[label="Building\nBreakable"][shape="doublecircle"];
     Empty[label="Empty"][shape="doublecircle"];
     NotStartedBuildingNonBreakable[label="NotStarted\nBuilding\nNonBreakable"][shape="doublecircle"];

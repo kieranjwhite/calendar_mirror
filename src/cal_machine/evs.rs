@@ -265,13 +265,14 @@ impl Appointments {
                 .expect("finalise(). Appoinments.state is in an unitialised state")
             {
                 Uninitialised(st) => {
-                    Uninitialised(st.droppable_inst())
+                    //Uninitialised(st.droppable_inst())
+                    Uninitialised(ev_stm::Uninitialised::droppable(st))
                 }
                 OneCreator(st, email) => {
-                    OneCreator(st.droppable_inst(), email)
+                    OneCreator(ev_stm::OneCreator::droppable(st), email)
                 }
                 NotOneCreator(st) => {
-                    NotOneCreator(st.droppable_inst())
+                    NotOneCreator(ev_stm::NotOneCreator::droppable(st))
                 }
             },
         );

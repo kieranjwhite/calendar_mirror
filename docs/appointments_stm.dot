@@ -1,4 +1,4 @@
-digraph appointment_stm {
+digraph app_stm {
     After[label="After"][shape="ellipse"];
     Before[label="Before"][shape="ellipse"];
     Chained[label="Chained"][shape="doublecircle"];
