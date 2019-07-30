@@ -74,10 +74,12 @@ macro_rules! stm {
                     node
                 }
 
+                /*
                 pub fn terminable(&self) -> bool {
                     self.term
                 }
-
+                 */
+                
                 crate::stm!{@sub_unending_mask $pertinence
                             fn end_tags_found(&self){}
                 }
@@ -99,13 +101,14 @@ macro_rules! stm {
 
             //} )*
                 
-
+            /*
             impl Drop for $start {
                 fn drop(&mut self) {
                     if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
                 }
             }
-
+             */
+            
             crate::stm!{@sub_unending_mask $pertinence
             $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
@@ -155,19 +158,23 @@ macro_rules! stm {
                     }
                 )*
 
+                /*
                 impl $node {
-                    pub fn terminable(&self) -> bool {
-                        self.term
-                    }
+                pub fn terminable(&self) -> bool {
+                    self.term
+            }
+                    
+            }
+                 */
 
-                }
-
+                /*
                 impl Drop for $node {
                     fn drop(&mut self) {
                         if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
                     }
                 }
-
+                 */
+                
             crate::stm!{@sub_unending_mask $pertinence
                 $( crate::stm!{@sub_end_filter $tag
                     impl $node {

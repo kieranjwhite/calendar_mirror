@@ -218,10 +218,11 @@ impl Appointments {
     }
 
     fn email(&self) -> Option<Email> {
-        let state=self.state.as_ref().expect("email(). Appointments.state is in an uninitialised state");
-        match state
-
-        {
+        let state = self
+            .state
+            .as_ref()
+            .expect("email(). Appointments.state is in an uninitialised state");
+        match state {
             Uninitialised(_) => None,
             OneCreator(_, email) => Some(email.clone()),
             NotOneCreator(_) => None,
@@ -257,7 +258,7 @@ impl Appointments {
         Ok(())
     }
 
-    pub fn finalise(mut self) -> AppsReadonly {
+    fn make_droppable(&mut self) {
         self.state = Some(
             match self
                 .state
@@ -268,14 +269,14 @@ impl Appointments {
                     //Uninitialised(st.droppable_inst())
                     Uninitialised(ev_stm::Uninitialised::droppable(st))
                 }
-                OneCreator(st, email) => {
-                    OneCreator(ev_stm::OneCreator::droppable(st), email)
-                }
-                NotOneCreator(st) => {
-                    NotOneCreator(ev_stm::NotOneCreator::droppable(st))
-                }
+                OneCreator(st, email) => OneCreator(ev_stm::OneCreator::droppable(st), email),
+                NotOneCreator(st) => NotOneCreator(ev_stm::NotOneCreator::droppable(st)),
             },
         );
+    }
+
+    pub fn finalise(mut self) -> AppsReadonly {
+        self.make_droppable();
 
         AppsReadonly {
             email: self.email(),
