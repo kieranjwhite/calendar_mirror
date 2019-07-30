@@ -456,7 +456,7 @@ impl Renderer {
                                     //InProgress(st) => Chained(app_stm::Chained::droppable_inst(st)),
                                     //InProgress(st) => Chained(st.into().droppable_inst()),
                                     InProgress(st) => Chained(app_stm::Chained::droppable(st)),
-                                    After(st) => Chained(st.into()),
+                                    After(st) => Chained(app_stm::Chained::droppable(st)),
                                     Chained(st) => Chained(st),
                                     Error(st) => Error(app_stm::Error::droppable(st)),
                                 },
