@@ -1,4 +1,3 @@
-//(foo $empty:ty)?
 #[macro_export]
 macro_rules! stm {
     (@sub_wall nowall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
@@ -27,7 +26,6 @@ macro_rules! stm {
     (@sub_attention_seeking_filter unending $($sub:tt)*) => {};
     (@sub_attention_seeking_filter attention_seeking $($sub:tt)*) => {$($sub)*};
     (@sub_end_filter end $($sub:tt)*) => {$($sub)*};
-    (@sub_end_filter_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
     (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
@@ -41,15 +39,7 @@ macro_rules! stm {
             pub struct $start {
                 term: bool
             }
-/*
-            impl From<$start> for $start {
-                fn from(mut old_st: $start) -> $start {
-                    old_st.term=false;
-                    println!("{:?} -> {:?}", stringify!($start), stringify!($start));
-                    old_st
-                }
-            }
-*/
+
             $(
                 impl From<$start_e> for $start {
                     fn from(mut old_st: $start_e) -> $start {
@@ -64,7 +54,6 @@ macro_rules! stm {
             )*
 
             impl $start {
-                //#[allow(unused_mut)]
                 pub fn inst() -> $start {
                     let node=$start {
                         term: false
@@ -90,39 +79,9 @@ macro_rules! stm {
                 }
 
                 crate::stm!{@sub_unending_mask $pertinence
-                            //pub fn allow_immediate_termination(&mut self) {
-                            //    self.term=true;
-                            //}
-/*
-                    crate::stm!{@sub_unending_filter $pertinence
-                                $( crate::stm!{@sub_end_filter $start_tag
-                                               pub fn allow_immediate_termination<E>(start: $start) -> E {
-                                                   let new_st: E=self.into();
-                                                   //new_st.term=true;
-                                                   new_st
-                                               }
-                                } )*
-                    }
-
-                crate::stm!{@sub_unending_mask $pertinence
-                            $( crate::stm!{@sub_end_filter $start_tag
-                                           pub fn allow_immediate_termination<E>(self) -> E {
-                                               let mut new_st=E::from(self);
-                                               new_st.term=true;
-                                               new_st
-                                           }
-                            } )*
-             */               
                             fn end_tags_found(&self){}
                 }
 
-                /*
-                $( crate::stm!{@sub_end_filter $start_tag
-                            pub fn terminate_me(&mut self) {
-                                self.term=true;
-                            }
-                } )*
-                  */  
                 crate::stm!{@sub_attention_seeking_filter $pertinence
                             pub fn ack_inst<E>(self) -> E where E: From<$start> {
                                 self.into()
@@ -192,15 +151,6 @@ macro_rules! stm {
                             }
                         }
                     }
-/*
-                    impl From<$node> for $node {
-                        fn from(mut old_st: $e) -> $node {
-                            old_st.term=false;
-                            println!("{:?} -> {:?}", stringify!($e), stringify!($node));
-                            old_st
-                        }
-                    }
-*/
                 )*
 
                 impl $node {
@@ -283,13 +233,13 @@ macro_rules! stm {
                         #[allow(unused_mut)]
                         let mut shape=Some(dot::LabelText::LabelStr("ellipse".into()));
                         if node==&stringify!($start) {
-                            $( crate::stm!(@sub_end_filter_block $start_tag {
+                            $( crate::stm!(@sub_end_filter $start_tag {
                                 shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
                             } ) )*
                         }
                         $(
                             if node==&stringify!($node) {
-                                $( crate::stm!(@sub_end_filter_block $tag {
+                                $( crate::stm!(@sub_end_filter $tag {
                                     shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
 
                                 } ) )*
@@ -313,7 +263,7 @@ macro_rules! stm {
                         if let Some(last)=last {
                             $(
                                 if node==&stringify!($start) {
-                                    $( crate::stm!(@sub_end_filter_block $tag {
+                                    $( crate::stm!(@sub_end_filter $tag {
                                         if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
                                             name.push('\n');
 
@@ -323,7 +273,7 @@ macro_rules! stm {
                                     } ) )*
                                 }
                                 if node==&stringify!($node) {
-                                    $( crate::stm!(@sub_end_filter_block $tag {
+                                    $( crate::stm!(@sub_end_filter $tag {
                                         if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
                                             name.push('\n');
 

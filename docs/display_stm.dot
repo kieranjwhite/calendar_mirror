@@ -1,9 +1,11 @@
 digraph display_stm {
     AllDisplayable[label="AllDisplayable"][shape="doublecircle"];
+    Error[label="Error"][shape="doublecircle"];
     EventsQueued[label="EventsQueued"][shape="ellipse"];
     NotDisplayable[label="NotDisplayable"][shape="ellipse"];
     _start[label="_start"][shape="point"];
     _start -> NotDisplayable[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "NotDisplayable"</I></B></TD></TR></TABLE>>];
     NotDisplayable -> EventsQueued[label=<<TABLE BORDER="0"><TR><TD><I>"NotDisplayable" -&gt; "EventsQueued"</I></TD></TR></TABLE>>];
     EventsQueued -> AllDisplayable[label=<<TABLE BORDER="0"><TR><TD><I>"EventsQueued" -&gt; "AllDisplayable"</I></TD></TR></TABLE>>];
+    NotDisplayable -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"NotDisplayable" -&gt; "Error"</I></TD></TR></TABLE>>];
 }
