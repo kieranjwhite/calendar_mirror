@@ -304,7 +304,7 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(st.into())
+                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
                                 }
                             }
                             BuildingBreakable(st) => TokenComplete(st.into()),
@@ -313,15 +313,15 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(st)
+                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
                                 }
                             }
                             NotStartedBuildingNonBreakable(st) => {
                                 pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
                                 if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(st)
+                                    NotStartedBuildingNonBreakable(tokenising_stm::NotStartedBuildingNonBreakable::from(st))
                                 } else {
-                                    StartedBuildingNonBreakable(st.into())
+                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
                                 }
                             }
                             TokenComplete(st) => {

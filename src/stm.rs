@@ -102,7 +102,7 @@ macro_rules! stm {
 
             impl Drop for $start {
                 fn drop(&mut self) {
-                    if !self.terminable() {panic!("unable to drop state: {:?}", self)}
+                    if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
                 }
             }
 
@@ -164,7 +164,7 @@ macro_rules! stm {
 
                 impl Drop for $node {
                     fn drop(&mut self) {
-                        if !self.terminable() {panic!("unable to drop state: {:?}", self)}
+                        if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
                     }
                 }
 
