@@ -304,7 +304,10 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
+                                    StartedBuildingNonBreakable(
+                                        tokenising_stm::StartedBuildingNonBreakable::from(st)
+                                            .droppable_inst(),
+                                    )
                                 }
                             }
                             BuildingBreakable(st) => TokenComplete(st.into()),
@@ -313,31 +316,38 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
+                                    StartedBuildingNonBreakable(st.droppable_inst())
                                 }
                             }
                             NotStartedBuildingNonBreakable(st) => {
                                 pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
                                 if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(tokenising_stm::NotStartedBuildingNonBreakable::from(st))
+                                    NotStartedBuildingNonBreakable(st.droppable_inst())
                                 } else {
-                                    StartedBuildingNonBreakable(tokenising_stm::StartedBuildingNonBreakable::from(st))
+                                    StartedBuildingNonBreakable(
+                                        tokenising_stm::StartedBuildingNonBreakable::from(st)
+                                            .droppable_inst(),
+                                    )
                                 }
                             }
                             TokenComplete(st) => {
                                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                                 pending.add_glyph(grapheme)?; //pending start
                                 if BREAKABLE.contains(grapheme) {
-                                    let new_st = tokenising_stm::BuildingBreakable::from(st);
-                                    BuildingBreakable(new_st.droppable_inst())
+                                    BuildingBreakable(
+                                        tokenising_stm::BuildingBreakable::from(st)
+                                            .droppable_inst(),
+                                    )
                                 } else if SPACES.contains(grapheme) {
-                                    let new_st =
-                                        tokenising_stm::NotStartedBuildingNonBreakable::from(st);
-                                    NotStartedBuildingNonBreakable(new_st.droppable_inst()) //pending start if grapheme is not a space
+                                    NotStartedBuildingNonBreakable(
+                                        tokenising_stm::NotStartedBuildingNonBreakable::from(st)
+                                            .droppable_inst(),
+                                    ) //pending start if grapheme is not a space
                                 } else {
-                                    let new_st =
-                                        tokenising_stm::StartedBuildingNonBreakable::from(st);
-                                    StartedBuildingNonBreakable(new_st.droppable_inst()) //pending start if grapheme is not a space
+                                    StartedBuildingNonBreakable(
+                                        tokenising_stm::StartedBuildingNonBreakable::from(st)
+                                            .droppable_inst(),
+                                    ) //pending start if grapheme is not a space
                                 }
                             }
                         };
@@ -349,10 +359,7 @@ impl LeftFormatter {
                 }
                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                 match mach {
-                    Empty(st) => Empty(
-                        st.ack_inst::<tokenising_stm::Empty>()
-                            .droppable_inst(),
-                    ),
+                    Empty(st) => Empty(st.ack_inst::<tokenising_stm::Empty>().droppable_inst()),
                     other @ _ => other,
                 };
 
