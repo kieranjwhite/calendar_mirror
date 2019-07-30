@@ -264,18 +264,14 @@ impl Appointments {
                 .take()
                 .expect("finalise(). Appoinments.state is in an unitialised state")
             {
-                Uninitialised(mut st) => {
-                    st.allow_termination();
-                    st.allow_immediate_termination();
-                    Uninitialised(st)
+                Uninitialised(st) => {
+                    Uninitialised(st.droppable_inst())
                 }
-                OneCreator(mut st, email) => {
-                    st.allow_termination();
-                    OneCreator(st, email)
+                OneCreator(st, email) => {
+                    OneCreator(st.droppable_inst(), email)
                 }
-                NotOneCreator(mut st) => {
-                    st.allow_termination();
-                    NotOneCreator(st)
+                NotOneCreator(st) => {
+                    NotOneCreator(st.droppable_inst())
                 }
             },
         );

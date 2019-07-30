@@ -56,6 +56,7 @@ stm!(machine attention_seeking appointment_stm, AppMachine, []=> Before(), {
 stm!(states attention_seeking display_stm, DisplayMachine, [] => NotDisplayable, {
     [NotDisplayable] => EventsQueued;
     [EventsQueued] => AllDisplayable  |end|;
+    [NotDisplayable] => Error |end|;
 });
 
 #[derive(Debug)]
@@ -315,10 +316,9 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let mut not_displayable = display_stm::NotDisplayable::inst();
-        not_displayable.allow_immediate_termination();
+        let not_displayable = display_stm::NotDisplayable::inst();
         
-        let mut all_displayable = if let Some(ref content) = self.events {
+        let all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
@@ -441,28 +441,26 @@ impl Renderer {
                             let mut out = None;
                             mach_opt = Some(
                                 match mach_opt.take().expect("missing state in appointments stm") {
-                                    Before(mut st) => {
-                                        st.allow_immediate_termination();
+                                    Before(st) => {
+                                        //st.allow_immediate_termination();
                                         if let Some(Ordering::Greater) =
                                             following_date_start.partial_chron_cmp(&now)
                                         {
                                             out = Some(Ok(DisplayRecord::Time(NowDescription(
                                                 time_displayable.clone(),
                                             ))));
-                                            After(st.into())
+                                            After(st.ack_inst())
                                         } else {
-                                            Chained(st.into())
+                                            Chained(st.ack_inst())
                                         }
                                     }
                                     InProgress(st) => Chained(st.into()),
                                     After(st) => Chained(st.into()),
-                                    Chained(mut st) => {
-                                        st.allow_termination();
-                                        Chained(st)
+                                    Chained(st) => {
+                                        Chained(st.droppable_inst())
                                     }
-                                    Error(mut st) => {
-                                        st.allow_termination();
-                                        Error(st)
+                                    Error(st) => {
+                                        Error(st.droppable_inst())
                                     }
                                 },
                             );
@@ -545,9 +543,10 @@ impl Renderer {
             self.pipe.send(ops.iter(), false)?;
             display_stm::AllDisplayable::from(events_queued)
         } else {
+            not_displayable.ack_inst::<display_stm::Error>().droppable_inst();
             panic!("no events");
         };
-        all_displayable.allow_termination();
+        all_displayable.droppable_inst();
 
         Ok(())
     }

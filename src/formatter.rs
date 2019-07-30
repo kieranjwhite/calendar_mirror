@@ -215,7 +215,7 @@ impl Pending {
     }
 }
 
-stm!(machine attention_seeking tokenising_stm, FormattingMachine, []=> Empty(), {
+stm!(machine attention_seeking tokenising_stm, FormattingMachine, []=> Empty() |end|, {
     [TokenComplete] => BuildingBreakable() |end|;
     [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
     [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;
@@ -328,19 +328,16 @@ impl LeftFormatter {
                                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                                 pending.add_glyph(grapheme)?; //pending start
                                 if BREAKABLE.contains(grapheme) {
-                                    let mut new_st = tokenising_stm::BuildingBreakable::from(st);
-                                    new_st.allow_termination();
-                                    BuildingBreakable(new_st)
+                                    let new_st = tokenising_stm::BuildingBreakable::from(st);
+                                    BuildingBreakable(new_st.droppable_inst())
                                 } else if SPACES.contains(grapheme) {
-                                    let mut new_st =
+                                    let new_st =
                                         tokenising_stm::NotStartedBuildingNonBreakable::from(st);
-                                    new_st.allow_termination();
-                                    NotStartedBuildingNonBreakable(new_st) //pending start if grapheme is not a space
+                                    NotStartedBuildingNonBreakable(new_st.droppable_inst()) //pending start if grapheme is not a space
                                 } else {
-                                    let mut new_st =
+                                    let new_st =
                                         tokenising_stm::StartedBuildingNonBreakable::from(st);
-                                    new_st.allow_termination();
-                                    StartedBuildingNonBreakable(new_st) //pending start if grapheme is not a space
+                                    StartedBuildingNonBreakable(new_st.droppable_inst()) //pending start if grapheme is not a space
                                 }
                             }
                         };
@@ -352,10 +349,10 @@ impl LeftFormatter {
                 }
                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                 match mach {
-                    Empty(mut st) => {
-                        st.allow_immediate_termination();
-                        Empty(st)
-                    }
+                    Empty(st) => Empty(
+                        st.ack_inst::<tokenising_stm::Empty>()
+                            .droppable_inst(),
+                    ),
                     other @ _ => other,
                 };
 
