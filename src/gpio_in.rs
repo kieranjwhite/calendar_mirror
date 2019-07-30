@@ -78,7 +78,7 @@ pub struct LongReleaseDuration(pub Duration);
 // ReleaseDuration passed after button release
 pub struct LongPressButton {
     pin: Pin,
-    state: LongPressMachine,
+    state: Option<LongPressMachine>,
     detectable_after: DetectableDuration,
     long_release_after: LongReleaseDuration,
 }
@@ -93,7 +93,7 @@ impl LongPressButton {
             pin,
             detectable_after,
             long_release_after,
-            state: LongPressMachine::NotPressed(long_press_button_stm::NotPressed::inst()),
+            state: Some(LongPressMachine::NotPressed(long_press_button_stm::NotPressed::inst())),
         }
     }
 }
@@ -102,11 +102,7 @@ impl Button<LongButtonEvent> for LongPressButton {
     fn event(&mut self, ports: &mut GPIO) -> Result<Option<LongButtonEvent>, Error> {
         let (pressing, duration) = ports.pinin(&self.pin)?;
         let mut event: Option<LongButtonEvent> = None;
-        use std::mem::replace;
-        let mut state = replace(
-            &mut self.state,
-            NotPressed(long_press_button_stm::NotPressed::inst()),
-        );
+        let mut state = self.state.take().expect("state of LongPressButton is not initialised");
 
         state = match state {
             NotPressed(st) => {
@@ -174,7 +170,7 @@ impl Button<LongButtonEvent> for LongPressButton {
             }
         };
 
-        replace(&mut self.state, state);
+        self.state=Some(state);
         Ok(event)
     }
 }
