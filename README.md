@@ -23,3 +23,10 @@ The following are the list of software dependencies required to compile and run 
 
 ## Compilation & Installation ##
 
+10. State machines
+
+..1. Detecting when STM hasn't exited correctly, more specifically the warning that is generated when the allow_immediate_termination method isn't invoked on the starting state revealed issue with tokenising_stm when no processing zero tokens.
+
+..2. Limitations:
+.....Relies on lint warnings being generated if particular methods aren't invoked. If, due to oversight, an stm's module is public to external crates then these warnings won't be generated.
+.....If the user declares an unending stm with accepting states the stm macro draws the developer's attention to the issue by generating a compilation error through inserting a method invocation for a method that doesn't exist. Perhaps there's a better way to do this.

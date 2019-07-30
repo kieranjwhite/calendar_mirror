@@ -26,12 +26,12 @@ macro_rules! stm {
     (@sub_attention_seeking_filter ignorable $($sub:tt)*) => {};
     (@sub_attention_seeking_filter unending $($sub:tt)*) => {};
     (@sub_attention_seeking_filter attention_seeking $($sub:tt)*) => {$($sub)*};
-    (@sub_end_fn end $($sub:tt)*) => {$($sub)*};
-    (@sub_end_block end $sub:block) => {$sub};
+    (@sub_end_filter end $($sub:tt)*) => {$($sub)*};
+    (@sub_end_filter_block end $sub:block) => {$sub};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
     (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
-        pub mod $mod_name
+        mod $mod_name
         {
             #[derive(Debug)]
             pub struct $start {
@@ -59,12 +59,12 @@ macro_rules! stm {
                     };
                     crate::stm!{@sub_unending_mask $pertinence
 
-                                $( crate::stm!{@sub_end_fn $start_tag
+                                $( crate::stm!{@sub_end_filter $start_tag
                                                node.end_tags_found();
                                 } )*
 
                                 $(
-                                    $( crate::stm!{@sub_end_fn $tag
+                                    $( crate::stm!{@sub_end_filter $tag
                                                    node.end_tags_found();
                                     } )*
                                 )*;
@@ -81,9 +81,29 @@ macro_rules! stm {
                             pub fn allow_immediate_termination(&mut self) {
                                 self.term=true;
                             }
+/*
+                    crate::stm!{@sub_unending_filter $pertinence
+                                $( crate::stm!{@sub_end_filter $start_tag
+                                               pub fn allow_immediate_termination<E>(start: $start) -> E {
+                                                   let new_st: E=self.into();
+                                                   //new_st.term=true;
+                                                   new_st
+                                               }
+                                } )*
+                    }
 
+                crate::stm!{@sub_unending_mask $pertinence
+                            $( crate::stm!{@sub_end_filter $start_tag
+                                           pub fn allow_immediate_termination<E>(self) -> E {
+                                               let mut new_st=E::from(self);
+                                               new_st.term=true;
+                                               new_st
+                                           }
+                            } )*
+             */               
                             fn end_tags_found(&self){}
                 }
+
             }
 
             impl Drop for $start {
@@ -93,7 +113,7 @@ macro_rules! stm {
             }
 
             crate::stm!{@sub_unending_mask $pertinence
-            $( crate::stm!{@sub_end_fn $start_tag
+            $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
                     pub fn allow_termination(&mut self) {
                         self.term=true;
@@ -105,8 +125,8 @@ macro_rules! stm {
             }
 
             crate::stm!{@sub_unending_filter $pertinence
-                        $( crate::stm!{@sub_end_fn $start_tag
-                                       illegal_end_tag {}
+                        $( crate::stm!{@sub_end_filter $start_tag
+                                       end_tag_in_unending_stm_error {}
                         }
                         )*
             }
@@ -127,12 +147,14 @@ macro_rules! stm {
                             }
                         }
                     }
+
                 )*
 
                 impl $node {
                     pub fn terminable(&self) -> bool {
                         self.term
                     }
+
                 }
 
                 impl Drop for $node {
@@ -142,7 +164,7 @@ macro_rules! stm {
                 }
 
             crate::stm!{@sub_unending_mask $pertinence
-                $( crate::stm!{@sub_end_fn $tag
+                $( crate::stm!{@sub_end_filter $tag
                     impl $node {
                         pub fn allow_termination(&mut self) {
                             self.term=true;
@@ -152,7 +174,7 @@ macro_rules! stm {
             }
 
                 crate::stm!{@sub_unending_filter $pertinence
-                            $( crate::stm!{@sub_end_fn $tag
+                            $( crate::stm!{@sub_end_filter $tag
                                            illegal_end_tag {}
                             }
                             )*
@@ -206,13 +228,13 @@ macro_rules! stm {
                         #[allow(unused_mut)]
                         let mut shape=Some(dot::LabelText::LabelStr("ellipse".into()));
                         if node==&stringify!($start) {
-                            $( crate::stm!(@sub_end_block $start_tag {
+                            $( crate::stm!(@sub_end_filter_block $start_tag {
                                 shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
                             } ) )*
                         }
                         $(
                             if node==&stringify!($node) {
-                                $( crate::stm!(@sub_end_block $tag {
+                                $( crate::stm!(@sub_end_filter_block $tag {
                                     shape=Some(dot::LabelText::LabelStr("doublecircle".into()));
 
                                 } ) )*
@@ -236,7 +258,7 @@ macro_rules! stm {
                         if let Some(last)=last {
                             $(
                                 if node==&stringify!($start) {
-                                    $( crate::stm!(@sub_end_block $tag {
+                                    $( crate::stm!(@sub_end_filter_block $tag {
                                         if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
                                             name.push('\n');
 
@@ -246,7 +268,7 @@ macro_rules! stm {
                                     } ) )*
                                 }
                                 if node==&stringify!($node) {
-                                    $( crate::stm!(@sub_end_block $tag {
+                                    $( crate::stm!(@sub_end_filter_block $tag {
                                         if last.is_lowercase() && ch.is_uppercase() && cols>3.0+1.25*rows {
                                             name.push('\n');
 

@@ -3,7 +3,7 @@ mod cal_display;
 mod cal_machine;
 mod display;
 mod err;
-pub mod formatter;
+mod formatter;
 mod gpio_in;
 #[macro_use]
 mod new_type;

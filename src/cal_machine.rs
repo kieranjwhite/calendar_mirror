@@ -183,7 +183,7 @@ pub fn render_stms() -> Result<(), Error> {
     f.flush()?;
 
     f = File::create("docs/tokenising_stm.dot")?;
-    formatter::Machine::render_to(&mut f);
+    formatter::FormattingMachine::render_to(&mut f);
     f.flush()?;
 
     f = File::create("docs/display_stm.dot")?;

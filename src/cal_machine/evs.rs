@@ -217,14 +217,13 @@ impl Appointments {
         }
     }
 
-    fn email(&mut self) -> Option<Email> {
-        match self
-            .state
-            .take()
-            .expect("email(). Appointments.state is in an uninitialised state")
+    fn email(&self) -> Option<Email> {
+        let state=self.state.as_ref().expect("email(). Appointments.state is in an uninitialised state");
+        match state
+
         {
             Uninitialised(_) => None,
-            OneCreator(_, ref email) => Some(email.clone()),
+            OneCreator(_, email) => Some(email.clone()),
             NotOneCreator(_) => None,
         }
     }

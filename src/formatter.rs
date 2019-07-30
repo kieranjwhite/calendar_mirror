@@ -1,7 +1,7 @@
 use crate::{copyable, stm};
 use std::collections::VecDeque;
 use unicode_segmentation::UnicodeSegmentation;
-use Machine::*;
+use FormattingMachine::*;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -215,11 +215,11 @@ impl Pending {
     }
 }
 
-stm!(machine attention_seeking tokenising_stm, Machine, []=> Empty(), {
+stm!(machine attention_seeking tokenising_stm, FormattingMachine, []=> Empty(), {
     [TokenComplete] => BuildingBreakable() |end|;
     [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
     [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;
-    [Empty, BuildingBreakable, StartedBuildingNonBreakable] => TokenComplete() |end|
+    [Empty, BuildingBreakable, StartedBuildingNonBreakable] => TokenComplete()
 });
 
 pub struct LeftFormatter {
@@ -328,11 +328,19 @@ impl LeftFormatter {
                                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                                 pending.add_glyph(grapheme)?; //pending start
                                 if BREAKABLE.contains(grapheme) {
-                                    BuildingBreakable(st.into())
+                                    let mut new_st = tokenising_stm::BuildingBreakable::from(st);
+                                    new_st.allow_termination();
+                                    BuildingBreakable(new_st)
                                 } else if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
+                                    let mut new_st =
+                                        tokenising_stm::NotStartedBuildingNonBreakable::from(st);
+                                    new_st.allow_termination();
+                                    NotStartedBuildingNonBreakable(new_st) //pending start if grapheme is not a space
                                 } else {
-                                    StartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
+                                    let mut new_st =
+                                        tokenising_stm::StartedBuildingNonBreakable::from(st);
+                                    new_st.allow_termination();
+                                    StartedBuildingNonBreakable(new_st) //pending start if grapheme is not a space
                                 }
                             }
                         };
@@ -343,6 +351,13 @@ impl LeftFormatter {
                     }
                 }
                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
+                match mach {
+                    Empty(mut st) => {
+                        st.allow_immediate_termination();
+                        Empty(st)
+                    }
+                    other @ _ => other,
+                };
 
                 if let Some(inner) = output {
                     Ok(inner)
