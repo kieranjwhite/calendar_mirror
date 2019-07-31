@@ -11,6 +11,7 @@ use crate::{
     stm,
 };
 use AppMachine::*;
+use DisplayMachine::*;
 
 use chrono::prelude::*;
 use core::{cmp::Ordering, fmt::Debug};
@@ -53,10 +54,16 @@ stm!(machine attention_seeking app_stm, AppMachine, []=> Before(), {
     [InProgress, After] => Error() |end|
 });
 
-stm!(states attention_seeking display_stm, DisplayMachine, [] => NotDisplayable, {
+stm!(states attention_seeking app_display_stm, AppDisplayMachine, [] => NotDisplayable, {
     [NotDisplayable] => EventsQueued;
     [EventsQueued] => AllDisplayable  |end|;
     [NotDisplayable] => Error |end|;
+});
+
+stm!(machine ignorable display_stm, DisplayMachine, [SaveWarning, UserCode, Events] => Empty() |end|, {
+    [Empty, UserCode, Events] => SaveWarning() |end|;
+    [Empty, SaveWarning, Events] => UserCode()  |end|;
+    [Empty, SaveWarning, UserCode] => Events() |end|;
 });
 
 #[derive(Debug)]
@@ -80,6 +87,7 @@ pub enum RefreshType {
 
 pub struct Renderer {
     pipe: RenderPipeline,
+    state: Option<DisplayMachine>,
     status: Status,
     pulse_on: bool,
     formatter: LeftFormatter,
@@ -152,6 +160,7 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
+            state: Some(Empty(display_stm::Empty::inst())),
             status: Status::AllOk,
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
@@ -196,7 +205,28 @@ impl Renderer {
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
+
+        self.state = Some(match self.state.take().expect("no state in Renderer.clear()") {
+            Empty(st) => Empty(st),
+            SaveWarning(st) => Empty(st.into()),
+            UserCode(st) => Empty(st.into()),
+            Events(st) => Empty(st.into()),
+        });
+
         Ok(())
+    }
+
+    fn events_displayed(&mut self) -> bool {
+        let mut displayed = false;
+        self.state = Some(match self.state.take().expect("no state in Renderer.events_displayed()") {
+            Events(st) => {
+                displayed = true;
+                Events(st)
+            }
+            other => other,
+        });
+
+        return displayed;
     }
 
     pub fn display_status(&mut self, status: Status, on: bool) -> Result<(), Error> {
@@ -204,6 +234,10 @@ impl Renderer {
             return Ok(());
         }
 
+        if !self.events_displayed() {
+            return Ok(());
+        }
+        
         self.pulse_on = on;
         self.status = status;
 
@@ -237,6 +271,14 @@ impl Renderer {
         ops.push(Op::WriteAll(PartialUpdate(false)));
 
         self.pipe.send(ops.iter(), true)?;
+
+        self.state = Some(match self.state.take().expect("no state in Renderer.display_save_warning()") {
+            Empty(st) => SaveWarning(st.into()),
+            SaveWarning(st) => SaveWarning(st),
+            UserCode(st) => SaveWarning(st.into()),
+            Events(st) => SaveWarning(st.into()),
+        });
+
         Ok(())
     }
 
@@ -277,10 +319,21 @@ impl Renderer {
 
         self.pipe.send(ops.iter(), false)?;
 
+        self.state = Some(match self.state.take().expect("no state in Renderer.display_user_mode()") {
+            Empty(st) => UserCode(st.into()),
+            SaveWarning(st) => UserCode(st.into()),
+            UserCode(st) => UserCode(st),
+            Events(st) => UserCode(st.into()),
+        });
+
         Ok(())
     }
 
     pub fn refresh_date(&mut self, date: &DateTime<Local>) -> Result<(), Error> {
+        if !self.events_displayed() {
+            return Ok(());
+        }
+        
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -316,8 +369,12 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let not_displayable = display_stm::NotDisplayable::inst();
+        let not_displayable = app_display_stm::NotDisplayable::inst();
 
+        if render_type==RefreshType::Partial && !self.events_displayed() {
+            return Ok(());
+        }
+        
         let all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
@@ -335,7 +392,7 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
-                display_stm::EventsQueued::from(not_displayable)
+                app_display_stm::EventsQueued::from(not_displayable)
             } else {
                 let mut events = content.apps.events();
                 events.sort();
@@ -495,7 +552,7 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
                 }
-                display_stm::EventsQueued::from(not_displayable)
+                app_display_stm::EventsQueued::from(not_displayable)
             };
 
             let heading = content.date.format(DATE_FORMAT).to_string();
@@ -527,6 +584,15 @@ impl Renderer {
                 ));
 
                 ops.push(Op::WriteAll(PartialUpdate(false)));
+
+                self.state = Some(match self.state.take().expect("no state in Renderer.render_events()") {
+                    Empty(st) => Events(st.into()),
+                    SaveWarning(st) => Events(st.into()),
+                    UserCode(st) => Events(st.into()),
+                    Events(st) => Events(st),
+                });
+                
+
             } else {
                 ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
                 ops.push(Op::UpdateText(
@@ -538,13 +604,13 @@ impl Renderer {
             }
 
             self.pipe.send(ops.iter(), false)?;
-            display_stm::AllDisplayable::from(events_queued)
+            app_display_stm::AllDisplayable::from(events_queued)
         } else {
-            let acked = not_displayable.ack_inst::<display_stm::Error>();
-            display_stm::Error::droppable(acked);
+            let acked = not_displayable.ack_inst::<app_display_stm::Error>();
+            app_display_stm::Error::droppable(acked);
             panic!("no events");
         };
-        display_stm::AllDisplayable::droppable(all_displayable);
+        app_display_stm::AllDisplayable::droppable(all_displayable);
 
         Ok(())
     }

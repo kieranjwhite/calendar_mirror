@@ -10,7 +10,7 @@ Wants=network-online.target
 Type=simple
 Restart=no
 WorkingDirectory=/tmp
-StandardOutput=null
+#StandardOutput=null
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/calendar_mirror/bin" "CALENDAR_MIRROR_VAR=/var/opt/calendar_mirror" "CALENDAR_MIRROR_DEV=/dev/mmcblk0p8"
 ExecStart=/opt/calendar_mirror/bin/calendar_mirror
 
