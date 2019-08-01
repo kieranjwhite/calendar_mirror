@@ -47,16 +47,9 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(machine attention_seeking app_stm, AppMachine, []=> Before(), {
-    [Before] => InProgress();
-    [Before, InProgress] => After();
-    [Before, InProgress, After] => Chained() |end|;
-    [InProgress, After] => Error() |end|
-});
-
 stm!(states attention_seeking app_display_stm, AppDisplayMachine, [] => NotDisplayable, {
     [NotDisplayable] => EventsQueued;
-    [EventsQueued] => AllDisplayable  |end|;
+    [EventsQueued] => AllDisplayable |end|;
     [NotDisplayable] => Error |end|;
 });
 
@@ -65,6 +58,37 @@ stm!(machine ignorable display_stm, DisplayMachine, [SaveWarning, UserCode, Even
     [Empty, SaveWarning, Events] => UserCode()  |end|;
     [Empty, SaveWarning, UserCode] => Events() |end|;
 });
+
+stm!(machine attention_seeking app_stm, AppMachine,
+     | mach | {
+         loop {
+             mach=match mach {
+                 Before(st) => {
+                     if let Some(Ordering::Greater) =
+                         following_date_start.partial_chron_cmp(&now)
+                     {
+                         out = Some(Ok(DisplayRecord::Time(NowDescription(
+                             time_displayable.clone(),
+                         ))));
+                         After(st.ack_inst())
+                     } else {
+                         return Terminals::Chained(Chained(app_stm::Chained::droppable(st)))
+                     }
+                 }
+                 InProgress(st) => return Terminals::Chained(Chained(app_stm::Chained::droppable(st))),
+                 After(st) => return Terminals::Chained(Chained(app_stm::Chained::droppable(st))),
+                 Chained(st) => return Terminals::Chained(Chained(st)),
+                 Error(st) => return Terminals::ErrorError(app_stm::Error::droppable(st)),
+             }
+         }
+     },
+     Terminals,
+     []=> Before(), {
+         [Before] => InProgress();
+         [Before, InProgress] => After();
+         [Before, InProgress, After] => Chained() |end|;
+         [InProgress, After] => Error() |end|
+     });
 
 #[derive(Debug)]
 pub struct InvalidStateError(&'static str);
@@ -206,25 +230,33 @@ impl Renderer {
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
 
-        self.state = Some(match self.state.take().expect("no state in Renderer.clear()") {
-            Empty(st) => Empty(st),
-            SaveWarning(st) => Empty(st.into()),
-            UserCode(st) => Empty(st.into()),
-            Events(st) => Empty(st.into()),
-        });
+        self.state = Some(
+            match self.state.take().expect("no state in Renderer.clear()") {
+                Empty(st) => Empty(st),
+                SaveWarning(st) => Empty(st.into()),
+                UserCode(st) => Empty(st.into()),
+                Events(st) => Empty(st.into()),
+            },
+        );
 
         Ok(())
     }
 
     fn events_displayed(&mut self) -> bool {
         let mut displayed = false;
-        self.state = Some(match self.state.take().expect("no state in Renderer.events_displayed()") {
-            Events(st) => {
-                displayed = true;
-                Events(st)
-            }
-            other => other,
-        });
+        self.state = Some(
+            match self
+                .state
+                .take()
+                .expect("no state in Renderer.events_displayed()")
+            {
+                Events(st) => {
+                    displayed = true;
+                    Events(st)
+                }
+                other => other,
+            },
+        );
 
         return displayed;
     }
@@ -237,7 +269,7 @@ impl Renderer {
         if !self.events_displayed() {
             return Ok(());
         }
-        
+
         self.pulse_on = on;
         self.status = status;
 
@@ -272,12 +304,18 @@ impl Renderer {
 
         self.pipe.send(ops.iter(), true)?;
 
-        self.state = Some(match self.state.take().expect("no state in Renderer.display_save_warning()") {
-            Empty(st) => SaveWarning(st.into()),
-            SaveWarning(st) => SaveWarning(st),
-            UserCode(st) => SaveWarning(st.into()),
-            Events(st) => SaveWarning(st.into()),
-        });
+        self.state = Some(
+            match self
+                .state
+                .take()
+                .expect("no state in Renderer.display_save_warning()")
+            {
+                Empty(st) => SaveWarning(st.into()),
+                SaveWarning(st) => SaveWarning(st),
+                UserCode(st) => SaveWarning(st.into()),
+                Events(st) => SaveWarning(st.into()),
+            },
+        );
 
         Ok(())
     }
@@ -319,12 +357,18 @@ impl Renderer {
 
         self.pipe.send(ops.iter(), false)?;
 
-        self.state = Some(match self.state.take().expect("no state in Renderer.display_user_mode()") {
-            Empty(st) => UserCode(st.into()),
-            SaveWarning(st) => UserCode(st.into()),
-            UserCode(st) => UserCode(st),
-            Events(st) => UserCode(st.into()),
-        });
+        self.state = Some(
+            match self
+                .state
+                .take()
+                .expect("no state in Renderer.display_user_mode()")
+            {
+                Empty(st) => UserCode(st.into()),
+                SaveWarning(st) => UserCode(st.into()),
+                UserCode(st) => UserCode(st),
+                Events(st) => UserCode(st.into()),
+            },
+        );
 
         Ok(())
     }
@@ -333,7 +377,7 @@ impl Renderer {
         if !self.events_displayed() {
             return Ok(());
         }
-        
+
         let mut ops: Vec<Op> = Vec::with_capacity(5);
 
         let heading = date.format(DATE_FORMAT).to_string();
@@ -371,10 +415,10 @@ impl Renderer {
     ) -> Result<(), Error> {
         let not_displayable = app_display_stm::NotDisplayable::inst();
 
-        if render_type==RefreshType::Partial && !self.events_displayed() {
+        if render_type == RefreshType::Partial && !self.events_displayed() {
             return Ok(());
         }
-        
+
         let all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
@@ -403,6 +447,7 @@ impl Renderer {
                     *display_date_start.time.as_ref() + chrono::Duration::days(1)
                 ))?;
 
+                let mut out = None;
                 let mut app_mach = Before(app_stm::Before::inst());
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
                     app_mach = if let InProgress(st) = app_mach {
@@ -495,29 +540,9 @@ impl Renderer {
                     displayed_events
                         .into_iter()
                         .chain(from_fn(|| {
-                            let mut out = None;
-                            mach_opt = Some(
-                                match mach_opt.take().expect("missing state in appointments stm") {
-                                    Before(st) => {
-                                        if let Some(Ordering::Greater) =
-                                            following_date_start.partial_chron_cmp(&now)
-                                        {
-                                            out = Some(Ok(DisplayRecord::Time(NowDescription(
-                                                time_displayable.clone(),
-                                            ))));
-                                            After(st.ack_inst())
-                                        } else {
-                                            Chained(app_stm::Chained::droppable(st))
-                                        }
-                                    }
-                                    //InProgress(st) => Chained(app_stm::Chained::droppable_inst(st)),
-                                    //InProgress(st) => Chained(st.into().droppable_inst()),
-                                    InProgress(st) => Chained(app_stm::Chained::droppable(st)),
-                                    After(st) => Chained(app_stm::Chained::droppable(st)),
-                                    Chained(st) => Chained(st),
-                                    Error(st) => Error(app_stm::Error::droppable(st)),
-                                },
-                            );
+                            {
+                                mach_opt.take().expect("missing state in appointments stm");
+                            }
                             out
                         }))
                         .flat_map(|action| match action {
@@ -585,14 +610,18 @@ impl Renderer {
 
                 ops.push(Op::WriteAll(PartialUpdate(false)));
 
-                self.state = Some(match self.state.take().expect("no state in Renderer.render_events()") {
-                    Empty(st) => Events(st.into()),
-                    SaveWarning(st) => Events(st.into()),
-                    UserCode(st) => Events(st.into()),
-                    Events(st) => Events(st),
-                });
-                
-
+                self.state = Some(
+                    match self
+                        .state
+                        .take()
+                        .expect("no state in Renderer.render_events()")
+                    {
+                        Empty(st) => Events(st.into()),
+                        SaveWarning(st) => Events(st.into()),
+                        UserCode(st) => Events(st.into()),
+                        Events(st) => Events(st),
+                    },
+                );
             } else {
                 ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
                 ops.push(Op::UpdateText(

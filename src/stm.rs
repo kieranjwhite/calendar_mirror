@@ -1,5 +1,19 @@
 #[macro_export]
 macro_rules! stm {
+    /*
+    (@sub_enum $pertinence:tt $mod_name:ident, $enum_name:ident, $($start:ident),? ($($node:ident),+)) => {
+        stm!{@sub_unending_mask $pertinence
+             pub enum $enum_name {
+                 $(
+                     $start($mod_name::$start),
+                 )*
+                 $(
+                     $var($mod_name::$var),
+                 )*
+             }
+        }
+    };
+     */
     (@sub_wall nowall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
         #[allow(dead_code)]
         pub enum $enum_name {
@@ -27,97 +41,38 @@ macro_rules! stm {
     (@sub_attention_seeking_filter attention_seeking $($sub:tt)*) => {$($sub)*};
     (@sub_end_filter end $($sub:tt)*) => {$($sub)*};
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
-    (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+    (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         mod $mod_name
         {
-            pub trait Quittable {
-                fn terminate(&mut self);
-            }
             
             #[derive(Debug)]
             pub struct $start {
-                term: bool
+                finaliser: FnOnce() -> $term_name
             }
 
             $(
                 impl From<$start_e> for $start {
                     fn from(mut old_st: $start_e) -> $start {
-                        old_st.term=true;
                         println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
-                        let mut new_st=$start::inst();
-                        new_st.term=false;
-                        new_st
+                        $start {
+                            finaliser: $start_e.finaliser
+                        }
                     }
                 }
-
             )*
 
             impl $start {
-                pub fn inst() -> $start {
-                    let node=$start {
-                        term: false
-                    };
-                    crate::stm!{@sub_unending_mask $pertinence
-
-                                $( crate::stm!{@sub_end_filter $start_tag
-                                               node.end_tags_found();
-                                } )*
-
-                                $(
-                                    $( crate::stm!{@sub_end_filter $tag
-                                                   node.end_tags_found();
-                                    } )*
-                                )*
-                                
-                    }
-                    node
-                }
-
-                /*
-                pub fn terminable(&self) -> bool {
-                    self.term
-                }
-                 */
-                
                 crate::stm!{@sub_unending_mask $pertinence
                             fn end_tags_found(&self){}
                 }
-
-                crate::stm!{@sub_attention_seeking_filter $pertinence
-                            pub fn ack_inst<E>(self) -> E where E: From<$start> {
-                                self.into()
-                            }
-                }
-
             }
-            
-            //$( crate::stm!{@sub_end_filter $start_tag
-                           impl Quittable for $start {
-                               fn terminate(&mut self) {
-                                   self.term=true;
-                               }
-                           }
 
-            //} )*
-                
-            /*
-            impl Drop for $start {
-                fn drop(&mut self) {
-                    if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
-                }
-            }
-             */
-            
             crate::stm!{@sub_unending_mask $pertinence
             $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
-                        pub fn droppable<S>(mut old: S) -> $start where $start:From<S>, S: Quittable {
-                            old.terminate();
-
-                            let mut new_st=$start::from(old);
-                            new_st.term=true;
-                            new_st
+                        pub fn droppable<S>(old: S) -> $start where $start:From<S> {
+                            $start::from(old)
                         }
 
                 }
@@ -135,68 +90,36 @@ macro_rules! stm {
             $(
                 #[derive(Debug)]
                 pub struct $node {
-                    term: bool
+                    finaliser: FnOnce() -> $term_name
                 }
 
-                    //$( crate::stm!{@sub_end_filter $tag
-                                   impl Quittable for $node {
-                                       fn terminate(&mut self) {
-                                           self.term=true;
-                                       }
-                                   }
-                    //} )*
-                                
                 $(
                     impl From<$e> for $node {
                         fn from(mut old_st: $e) -> $node {
-                            old_st.term=true;
                             println!("{:?} -> {:?}", stringify!($e), stringify!($node));
-                            $node {
-                                term: false
-                            }
+                            $node { finaliser: old_st.finaliser }
                         }
                     }
                 )*
 
-                /*
-                impl $node {
-                pub fn terminable(&self) -> bool {
-                    self.term
-            }
-                    
-            }
-                 */
-
-                /*
-                impl Drop for $node {
-                    fn drop(&mut self) {
-                        if !self.terminable() {debug_assert!(false, "unable to drop state: {:?}", self)}
+                    crate::stm!{@sub_unending_mask $pertinence
+                                $( crate::stm!{@sub_end_filter $tag
+                                               impl $node {
+                                                   pub fn droppable<S>(old: S) -> $node where $node:From<S> {
+                                                       $node::from(old)
+                                                   }
+                                               }
+                                } )*
                     }
-                }
-                 */
-                
-            crate::stm!{@sub_unending_mask $pertinence
-                $( crate::stm!{@sub_end_filter $tag
-                    impl $node {
-                        pub fn droppable<S>(mut old: S) -> $node where $node:From<S>, S: Quittable {
-                            old.terminate();
-
-                            let mut new_st=$node::from(old);
-                            new_st.term=true;
-                            new_st
-                        }
-                    }
-                 } )*
-            }
 
                 crate::stm!{@sub_unending_filter $pertinence
                             $( crate::stm!{@sub_end_filter $tag
-                                           illegal_end_tag {}
+                                           end_tag_in_unending_stm_error {}
                             }
                             )*
-            }
+                }
             )*
-                
+
             #[cfg(feature = "render_stm")]
             pub type Nd = &'static str;
             #[cfg(feature = "render_stm")]
@@ -344,67 +267,116 @@ macro_rules! stm {
 
         stm!(@sub_wall $machine_tag $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
 
-        impl $enum_name {
-            #[allow(dead_code)]
-            pub fn state(&self) -> &'static str {
-                match self {
-                    $enum_name::$start(_st $(, stm!(@sub_pattern ($start_arg) _ ))*) => stringify!($start),
-                    $(
-                        $enum_name::$node(_st $(, stm!(@sub_pattern ($arg) _))*) => stringify!($node),
-                    )*
+
+        //$( crate::stm!(@sub_end_filter $tag {} ) )*
+        stm!{@sub_unending_mask $pertinence
+             pub enum $term_name {
+                 $( stm!(@sub_end_filter $start_tag {$start,} ) )*
+                 $( stm!(@sub_end_filter $tag {$node,} ) )*
+             }
+        }
+
+        //stm!(@sub_enum $pertinence $mod_name, $term_name,
+        //     $( crate::stm!(@sub_end_filter $start_tag {$start} ) ),*
+        //     ($($($node $tag)*),*);
+
+        impl Drop for $enum_name {
+            fn drop(&mut self) {
+                crate::stm!{@sub_unending_mask $pertinence
+                    let finaliser=match self {
+                        $enum_name::$start(st $(, stm!(@sub_pattern ($start_arg) _ ))*) => st.finaliser,
+                        $(
+                            $enum_name::$node(st $(, stm!(@sub_pattern ($arg) _))*) => st.finalier,
+                        )*
+                    }
+                    let _term=finaliser();
                 }
+                crate::stm!{@sub_unending_filter $pertinence debug_assert!("Unable to drop unending stm {:?}", $enum_name)}
             }
+        }
 
-            #[allow(unused_variables)]
-            pub fn render_to<W: std::io::Write>(output: &mut W) {
-                #[cfg(feature = "render_stm")]
-                {
-                    let mut edge_vec=Vec::new();
-                    edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
+            impl $enum_name {
+                pub fn inst(args: ($($start_arg:ty),*), finaliser: FnOnce() -> $term_name) -> $enum_name {
+                    let node=$start {
+                        finaliser
+                    };
+                    crate::stm!{@sub_unending_mask $pertinence
 
-                    $(
-                        edge_vec.push({
-                            let f=stringify!($start_e);
-                            let t=stringify!($start);
-                            (f,t)
-                        });
-                    )*
+                                $( crate::stm!{@sub_end_filter $start_tag
+                                               node.end_tags_found();
+                                } )*
 
-                    $(
+                                $(
+                                    $( crate::stm!{@sub_end_filter $tag
+                                                   node.end_tags_found();
+                                    } )*
+                                )*
+
+                    }
+                    $enum_name::$start(node, $($start_arg:ty),*)
+                }
+
+                #[allow(dead_code)]
+                pub fn state(&self) -> &'static str {
+                    match self {
+                        $enum_name::$start(_st $(, stm!(@sub_pattern ($start_arg) _ ))*) => stringify!($start),
+                        $(
+                            $enum_name::$node(_st $(, stm!(@sub_pattern ($arg) _))*) => stringify!($node),
+                        )*
+                    }
+                }
+                
+                #[allow(unused_variables)]
+                pub fn render_to<W: std::io::Write>(output: &mut W) {
+                    #[cfg(feature = "render_stm")]
+                    {
+                        let mut edge_vec=Vec::new();
+                        edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
+                        
                         $(
                             edge_vec.push({
-                                let f=stringify!($e);
-                                let t=stringify!($node);
+                                let f=stringify!($start_e);
+                                let t=stringify!($start);
                                 (f,t)
                             });
                         )*
-                    )*
-
-                    let edges = $mod_name::MachineEdges(edge_vec);
-                    dot::render(&edges, output).unwrap()
+                            
+                        $(
+                            $(
+                                edge_vec.push({
+                                    let f=stringify!($e);
+                                    let t=stringify!($node);
+                                    (f,t)
+                                });
+                            )*
+                        )*
+                            
+                            let edges = $mod_name::MachineEdges(edge_vec);
+                        dot::render(&edges, output).unwrap()
+                    }
                 }
             }
-        }
     };
+    
     (states ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall ignorable $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+        stm!(@private nowall ignorable $mod_name, $enum_name, ||{}, Terminals, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
-    (machine ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private wall ignorable $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    (machine ignorable $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall ignorable $mod_name, $enum_name, $term_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
     (states attention_seeking $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall attention_seeking $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+        stm!(@private nowall attention_seeking $mod_name, $enum_name, Terminals, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
-    (machine attention_seeking $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private wall attention_seeking $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+    (machine attention_seeking $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private wall attention_seeking $mod_name, $enum_name, $term_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
     (states unending $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall unending $mod_name, $enum_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
+        stm!(@private nowall unending $mod_name, $enum_name, Terminals, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
     (machine unending $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private wall unending $mod_name, $enum_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
+        stm!(@private wall unending $mod_name, $enum_name, Terminals, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
 }

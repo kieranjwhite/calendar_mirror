@@ -190,6 +190,10 @@ pub fn render_stms() -> Result<(), Error> {
     cal_display::DisplayMachine::render_to(&mut f);
     f.flush()?;
 
+    f = File::create("docs/app_display_stm.dot")?;
+    cal_display::AppDisplayMachine::render_to(&mut f);
+    f.flush()?;
+
     f = File::create("docs/appointments_stm.dot")?;
     cal_display::AppMachine::render_to(&mut f);
     f.flush()?;
