@@ -215,7 +215,7 @@ impl Pending {
     }
 }
 
-stm!(machine attention_seeking tok_stm, FormattingMachine, []=> Empty() |end|, {
+stm!(machine attention_seeking tok_stm, FormattingMachine, FormattingTerminals, []=> Empty() |end|, {
     [TokenComplete] => BuildingBreakable() |end|;
     [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
     [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;
@@ -289,7 +289,16 @@ impl LeftFormatter {
         Ok(unformatted
             .lines()
             .map(|l| {
-                let mut mach = Empty(tok_stm::Empty::inst());
+                let mut mach = FormattingMachine::inst((), |mach| {
+                    match mach {
+                        Empty(st) => FormattingTerminals::Empty(st),
+                        BuildingBreakable(st) => FormattingTerminals::BuildingBreakable(st),
+                        NotStartedBuildingNonBreakable(st) => FormattingTerminals::NotStartedBuildingNonBreakable(st),
+                        StartedBuildingNonBreakable(st) => FormattingTerminals::StartedBuildingNonBreakable(st),
+                        TokenComplete(st) => panic!("Dropping when state is not accepting: {:?}", stringify!(mach))
+                        
+                    }
+                });
                 let mut col = GlyphXCnt(0);
                 let mut output = None;
                 let mut pending = Pending::new(GlyphXCnt(self.size.width()));
@@ -353,10 +362,6 @@ impl LeftFormatter {
                     }
                 }
                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
-                match mach {
-                    Empty(st) => Empty(tok_stm::Empty::droppable(st.ack_inst())),
-                    other @ _ => other,
-                };
 
                 if let Some(inner) = output {
                     Ok(inner)

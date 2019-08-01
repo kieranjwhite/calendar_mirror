@@ -14,6 +14,33 @@ macro_rules! stm {
         }
     };
      */
+    (@sub_build_enum $mod_name:ident, () -> { pub enum $enum_name:ident<$en:tt> {$($processed_var:ident(& $l:tt $mod:ident::$processed:ident)),*}}) => {
+        pub enum $enum_name<$en> {
+            $($processed_var(& $l $mod::$processed)),*
+        }
+    };
+    (@sub_build_enum $mod_name:ident, ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$en:tt> { } }) => {
+        crate::stm!(@sub_build_enum $mod_name, ($($tail $(| $tag |)*),*) -> {
+            pub enum $enum_name<$en> {
+                $head(& $en $mod_name::$head)
+            }
+        });
+    };
+    (@sub_build_enum $mod_name:ident, ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$en:tt> { $($processed_var:ident(& $l:tt $mod:ident::$processed:ident)),+} }) => {
+        crate::stm!(@sub_build_enum $mod_name, ($($tail $(| $tag |)*),*) -> {
+            pub enum $enum_name<$en> {
+                $($processed_var(& $l $mod::$processed)),*,
+                $head(& $en $mod_name::$head)
+            }
+        });
+    };
+    (@sub_build_enum $mod_name:ident, ($head:tt $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$en:tt> { $($processed_var:ident(& $l:tt $mod:ident::$processed:ident)),*} }) => {
+        crate::stm!(@sub_build_enum $mod_name, ($($tail $(| $tag |)*),*) -> {
+            pub enum $enum_name<$en> {
+                $($processed_var(& $l $mod::$processed)),*
+            }
+        });
+    };
     (@sub_wall nowall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
         #[allow(dead_code)]
         pub enum $enum_name {
@@ -45,10 +72,20 @@ macro_rules! stm {
 
         mod $mod_name
         {
-            
-            #[derive(Debug)]
-            pub struct $start {
-                finaliser: FnOnce() -> $term_name
+            crate::stm!{@sub_unending_mask $pertinence
+                        use super::$enum_name;
+                        use super::$term_name;
+            }
+
+            crate::stm!{@sub_unending_mask $pertinence
+                        pub struct $start {
+                            pub finaliser: Box<dyn FnOnce(&mut $enum_name) -> $term_name>
+                        }
+            }
+            crate::stm!{@sub_unending_filter $pertinence
+                        pub struct $start {
+                            _secret: ()
+                        }
             }
 
             $(
@@ -56,11 +93,18 @@ macro_rules! stm {
                     fn from(mut old_st: $start_e) -> $start {
                         println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
                         $start {
-                            finaliser: $start_e.finaliser
+                            finaliser: old_st.finaliser
                         }
                     }
                 }
             )*
+
+            impl std::fmt::Debug for $start {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+                    f.debug_struct(stringify!($start))
+                        .finish()
+                }
+            }
 
             impl $start {
                 crate::stm!{@sub_unending_mask $pertinence
@@ -88,9 +132,22 @@ macro_rules! stm {
             }
 
             $(
-                #[derive(Debug)]
-                pub struct $node {
-                    finaliser: FnOnce() -> $term_name
+                impl std::fmt::Debug for $node {
+                    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+                        f.debug_struct(stringify!($node))
+                            .finish()
+                    }
+                }
+
+                crate::stm!{@sub_unending_mask $pertinence
+                            pub struct $node {
+                                pub finaliser: Box<dyn FnOnce(&mut $enum_name) -> $term_name>
+                            }
+                }
+                crate::stm!{@sub_unending_filter $pertinence
+                            pub struct $node {
+                                _secret: ()
+                            }
                 }
 
                 $(
@@ -267,13 +324,14 @@ macro_rules! stm {
 
         stm!(@sub_wall $machine_tag $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
 
-
-        //$( crate::stm!(@sub_end_filter $tag {} ) )*
-        stm!{@sub_unending_mask $pertinence
-             pub enum $term_name {
-                 $( stm!(@sub_end_filter $start_tag {$start,} ) )*
-                 $( stm!(@sub_end_filter $tag {$node,} ) )*
-             }
+        crate::stm!{@sub_unending_mask $pertinence
+                    crate::stm!(@sub_build_enum $mod_name, (
+                        $start $(| $start_tag |)*,
+                        $($node $(| $tag |)*),*
+                    ) -> {
+                        pub enum $term_name<'a> {
+                        }
+                    });
         }
 
         //stm!(@sub_enum $pertinence $mod_name, $term_name,
@@ -286,34 +344,41 @@ macro_rules! stm {
                     let finaliser=match self {
                         $enum_name::$start(st $(, stm!(@sub_pattern ($start_arg) _ ))*) => st.finaliser,
                         $(
-                            $enum_name::$node(st $(, stm!(@sub_pattern ($arg) _))*) => st.finalier,
+                            $enum_name::$node(st $(, stm!(@sub_pattern ($arg) _))*) => st.finaliser,
                         )*
-                    }
+                    };
                     let _term=finaliser();
                 }
-                crate::stm!{@sub_unending_filter $pertinence debug_assert!("Unable to drop unending stm {:?}", $enum_name)}
+                crate::stm!{@sub_unending_filter $pertinence debug_assert!("Unable to drop unending stm {:?}", stringify!($enum_name))}
             }
         }
 
-            impl $enum_name {
-                pub fn inst(args: ($($start_arg:ty),*), finaliser: FnOnce() -> $term_name) -> $enum_name {
-                    let node=$start {
-                        finaliser
-                    };
-                    crate::stm!{@sub_unending_mask $pertinence
-
+        impl $enum_name {
+                crate::stm!{@sub_unending_mask $pertinence
+                            pub fn inst(args: ($($start_arg:ty),*), finaliser: impl FnOnce(&mut $enum_name) -> $term_name) -> $enum_name {
+                                let node=$mod_name::$start {
+                                    finaliser
+                                };
                                 $( crate::stm!{@sub_end_filter $start_tag
                                                node.end_tags_found();
-                                } )*
+                                } )*;
 
                                 $(
                                     $( crate::stm!{@sub_end_filter $tag
                                                    node.end_tags_found();
                                     } )*
-                                )*
+                                )*;
+                                $enum_name::$start(node, $($start_arg:ty),*)
+                            }
+                }
 
-                    }
-                    $enum_name::$start(node, $($start_arg:ty),*)
+                crate::stm!{@sub_unending_filter $pertinence
+                            pub fn inst(args: ($($start_arg:ty),*)) -> $enum_name {
+                                let node=$mod_name::$start {
+                                    _secret: ()
+                                };
+                                $enum_name::$start(node, $($start_arg:ty),*)
+                            }
                 }
 
                 #[allow(dead_code)]
@@ -325,14 +390,14 @@ macro_rules! stm {
                         )*
                     }
                 }
-                
+
                 #[allow(unused_variables)]
                 pub fn render_to<W: std::io::Write>(output: &mut W) {
                     #[cfg(feature = "render_stm")]
                     {
                         let mut edge_vec=Vec::new();
                         edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
-                        
+
                         $(
                             edge_vec.push({
                                 let f=stringify!($start_e);
@@ -340,7 +405,7 @@ macro_rules! stm {
                                 (f,t)
                             });
                         )*
-                            
+
                         $(
                             $(
                                 edge_vec.push({
@@ -350,23 +415,23 @@ macro_rules! stm {
                                 });
                             )*
                         )*
-                            
+
                             let edges = $mod_name::MachineEdges(edge_vec);
                         dot::render(&edges, output).unwrap()
                     }
                 }
             }
     };
-    
-    (states ignorable $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall ignorable $mod_name, $enum_name, ||{}, Terminals, [$($start_e),*] => $start() $(|$start_tag|)*, {
+
+    (states ignorable $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall ignorable $mod_name, $enum_name, ||{}, $term_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
     (machine ignorable $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
         stm!(@private wall ignorable $mod_name, $enum_name, $term_name, [$($start_e), *] => $start($($start_arg),*) $(| $start_tag|)*, { $( [$($e), *] => $node($($arg),*) $(|$tag|)* );* } );
     };
-    (states attention_seeking $mod_name:ident, $enum_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
-        stm!(@private nowall attention_seeking $mod_name, $enum_name, Terminals, [$($start_e),*] => $start() $(|$start_tag|)*, {
+    (states attention_seeking $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident $(| $tag:tt |)? );+ $(;)? } ) => {
+        stm!(@private nowall attention_seeking $mod_name, $enum_name, $term_name, [$($start_e),*] => $start() $(|$start_tag|)*, {
             $([$($e),*] => $node() $(|$tag|)*);* });
     };
     (machine attention_seeking $mod_name:ident, $enum_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {

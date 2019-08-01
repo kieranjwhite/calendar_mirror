@@ -17,7 +17,7 @@ err!(Error {
     TimeZoneAmbiguous(TimeZoneAmbiguousError)
     });
 
-stm!(machine ignorable ev_stm, Machine, [] => Uninitialised() |end|, {
+stm!(machine attention_seeking ev_stm, Machine, EmailTerminals, [] => Uninitialised() |end|, {
         [Uninitialised] => OneCreator(Email) |end|;
         [OneCreator] => NotOneCreator() |end|
     });
@@ -213,7 +213,13 @@ impl Appointments {
     pub fn new() -> Appointments {
         Appointments {
             events: Vec::new(),
-            state: Some(Uninitialised(ev_stm::Uninitialised::inst())),
+            state: Some(Machine::inst((), |mach|{
+                match mach {
+                    Uninitialised(st)=> EmailTerminals::Uninitialised(st),
+                    OneCreator(st, _)=> EmailTerminals::OneCreator(st),
+                    NotOneCreator(st)=> EmailTerminals::NotOneCreator(st),
+                }
+            })),
         }
     }
 

@@ -47,42 +47,16 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-stm!(states attention_seeking app_display_stm, AppDisplayMachine, [] => NotDisplayable, {
-    [NotDisplayable] => EventsQueued;
-    [EventsQueued] => AllDisplayable |end|;
-    [NotDisplayable] => Error |end|;
-});
+//trace_macros!(true);
+//trace_macros!(false);
 
-stm!(machine ignorable display_stm, DisplayMachine, [SaveWarning, UserCode, Events] => Empty() |end|, {
+stm!(machine attention_seeking display_stm, DisplayMachine, DisplayTerminals, [SaveWarning, UserCode, Events] => Empty() |end|, {
     [Empty, UserCode, Events] => SaveWarning() |end|;
     [Empty, SaveWarning, Events] => UserCode()  |end|;
     [Empty, SaveWarning, UserCode] => Events() |end|;
 });
 
-stm!(machine attention_seeking app_stm, AppMachine,
-     | mach | {
-         loop {
-             mach=match mach {
-                 Before(st) => {
-                     if let Some(Ordering::Greater) =
-                         following_date_start.partial_chron_cmp(&now)
-                     {
-                         out = Some(Ok(DisplayRecord::Time(NowDescription(
-                             time_displayable.clone(),
-                         ))));
-                         After(st.ack_inst())
-                     } else {
-                         return Terminals::Chained(Chained(app_stm::Chained::droppable(st)))
-                     }
-                 }
-                 InProgress(st) => return Terminals::Chained(Chained(app_stm::Chained::droppable(st))),
-                 After(st) => return Terminals::Chained(Chained(app_stm::Chained::droppable(st))),
-                 Chained(st) => return Terminals::Chained(Chained(st)),
-                 Error(st) => return Terminals::ErrorError(app_stm::Error::droppable(st)),
-             }
-         }
-     },
-     Terminals,
+stm!(machine attention_seeking app_stm, AppMachine, AppTerminals,
      []=> Before(), {
          [Before] => InProgress();
          [Before, InProgress] => After();
@@ -184,7 +158,13 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
-            state: Some(Empty(display_stm::Empty::inst())),
+            //state: Some(Empty(display_stm::Empty::inst())),
+            state: Some(DisplayMachine::inst((), |&mut mach| match mach {
+                Empty(st) => DisplayTerminals::Empty(&st),
+                SaveWarning(st) => DisplayTerminals::SaveWarning(&st),
+                UserCode(st) => DisplayTerminals::UserCode(&st),
+                Events(st) => DisplayTerminals::Events(&st),
+            })),
             status: Status::AllOk,
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
@@ -413,8 +393,6 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        let not_displayable = app_display_stm::NotDisplayable::inst();
-
         if render_type == RefreshType::Partial && !self.events_displayed() {
             return Ok(());
         }
@@ -436,7 +414,6 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), displayable_events));
                 }
-                app_display_stm::EventsQueued::from(not_displayable)
             } else {
                 let mut events = content.apps.events();
                 events.sort();
@@ -448,7 +425,38 @@ impl Renderer {
                 ))?;
 
                 let mut out = None;
-                let mut app_mach = Before(app_stm::Before::inst());
+
+                let time_displayable: String = self
+                    .formatter
+                    .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
+
+                let mut app_mach = AppMachine::inst((), |mach| loop {
+                    mach = match mach {
+                        Before(st) => {
+                            if let Some(Ordering::Greater) =
+                                following_date_start.partial_chron_cmp(&now)
+                            {
+                                out = Some(Ok(DisplayRecord::Time(NowDescription(
+                                    time_displayable.clone(),
+                                ))));
+                                &mut After((*st).into())
+                            } else {
+                                return AppTerminals::Chained(&(*st).into());
+                            }
+                        }
+                        InProgress(st) => {
+                            return AppTerminals::Chained(&(*st).into());
+                        }
+                        After(st) => {
+                            return AppTerminals::Chained(&(*st).into());
+                        }
+                        Chained(st) => return AppTerminals::Chained(st),
+                        AppMachine::Error(st) => {
+                            return AppTerminals::Error(st);
+                        }
+                    };
+                });
+                //let mut app_mach = Before(app_stm::Before::inst());
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
                     app_mach = if let InProgress(st) = app_mach {
                         After(st.into())
@@ -460,10 +468,6 @@ impl Renderer {
                     };
                 };
                 let mut mach_opt = Some(app_mach);
-
-                let time_displayable: String = self
-                    .formatter
-                    .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
                 let displayed_events =
                     events
@@ -490,7 +494,7 @@ impl Renderer {
                                         eprintln!(
                                             "overlapping events in cal_display from InProgress when less: {:?}",
                                             content.date);
-                                        Error(st.into())
+                                        AppMachine::Error(st.into())
                                     },
                                     Some(Ordering::Equal) => InProgress(st),
                                     Some(Ordering::Greater) => After(st.into()),
@@ -502,20 +506,19 @@ impl Renderer {
                                             "overlapping events in cal_display from After when less: {:?}",
                                             content.date
                                         );
-                                        Error(st.into())
+                                        AppMachine::Error(st.into())
                                     },
                                     Some(Ordering::Equal) => {
                                         eprintln!(
                                             "overlapping events in cal_display from After when equal: {:?}",
                                             content.date);
-                                        Error(st.into())
+                                        AppMachine::Error(st.into())
                                     },
                                     Some(Ordering::Greater) => After(st),
                                     None => After(st),
                                 },
                                 Chained(st) => Chained(st),
-                                Error(st) =>
-                                    Error(st),
+                                AppMachine::Error(st) => AppMachine::Error(st),
                             });
 
                         let result=match self.formatter.just(&ev_displayable) {
@@ -577,7 +580,6 @@ impl Renderer {
                 } else {
                     ops.push(Op::UpdateText(EVENTS_ID.to_string(), justified_events));
                 }
-                app_display_stm::EventsQueued::from(not_displayable)
             };
 
             let heading = content.date.format(DATE_FORMAT).to_string();
@@ -633,13 +635,9 @@ impl Renderer {
             }
 
             self.pipe.send(ops.iter(), false)?;
-            app_display_stm::AllDisplayable::from(events_queued)
         } else {
-            let acked = not_displayable.ack_inst::<app_display_stm::Error>();
-            app_display_stm::Error::droppable(acked);
             panic!("no events");
         };
-        app_display_stm::AllDisplayable::droppable(all_displayable);
 
         Ok(())
     }

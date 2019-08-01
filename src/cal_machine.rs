@@ -190,10 +190,6 @@ pub fn render_stms() -> Result<(), Error> {
     cal_display::DisplayMachine::render_to(&mut f);
     f.flush()?;
 
-    f = File::create("docs/app_display_stm.dot")?;
-    cal_display::AppDisplayMachine::render_to(&mut f);
-    f.flush()?;
-
     f = File::create("docs/appointments_stm.dot")?;
     cal_display::AppMachine::render_to(&mut f);
     f.flush()?;
@@ -250,7 +246,10 @@ pub fn run(
     config_file: &Path,
     saver: impl Fn(&RefreshToken, &mut Renderer) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    use Machine::*;
+    use Machine::{
+        CachedDisplay, DeviceAuthPoll, DisplayError, ErrorWait, LoadAuth, NetworkOutage,
+        PageEvents, PollEvents, ReadFirstEvents, RefreshAuth, RequestCodes,
+    };
 
     use reqwest::{Response, StatusCode};
 
@@ -267,7 +266,7 @@ pub fn run(
     let mut display_date = today; //don't delete this variable -- it's needed after a network outage to display events from that last date we navigated to, while at the same time reverting date changes due to the previous failed date navigation operation
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
-    let mut mach: Machine = LoadAuth(cal_stm::LoadAuth::inst());
+    let mut mach = Machine::inst(());
     let mut gpio = GPIO::new()?;
     let mut reset_button = LongPressButton::new(
         Pin(SW3_GPIO),

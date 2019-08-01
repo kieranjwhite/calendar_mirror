@@ -1,3 +1,5 @@
+#![feature(trace_macros)]
+
 #[macro_use]
 mod cal_display;
 mod cal_machine;
