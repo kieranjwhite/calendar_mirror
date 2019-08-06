@@ -17,7 +17,7 @@ err!(Error {
     TimeZoneAmbiguous(TimeZoneAmbiguousError)
     });
 
-stm!(machine attention_seeking ev_stm, Machine, EmailTerminals, [] => Uninitialised() |end|, {
+stm!(machine ev_stm, Machine, EmailsAtEnd, EmailTerminals, [] => Uninitialised() |end|, {
         [Uninitialised] => OneCreator(Email) |end|;
         [OneCreator] => NotOneCreator() |end|
     });
@@ -213,13 +213,13 @@ impl Appointments {
     pub fn new() -> Appointments {
         Appointments {
             events: Vec::new(),
-            state: Some(Machine::inst((), |mach|{
+            state: Some(Machine::new((), Box::new(|mach|{
                 match mach {
-                    Uninitialised(st)=> EmailTerminals::Uninitialised(st),
-                    OneCreator(st, _)=> EmailTerminals::OneCreator(st),
-                    NotOneCreator(st)=> EmailTerminals::NotOneCreator(st),
+                    EmailsAtEnd::Uninitialised(st)=> EmailTerminals::Uninitialised(st),
+                    EmailsAtEnd::OneCreator(st)=> EmailTerminals::OneCreator(st),
+                    EmailsAtEnd::NotOneCreator(st)=> EmailTerminals::NotOneCreator(st),
                 }
-            })),
+            }))),
         }
     }
 
@@ -264,26 +264,7 @@ impl Appointments {
         Ok(())
     }
 
-    fn make_droppable(&mut self) {
-        self.state = Some(
-            match self
-                .state
-                .take()
-                .expect("finalise(). Appoinments.state is in an unitialised state")
-            {
-                Uninitialised(st) => {
-                    //Uninitialised(st.droppable_inst())
-                    Uninitialised(ev_stm::Uninitialised::droppable(st))
-                }
-                OneCreator(st, email) => OneCreator(ev_stm::OneCreator::droppable(st), email),
-                NotOneCreator(st) => NotOneCreator(ev_stm::NotOneCreator::droppable(st)),
-            },
-        );
-    }
-
     pub fn finalise(mut self) -> AppsReadonly {
-        self.make_droppable();
-
         AppsReadonly {
             email: self.email(),
             events: self.events,

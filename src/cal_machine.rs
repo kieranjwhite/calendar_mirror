@@ -34,17 +34,17 @@ use std::{
     time::Duration,
 };
 
-stm!(machine unending cal_stm, Machine, [ErrorWait] => LoadAuth(), {
-    [DisplayError] => ErrorWait(DownloadedAt);
-    [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes();
-    [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate);
-    [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType, PendingDisplayDate);
-    [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds);
-    [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String);
-    [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate);
-    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate);
-    [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt);
-    [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt, TimeUpdatedAt)
+stm!(machine cal_stm, Machine, CalsAtEnd, CalTerminals, [ErrorWait] => LoadAuth() |end|, {
+    [DisplayError] => ErrorWait(DownloadedAt) |end|;
+    [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes() |end|;
+    [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate) |end|;
+    [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType, PendingDisplayDate) |end|;
+    [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds) |end|;
+    [LoadAuth, PageEvents, DeviceAuthPoll, ReadFirstEvents, RefreshAuth, RequestCodes] => DisplayError(String) |end|;
+    [ReadFirstEvents] => PageEvents(Authenticators, Option<PageToken>, Appointments, RefreshedAt, DownloadedAt, RefreshType, PendingDisplayDate) |end|;
+    [PageEvents] => PollEvents(Authenticators, RefreshedAt, DownloadedAt, TimeUpdatedAt, PendingDisplayDate) |end|;
+    [RefreshAuth, ReadFirstEvents, PageEvents] => CachedDisplay(RefreshToken, LastNetErrorAt) |end|;
+    [CachedDisplay] => NetworkOutage(RefreshToken, LastNetErrorAt, TimeUpdatedAt) |end|
 });
 
 type PeriodSeconds = u64;
@@ -266,7 +266,21 @@ pub fn run(
     let mut display_date = today; //don't delete this variable -- it's needed after a network outage to display events from that last date we navigated to, while at the same time reverting date changes due to the previous failed date navigation operation
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
-    let mut mach = Machine::inst(());
+    let mut mach = Machine::new((), Box::new(|mach| {
+        match mach {
+            CalsAtEnd::LoadAuth(st) =>CalTerminals::LoadAuth(st),
+            CalsAtEnd::ErrorWait(st) =>CalTerminals::ErrorWait(st),
+            CalsAtEnd::RequestCodes(st) =>CalTerminals::RequestCodes(st),
+            CalsAtEnd::RefreshAuth(st) =>CalTerminals::RefreshAuth(st),
+            CalsAtEnd::ReadFirstEvents(st)=>CalTerminals::ReadFirstEvents(st),
+            CalsAtEnd::DeviceAuthPoll(st) =>CalTerminals::DeviceAuthPoll(st),
+            CalsAtEnd::DisplayError(st)=>CalTerminals::DisplayError(st),
+            CalsAtEnd::PageEvents(st)=>CalTerminals::PageEvents(st),
+            CalsAtEnd::PollEvents(st)=>CalTerminals::PollEvents(st),
+            CalsAtEnd::CachedDisplay(st)=>CalTerminals::CachedDisplay(st),
+            CalsAtEnd::NetworkOutage(st)=>CalTerminals::NetworkOutage(st)
+        }
+    }));
     let mut gpio = GPIO::new()?;
     let mut reset_button = LongPressButton::new(
         Pin(SW3_GPIO),

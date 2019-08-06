@@ -215,7 +215,7 @@ impl Pending {
     }
 }
 
-stm!(machine attention_seeking tok_stm, FormattingMachine, FormattingTerminals, []=> Empty() |end|, {
+stm!(machine tok_stm, FormattingMachine, FormattingAtEnd, FormattingTerminals, []=> Empty() |end|, {
     [TokenComplete] => BuildingBreakable() |end|;
     [TokenComplete] => NotStartedBuildingNonBreakable() |end|;
     [Empty, NotStartedBuildingNonBreakable, TokenComplete] => StartedBuildingNonBreakable() |end|;
@@ -289,16 +289,16 @@ impl LeftFormatter {
         Ok(unformatted
             .lines()
             .map(|l| {
-                let mut mach = FormattingMachine::inst((), |mach| {
+                let mut mach = FormattingMachine::new((), Box::new(|mach| {
                     match mach {
-                        Empty(st) => FormattingTerminals::Empty(st),
-                        BuildingBreakable(st) => FormattingTerminals::BuildingBreakable(st),
-                        NotStartedBuildingNonBreakable(st) => FormattingTerminals::NotStartedBuildingNonBreakable(st),
-                        StartedBuildingNonBreakable(st) => FormattingTerminals::StartedBuildingNonBreakable(st),
-                        TokenComplete(st) => panic!("Dropping when state is not accepting: {:?}", stringify!(mach))
+                        FormattingAtEnd::Empty(st) => FormattingTerminals::Empty(st),
+                        FormattingAtEnd::BuildingBreakable(st) => FormattingTerminals::BuildingBreakable(st),
+                        FormattingAtEnd::NotStartedBuildingNonBreakable(st) => FormattingTerminals::NotStartedBuildingNonBreakable(st),
+                        FormattingAtEnd::StartedBuildingNonBreakable(st) => FormattingTerminals::StartedBuildingNonBreakable(st),
+                        FormattingAtEnd::TokenComplete(_st) => panic!("Dropping when state is not accepting: {:?}", stringify!(mach))
                         
                     }
-                });
+                }));
                 let mut col = GlyphXCnt(0);
                 let mut output = None;
                 let mut pending = Pending::new(GlyphXCnt(self.size.width()));
@@ -313,9 +313,7 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(
-                                        tok_stm::StartedBuildingNonBreakable::droppable(st),
-                                    )
+                                    StartedBuildingNonBreakable(st.into())
                                 }
                             }
                             BuildingBreakable(st) => TokenComplete(st.into()),
@@ -324,34 +322,26 @@ impl LeftFormatter {
                                     TokenComplete(st.into())
                                 } else {
                                     pending.add_glyph(grapheme)?; //pending start
-                                    StartedBuildingNonBreakable(tok_stm::StartedBuildingNonBreakable::droppable(st))
+                                    StartedBuildingNonBreakable(st.into())
                                 }
                             }
                             NotStartedBuildingNonBreakable(st) => {
                                 pending.add_glyph(grapheme)?; //pending start if grapheme is not a space
                                 if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(tok_stm::NotStartedBuildingNonBreakable::droppable(st))
+                                    NotStartedBuildingNonBreakable(st.into())
                                 } else {
-                                    StartedBuildingNonBreakable(
-                                        tok_stm::StartedBuildingNonBreakable::droppable(st),
-                                    )
+                                    StartedBuildingNonBreakable(st.into())
                                 }
                             }
                             TokenComplete(st) => {
                                 LeftFormatter::build_out(&mut pending, &mut output, &mut col)?;
                                 pending.add_glyph(grapheme)?; //pending start
                                 if BREAKABLE.contains(grapheme) {
-                                    BuildingBreakable(
-                                        tok_stm::BuildingBreakable::droppable(st),
-                                    )
+                                    BuildingBreakable(st.into())
                                 } else if SPACES.contains(grapheme) {
-                                    NotStartedBuildingNonBreakable(
-                                        tok_stm::NotStartedBuildingNonBreakable::droppable(st),
-                                    ) //pending start if grapheme is not a space
+                                    NotStartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
                                 } else {
-                                    StartedBuildingNonBreakable(
-                                        tok_stm::StartedBuildingNonBreakable::droppable(st),
-                                    ) //pending start if grapheme is not a space
+                                    StartedBuildingNonBreakable(st.into()) //pending start if grapheme is not a space
                                 }
                             }
                         };

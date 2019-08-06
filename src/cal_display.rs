@@ -47,16 +47,15 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-//trace_macros!(true);
-//trace_macros!(false);
-
-stm!(machine attention_seeking display_stm, DisplayMachine, DisplayTerminals, [SaveWarning, UserCode, Events] => Empty() |end|, {
+trace_macros!(true);
+stm!(machine display_stm, DisplayMachine, DisplayAtEnd, DisplayTerminals, [SaveWarning, UserCode, Events] => Empty() |end|, {
     [Empty, UserCode, Events] => SaveWarning() |end|;
     [Empty, SaveWarning, Events] => UserCode()  |end|;
     [Empty, SaveWarning, UserCode] => Events() |end|;
 });
+trace_macros!(false);
 
-stm!(machine attention_seeking app_stm, AppMachine, AppTerminals,
+stm!(machine app_stm, AppMachine, AppAtEnd, AppTerminals,
      []=> Before(), {
          [Before] => InProgress();
          [Before, InProgress] => After();
@@ -159,18 +158,29 @@ impl Renderer {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
             //state: Some(Empty(display_stm::Empty::inst())),
-            state: Some(DisplayMachine::inst((), |&mut mach| match mach {
-                Empty(st) => DisplayTerminals::Empty(&st),
-                SaveWarning(st) => DisplayTerminals::SaveWarning(&st),
-                UserCode(st) => DisplayTerminals::UserCode(&st),
-                Events(st) => DisplayTerminals::Events(&st),
-            })),
+            state: Some(DisplayMachine::new(
+                (),
+                Box::new(|mach: DisplayAtEnd| match mach {
+                    DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
+                    DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(st),
+                    DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
+                    DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
+                }),
+            )),
             status: Status::AllOk,
             pulse_on: false,
             formatter: LeftFormatter::new(SCREEN_DIMS),
             dims: SCREEN_DIMS,
             events: None,
         })
+        /*Empty(display_stm::Empty::new(Box::new(
+            |mach: &mut DisplayMachine| match mach {
+                Empty(ref st) => DisplayTerminals::Empty(&st),
+                SaveWarning(ref st) => DisplayTerminals::SaveWarning(&st),
+                UserCode(ref st) => DisplayTerminals::UserCode(&st),
+                Events(ref st) => DisplayTerminals::Events(&st),
+            },
+        )))*/
     }
 
     pub fn wait_for_server() -> Result<Renderer, Error> {
@@ -210,15 +220,29 @@ impl Renderer {
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
 
-        self.state = Some(
-            match self.state.take().expect("no state in Renderer.clear()") {
-                Empty(st) => Empty(st),
-                SaveWarning(st) => Empty(st.into()),
-                UserCode(st) => Empty(st.into()),
-                Events(st) => Empty(st.into()),
-            },
-        );
+        let state = match self.state.take().expect("no state in Renderer.clear()") {
+            Empty(st) => Empty(st),
+            SaveWarning(st) => Empty(st.into()),
+            UserCode(st) => Empty(st.into()),
+            Events(st) => Empty(st.into()),
+        };
+        self.state = Some(state);
 
+        /*
+        let mut mach=DisplayMachine::new(
+            (),
+            Box::new(|mach: DisplayAtEnd| match mach {
+                DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
+                DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(&t),
+                DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
+                DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
+            }),
+        );
+        let st=match mach {
+            Empty(st) => Empty(st),
+            _ => panic!("whaah")
+        };
+         */
         Ok(())
     }
 
@@ -397,11 +421,11 @@ impl Renderer {
             return Ok(());
         }
 
-        let all_displayable = if let Some(ref content) = self.events {
+        let _all_displayable = if let Some(ref content) = self.events {
             let display_date = Renderer::date_start(&content.date)?;
             let today = Renderer::date_start(&now.as_ref())?;
             let mut ops: Vec<Op> = Vec::with_capacity(6);
-            let events_queued = if display_date != today && content.apps.events().len() == 0 {
+            let _events_queued = if display_date != today && content.apps.events().len() == 0 {
                 let displayable_events = NO_EVENTS.to_string();
                 if render_type == RefreshType::Full {
                     ops.push(Op::Clear);
@@ -424,38 +448,24 @@ impl Renderer {
                     *display_date_start.time.as_ref() + chrono::Duration::days(1)
                 ))?;
 
-                let mut out = None;
-
                 let time_displayable: String = self
                     .formatter
                     .just(&Renderer::format(&Minute::new(&now)?, &now).1)?;
 
-                let mut app_mach = AppMachine::inst((), |mach| loop {
-                    mach = match mach {
-                        Before(st) => {
-                            if let Some(Ordering::Greater) =
-                                following_date_start.partial_chron_cmp(&now)
-                            {
-                                out = Some(Ok(DisplayRecord::Time(NowDescription(
-                                    time_displayable.clone(),
-                                ))));
-                                &mut After((*st).into())
-                            } else {
-                                return AppTerminals::Chained(&(*st).into());
+                let mut app_mach = AppMachine::new(
+                    (),
+                    Box::new(|mut mach: AppAtEnd| loop {
+                        mach = match mach {
+                            AppAtEnd::Chained(st) => return app_stm::AppTerminals::Chained(st),
+                            AppAtEnd::Error(st) => {
+                                return AppTerminals::Error(st);
                             }
-                        }
-                        InProgress(st) => {
-                            return AppTerminals::Chained(&(*st).into());
-                        }
-                        After(st) => {
-                            return AppTerminals::Chained(&(*st).into());
-                        }
-                        Chained(st) => return AppTerminals::Chained(st),
-                        AppMachine::Error(st) => {
-                            return AppTerminals::Error(st);
-                        }
-                    };
-                });
+                            _ => {
+                                panic!("Illegal AppMachine state: {:?}", mach);
+                            }
+                        };
+                    }),
+                );
                 //let mut app_mach = Before(app_stm::Before::inst());
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
                     app_mach = if let InProgress(st) = app_mach {
@@ -543,8 +553,32 @@ impl Renderer {
                     displayed_events
                         .into_iter()
                         .chain(from_fn(|| {
-                            {
+                            let mut out = None;
+                            let mut mach =
                                 mach_opt.take().expect("missing state in appointments stm");
+                            while !mach.at_accepting_state() {
+                                mach = match mach {
+                                    Before(st) => {
+                                        if let Some(Ordering::Greater) =
+                                            following_date_start.partial_chron_cmp(&now)
+                                        {
+                                            out = Some(Ok(DisplayRecord::Time(NowDescription(
+                                                time_displayable.clone(),
+                                            ))));
+                                            After(st.into())
+                                        } else {
+                                            Chained(st.into())
+                                        }
+                                    }
+                                    InProgress(st) => Chained(st.into()),
+                                    After(st) => {
+                                        Chained(st.into())
+                                    }
+                                    Chained(st) => Chained(st),
+                                    Error(st) => {
+                                        Error(st)
+                                    }
+                                };
                             }
                             out
                         }))

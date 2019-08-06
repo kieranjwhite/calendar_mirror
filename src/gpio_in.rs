@@ -26,7 +26,7 @@ pub trait Button<E> {
     fn event(&mut self, ports: &mut GPIO) -> Result<Option<E>, Error>;
 }
 
-stm!(machine attention_seeking long_press_button_stm, LongPressMachine, LongPressTerminals, [ReleasePending, PressedPending, LongPressed] => NotPressed() |end|, {
+stm!(machine button_stm, LongPressMachine, LongPressAtEnd, LongPressTerminals, [ReleasePending, PressedPending, LongPressed] => NotPressed() |end|, {
     [PressedPending, LongPressed] => ReleasePending() |end|;
     [NotPressed, ReleasePending, LongPressed] => PressedPending() |end|;
     [NotPressed, ReleasePending, PressedPending]=>LongPressed() |end|
@@ -93,15 +93,15 @@ impl LongPressButton {
             pin,
             detectable_after,
             long_release_after,
-            state: Some(LongPressMachine::inst((), |mach| {
+            state: Some(LongPressMachine::new((), Box::new(|mach| {
                     match mach {
-                        NotPressed(st) => LongPressTerminals::NotPressed(st),
-                        ReleasePending(st) => LongPressTerminals::ReleasePending(st),
-                        PressedPending(st) => LongPressTerminals::PressedPending(st),
-                        LongPressed(st) => LongPressTerminals::LongPressed(st),
+                        LongPressAtEnd::NotPressed(st) => LongPressTerminals::NotPressed(st),
+                        LongPressAtEnd::ReleasePending(st) => LongPressTerminals::ReleasePending(st),
+                        LongPressAtEnd::PressedPending(st) => LongPressTerminals::PressedPending(st),
+                        LongPressAtEnd::LongPressed(st) => LongPressTerminals::LongPressed(st),
                     }
                 
-            })),
+            }))),
         }
     }
 }
