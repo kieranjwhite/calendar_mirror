@@ -495,13 +495,15 @@ impl Renderer {
                         };
                     }),
                 );
-                //let mut app_mach = Before(app_stm::Before::inst());
+
+                //Dealing with an event which straddles 2 days when we're displaying the 2nd of those days
+                //which happens to be tomorrow
                 if let Some(Ordering::Greater) = display_date_start.partial_chron_cmp(&now) {
-                    app_mach = if let InProgress(st) = app_mach {
-                        After(st.into())
+                    app_mach = if let Before(st) = app_mach {
+                        InProgress(st.into())
                     } else {
                         panic!(
-                            "appointments state machine has the wrong state: {:?}",
+                            "appointments state machine has the wrong starting state: {:?}",
                             app_mach.state()
                         );
                     };

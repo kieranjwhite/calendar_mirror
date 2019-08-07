@@ -90,7 +90,7 @@ macro_rules! stm {
                 impl From<$start_e> for $start {
                     fn from(mut old_st: $start_e) -> $start {
                         use log::trace;
-            
+
                         trace!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
                         $start {
                             finaliser: old_st.finaliser.take()
@@ -107,25 +107,6 @@ macro_rules! stm {
             }
 
             impl $start {
-                /*
-                pub fn new(finaliser: Box<dyn FnOnce($stripped_name) -> $term_name>) -> $start {
-                    let node=$start {
-                        finaliser:Some(finaliser)
-                    };
-                    $( crate::stm!{@sub_end_filter $start_tag
-                                   node.end_tags_found();
-                    } )*;
-
-                    $(
-                        $( crate::stm!{@sub_end_filter $tag
-                                       node.end_tags_found();
-                        } )*
-                    )*;
-
-                    node
-                }
-                */
-
                 pub fn end_tags_found(&self){}
 
                 #[allow(dead_code, unreachable_code)]
@@ -137,16 +118,7 @@ macro_rules! stm {
                 }
 
             }
-            /*
-            $( crate::stm!{@sub_end_filter $start_tag
-                impl $start {
-                        pub fn dropper<S>(old: S) -> $start where $start:From<S> {
-                            $start::from(old)
-                        }
-                }
 
-            } )*
-            */
             $(
                 impl std::fmt::Debug for $node {
                     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -189,16 +161,6 @@ macro_rules! stm {
                         }
                     }
                 )*
-
-                /*
-                $( crate::stm!{@sub_end_filter $tag
-                               impl $node {
-                                   pub fn dropper<S>(old: S) -> $node where $node:From<S> {
-                                       $node::from(old)
-                                   }
-                               }
-                } )*
-                 */
             )*
 
             #[cfg(feature = "render_stm")]
@@ -407,24 +369,6 @@ macro_rules! stm {
         }
 
         stm!(@sub_wall $machine_tag $stripped_name $term_name $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
-
-        //stm!(@sub_enum $pertinence $mod_name, $term_name,
-        //     $( crate::stm!(@sub_end_filter $start_tag {$start} ) ),*
-        //     ($($($node $tag)*),*);
-
-        /*
-        impl Drop for $enum_name {
-            fn drop(&mut self) {
-                let finaliser=match self {
-                    $enum_name::$start(st $(, stm!(@sub_pattern ($start_arg) _ ))*) => st.finaliser,
-                    $(
-                        $enum_name::$node(st $(, stm!(@sub_pattern ($arg) _))*) => st.finaliser,
-                    )*
-                };
-                let _term=finaliser(self);
-            }
-        }
-         */
 
         impl std::fmt::Debug for $enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
