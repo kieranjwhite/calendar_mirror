@@ -6,6 +6,7 @@ use std::{
     ptr::read_volatile,
     time::{Duration, Instant},
 };
+use log::trace;
 use LongPressMachine::*;
 
 const BLOCK_SIZE: usize = 4 * 1024;
@@ -94,6 +95,8 @@ impl LongPressButton {
             detectable_after,
             long_release_after,
             state: Some(LongPressMachine::new((), Box::new(|mach| {
+                    trace!("dropping LongPressMachine: {:?}", mach);
+                    
                     match mach {
                         LongPressAtEnd::NotPressed(st) => LongPressTerminals::NotPressed(st),
                         LongPressAtEnd::ReleasePending(st) => LongPressTerminals::ReleasePending(st),

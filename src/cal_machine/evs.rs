@@ -3,6 +3,7 @@ use crate::{
     cloneable, copyable, err, stm,
 };
 use chrono::{format::ParseError, offset::LocalResult, prelude::*, Duration};
+use log::trace;
 use std::cmp::Ordering;
 use Machine::*;
 
@@ -214,6 +215,7 @@ impl Appointments {
         Appointments {
             events: Vec::new(),
             state: Some(Machine::new((), Box::new(|mach|{
+                trace!("dropping evs Machine: {:?}", mach);
                 match mach {
                     EmailsAtEnd::Uninitialised(st)=> EmailTerminals::Uninitialised(st),
                     EmailsAtEnd::OneCreator(st)=> EmailTerminals::OneCreator(st),

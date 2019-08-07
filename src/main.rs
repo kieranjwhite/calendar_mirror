@@ -278,6 +278,7 @@ fn sync_time<'a>(system_d: &'a dbus::ConnPath<'a, &'a dbus::Connection>) -> Resu
 }
 
 fn main() -> Result<(), Error> {
+    env_logger::init();
     let path_opt = var_os("PATH");
     let paths = if let Some(ref val) = path_opt {
         val.clone().into_string().expect("invalid path")

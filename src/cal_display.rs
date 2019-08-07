@@ -15,6 +15,7 @@ use DisplayMachine::*;
 
 use chrono::prelude::*;
 use core::{cmp::Ordering, fmt::Debug};
+use log::trace;
 use std::iter::from_fn;
 
 const HEADING_ID: &str = "heading";
@@ -161,13 +162,16 @@ impl Renderer {
             //state: Some(Empty(display_stm::Empty::inst())),
             state: Some(DisplayMachine::new(
                 (),
-                Box::new(|mach: DisplayAtEnd| match mach {
+                Box::new(|mach: DisplayAtEnd| {
+                    trace!("dropping DisplayMachine: {:?}", mach);
+                    
+                    match mach {
                     DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
                     DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(st),
                     DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
                     DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
                     DisplayAtEnd::Unknown(st) => DisplayTerminals::Unknown(st),
-                }),
+                }}),
             )),
             status: Status::AllOk,
             pulse_on: false,
@@ -479,6 +483,8 @@ impl Renderer {
                 let mut app_mach = AppMachine::new(
                     (),
                     Box::new(|mach: AppAtEnd| loop {
+                        trace!("dropping AppMachine: {:?}", mach);
+                    
                         match mach {
                             AppAtEnd::Chained(st) => return AppTerminals::Chained(st),
                             AppAtEnd::Error(st) => return AppTerminals::Error(st),

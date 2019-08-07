@@ -18,6 +18,7 @@ use crate::{
     stm,
 };
 use chrono::{format::ParseError, prelude::*};
+use log::{trace};
 use nix::{unistd::*, Error as NixError};
 use retriever::*;
 use serde::{Deserialize, Serialize};
@@ -267,6 +268,7 @@ pub fn run(
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
     let mut mach = Machine::new((), Box::new(|mach| {
+        trace!("dropping cal_machine Machine: {:?}", mach);
         match mach {
             CalsAtEnd::LoadAuth(st) =>CalTerminals::LoadAuth(st),
             CalsAtEnd::ErrorWait(st) =>CalTerminals::ErrorWait(st),

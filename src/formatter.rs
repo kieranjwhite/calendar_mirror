@@ -1,4 +1,5 @@
 use crate::{copyable, stm};
+use log::trace;
 use std::collections::VecDeque;
 use unicode_segmentation::UnicodeSegmentation;
 use FormattingMachine::*;
@@ -290,6 +291,7 @@ impl LeftFormatter {
             .lines()
             .map(|l| {
                 let mut mach = FormattingMachine::new((), Box::new(|mach| {
+                    trace!("dropping FormattingMachine: {:?}", mach);
                     match mach {
                         FormattingAtEnd::Empty(st) => FormattingTerminals::Empty(st),
                         FormattingAtEnd::BuildingBreakable(st) => FormattingTerminals::BuildingBreakable(st),

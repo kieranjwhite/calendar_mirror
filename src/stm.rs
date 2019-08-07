@@ -65,34 +65,33 @@ macro_rules! stm {
 
     (@sub_end_filter end $($sub:tt)*) => {$($sub)*};
     (@sub_end_filter $tag:tt $($sub:tt)*) => {};
-    
+
     (@sub_pattern $_t:tt $sub:pat) => {$sub};
     (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, $stripped_name:ident, $term_name:ident, [$($start_e:ident), *] => $start: ident($($start_arg:ty),*) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         use $mod_name::$term_name;
         use $mod_name::$stripped_name;
-        
+
         mod $mod_name
         {
-            //use super::$enum_name;
-            //use super::$stripped_name;
-            //use super::$term_name;
-            
             pub struct $start {
                 pub finaliser: Option<Box<dyn FnOnce($stripped_name) -> $term_name>>
             }
 
             impl Drop for $start {
                 fn drop(&mut self) {
-                    let finaliser=self.finaliser.take().expect(&format!("finaliser has not been initialised for {:?}", stringify!($start)));
-                    let _term=(finaliser)($stripped_name::$start(dropper::$start::new()));                    
+                    if let Some(finaliser)=self.finaliser.take() {
+                        let _term=(finaliser)($stripped_name::$start(dropper::$start::new()));
+                    }
                 }
             }
 
             $(
                 impl From<$start_e> for $start {
                     fn from(mut old_st: $start_e) -> $start {
-                        println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
+                        use log::trace;
+            
+                        trace!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
                         $start {
                             finaliser: old_st.finaliser.take()
                         }
@@ -116,17 +115,17 @@ macro_rules! stm {
                     $( crate::stm!{@sub_end_filter $start_tag
                                    node.end_tags_found();
                     } )*;
-                    
+
                     $(
                         $( crate::stm!{@sub_end_filter $tag
                                        node.end_tags_found();
                         } )*
                     )*;
-                    
+
                     node
                 }
                 */
-                    
+
                 pub fn end_tags_found(&self){}
 
                 #[allow(dead_code, unreachable_code)]
@@ -136,7 +135,7 @@ macro_rules! stm {
                     } )*
                     return false;
                 }
-                
+
             }
             /*
             $( crate::stm!{@sub_end_filter $start_tag
@@ -170,14 +169,15 @@ macro_rules! stm {
                         return false;
                     }
                 }
-                
+
                 impl Drop for $node {
                     fn drop(&mut self) {
-                        let finaliser=self.finaliser.take().expect(&format!("finaliser has not been initialised for {:?}", stringify!($node)));
-                        let _term=(finaliser)($stripped_name::$node(dropper::$node::new()));
+                        if let Some(finaliser)=self.finaliser.take() {
+                            let _term=(finaliser)($stripped_name::$node(dropper::$node::new()));
+                        }
                     }
                 }
-                
+
                 $(
                     impl From<$e> for $node {
                         fn from(mut old_st: $e) -> $node {
@@ -358,7 +358,7 @@ macro_rules! stm {
                         }
                     }
                 }
-                
+
                 $(
                     #[derive(Debug)]
                     pub struct $node {
@@ -402,7 +402,7 @@ macro_rules! stm {
                 pub enum $term_name {
                 }
             });
-            
+
             crate::stm!(@sub_bare_dropper_enum $stripped_name, $start,$($node),*);
         }
 
@@ -423,9 +423,9 @@ macro_rules! stm {
                 };
                 let _term=finaliser(self);
             }
-        }            
+        }
          */
-        
+
         impl std::fmt::Debug for $enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
                 f.debug_struct(stringify!($enum_name))
@@ -440,7 +440,7 @@ macro_rules! stm {
                 let node=$mod_name::$start {
                     finaliser: Some(finaliser)
                 };
-                
+
                 $( crate::stm!{@sub_end_filter $start_tag
                                node.end_tags_found();
                 } )*;
@@ -481,7 +481,7 @@ macro_rules! stm {
                 {
                     let mut edge_vec=Vec::new();
                     edge_vec.push(($mod_name::START_NODE_NAME, stringify!($start)));
-                    
+
                     $(
                         edge_vec.push({
                             let f=stringify!($start_e);
@@ -489,7 +489,7 @@ macro_rules! stm {
                             (f,t)
                         });
                     )*;
-                    
+
                     $(
                         $(
                             edge_vec.push({
@@ -499,7 +499,7 @@ macro_rules! stm {
                             });
                         )*
                     )*;
-                        
+
                     let edges = $mod_name::MachineEdges(edge_vec);
                     dot::render(&edges, output).unwrap()
                 }
