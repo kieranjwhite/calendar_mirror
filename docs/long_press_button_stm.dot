@@ -1,8 +1,8 @@
-digraph long_press_button_stm {
-    LongPressed[label="LongPressed"][shape="ellipse"];
-    NotPressed[label="NotPressed"][shape="ellipse"];
-    PressedPending[label="PressedPending"][shape="ellipse"];
-    ReleasePending[label="ReleasePending"][shape="ellipse"];
+digraph button_stm {
+    LongPressed[label="LongPressed"][shape="doublecircle"];
+    NotPressed[label="NotPressed"][shape="doublecircle"];
+    PressedPending[label="Pressed\nPending"][shape="doublecircle"];
+    ReleasePending[label="Release\nPending"][shape="doublecircle"];
     _start[label="_start"][shape="point"];
     _start -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "NotPressed"</I></B></TD></TR></TABLE>>];
     ReleasePending -> NotPressed[label=<<TABLE BORDER="0"><TR><TD><I>"ReleasePending" -&gt; "NotPressed"</I></TD></TR></TABLE>>];

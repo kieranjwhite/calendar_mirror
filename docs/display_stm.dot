@@ -1,11 +1,29 @@
 digraph display_stm {
-    AllDisplayable[label="AllDisplayable"][shape="doublecircle"];
-    Error[label="Error"][shape="doublecircle"];
-    EventsQueued[label="EventsQueued"][shape="ellipse"];
-    NotDisplayable[label="NotDisplayable"][shape="ellipse"];
+    Empty[label="Empty"][shape="doublecircle"];
+    Events[label="Events"][shape="doublecircle"];
+    SaveWarning[label="SaveWarning"][shape="doublecircle"];
+    Unknown[label="Unknown"][shape="doublecircle"];
+    UserCode[label="UserCode"][shape="doublecircle"];
     _start[label="_start"][shape="point"];
-    _start -> NotDisplayable[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "NotDisplayable"</I></B></TD></TR></TABLE>>];
-    NotDisplayable -> EventsQueued[label=<<TABLE BORDER="0"><TR><TD><I>"NotDisplayable" -&gt; "EventsQueued"</I></TD></TR></TABLE>>];
-    EventsQueued -> AllDisplayable[label=<<TABLE BORDER="0"><TR><TD><I>"EventsQueued" -&gt; "AllDisplayable"</I></TD></TR></TABLE>>];
-    NotDisplayable -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"NotDisplayable" -&gt; "Error"</I></TD></TR></TABLE>>];
+    _start -> Unknown[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "Unknown"</I></B></TD></TR></TABLE>>];
+    Empty -> Unknown[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "Unknown"</I></TD></TR></TABLE>>];
+    SaveWarning -> Unknown[label=<<TABLE BORDER="0"><TR><TD><I>"SaveWarning" -&gt; "Unknown"</I></TD></TR></TABLE>>];
+    UserCode -> Unknown[label=<<TABLE BORDER="0"><TR><TD><I>"UserCode" -&gt; "Unknown"</I></TD></TR></TABLE>>];
+    Events -> Unknown[label=<<TABLE BORDER="0"><TR><TD><I>"Events" -&gt; "Unknown"</I></TD></TR></TABLE>>];
+    Empty -> SaveWarning[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "SaveWarning"</I></TD></TR></TABLE>>];
+    UserCode -> SaveWarning[label=<<TABLE BORDER="0"><TR><TD><I>"UserCode" -&gt; "SaveWarning"</I></TD></TR></TABLE>>];
+    Events -> SaveWarning[label=<<TABLE BORDER="0"><TR><TD><I>"Events" -&gt; "SaveWarning"</I></TD></TR></TABLE>>];
+    Unknown -> SaveWarning[label=<<TABLE BORDER="0"><TR><TD><I>"Unknown" -&gt; "SaveWarning"</I></TD></TR></TABLE>>];
+    Empty -> UserCode[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "UserCode"</I></TD></TR></TABLE>>];
+    SaveWarning -> UserCode[label=<<TABLE BORDER="0"><TR><TD><I>"SaveWarning" -&gt; "UserCode"</I></TD></TR></TABLE>>];
+    Events -> UserCode[label=<<TABLE BORDER="0"><TR><TD><I>"Events" -&gt; "UserCode"</I></TD></TR></TABLE>>];
+    Unknown -> UserCode[label=<<TABLE BORDER="0"><TR><TD><I>"Unknown" -&gt; "UserCode"</I></TD></TR></TABLE>>];
+    Empty -> Events[label=<<TABLE BORDER="0"><TR><TD><I>"Empty" -&gt; "Events"</I></TD></TR></TABLE>>];
+    SaveWarning -> Events[label=<<TABLE BORDER="0"><TR><TD><I>"SaveWarning" -&gt; "Events"</I></TD></TR></TABLE>>];
+    UserCode -> Events[label=<<TABLE BORDER="0"><TR><TD><I>"UserCode" -&gt; "Events"</I></TD></TR></TABLE>>];
+    Unknown -> Events[label=<<TABLE BORDER="0"><TR><TD><I>"Unknown" -&gt; "Events"</I></TD></TR></TABLE>>];
+    SaveWarning -> Empty[label=<<TABLE BORDER="0"><TR><TD><I>"SaveWarning" -&gt; "Empty"</I></TD></TR></TABLE>>];
+    UserCode -> Empty[label=<<TABLE BORDER="0"><TR><TD><I>"UserCode" -&gt; "Empty"</I></TD></TR></TABLE>>];
+    Events -> Empty[label=<<TABLE BORDER="0"><TR><TD><I>"Events" -&gt; "Empty"</I></TD></TR></TABLE>>];
+    Unknown -> Empty[label=<<TABLE BORDER="0"><TR><TD><I>"Unknown" -&gt; "Empty"</I></TD></TR></TABLE>>];
 }

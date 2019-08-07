@@ -1,15 +1,15 @@
 digraph cal_stm {
-    CachedDisplay[label="CachedDisplay"][shape="ellipse"];
-    DeviceAuthPoll[label="DeviceAuthPoll"][shape="ellipse"];
-    DisplayError[label="DisplayError"][shape="ellipse"];
-    ErrorWait[label="ErrorWait"][shape="ellipse"];
-    LoadAuth[label="LoadAuth"][shape="ellipse"];
-    NetworkOutage[label="NetworkOutage"][shape="ellipse"];
-    PageEvents[label="PageEvents"][shape="ellipse"];
-    PollEvents[label="PollEvents"][shape="ellipse"];
-    ReadFirstEvents[label="ReadFirstEvents"][shape="ellipse"];
-    RefreshAuth[label="RefreshAuth"][shape="ellipse"];
-    RequestCodes[label="RequestCodes"][shape="ellipse"];
+    CachedDisplay[label="Cached\nDisplay"][shape="doublecircle"];
+    DeviceAuthPoll[label="Device\nAuthPoll"][shape="doublecircle"];
+    DisplayError[label="Display\nError"][shape="doublecircle"];
+    ErrorWait[label="Error\nWait"][shape="doublecircle"];
+    LoadAuth[label="LoadAuth"][shape="doublecircle"];
+    NetworkOutage[label="Network\nOutage"][shape="doublecircle"];
+    PageEvents[label="PageEvents"][shape="doublecircle"];
+    PollEvents[label="PollEvents"][shape="doublecircle"];
+    ReadFirstEvents[label="ReadFirst\nEvents"][shape="doublecircle"];
+    RefreshAuth[label="Refresh\nAuth"][shape="doublecircle"];
+    RequestCodes[label="Request\nCodes"][shape="doublecircle"];
     _start[label="_start"][shape="point"];
     _start -> LoadAuth[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "LoadAuth"</I></B></TD></TR></TABLE>>];
     ErrorWait -> LoadAuth[label=<<TABLE BORDER="0"><TR><TD><I>"ErrorWait" -&gt; "LoadAuth"</I></TD></TR></TABLE>>];
