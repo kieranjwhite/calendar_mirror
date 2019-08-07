@@ -164,14 +164,15 @@ impl Renderer {
                 (),
                 Box::new(|mach: DisplayAtEnd| {
                     trace!("dropping DisplayMachine: {:?}", mach);
-                    
+
                     match mach {
-                    DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
-                    DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(st),
-                    DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
-                    DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
-                    DisplayAtEnd::Unknown(st) => DisplayTerminals::Unknown(st),
-                }}),
+                        DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
+                        DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(st),
+                        DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
+                        DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
+                        DisplayAtEnd::Unknown(st) => DisplayTerminals::Unknown(st),
+                    }
+                }),
             )),
             status: Status::AllOk,
             pulse_on: false,
@@ -484,7 +485,7 @@ impl Renderer {
                     (),
                     Box::new(|mach: AppAtEnd| loop {
                         trace!("dropping AppMachine: {:?}", mach);
-                    
+
                         match mach {
                             AppAtEnd::Chained(st) => return AppTerminals::Chained(st),
                             AppAtEnd::Error(st) => return AppTerminals::Error(st),
@@ -582,10 +583,9 @@ impl Renderer {
                         .into_iter()
                         .chain(from_fn(|| {
                             let mut out = None;
-                            let mut mach =
-                                mach_opt.take().expect("missing state in appointments stm");
-                            while !mach.at_accepting_state() {
-                                mach = match mach {
+
+                            mach_opt = Some(
+                                match mach_opt.take().expect("missing state in appointments stm") {
                                     Before(st) => {
                                         if let Some(Ordering::Greater) =
                                             following_date_start.partial_chron_cmp(&now)
@@ -602,8 +602,9 @@ impl Renderer {
                                     After(st) => Chained(st.into()),
                                     Chained(st) => Chained(st),
                                     Error(st) => Error(st),
-                                };
-                            }
+                                },
+                            );
+                            //}
                             out
                         }))
                         .flat_map(|action| match action {
