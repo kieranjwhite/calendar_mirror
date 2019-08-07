@@ -47,13 +47,13 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-trace_macros!(true);
+//trace_macros!(true);
 stm!(machine display_stm, DisplayMachine, DisplayAtEnd, DisplayTerminals, [SaveWarning, UserCode, Events] => Empty() |end|, {
     [Empty, UserCode, Events] => SaveWarning() |end|;
     [Empty, SaveWarning, Events] => UserCode()  |end|;
     [Empty, SaveWarning, UserCode] => Events() |end|;
 });
-trace_macros!(false);
+//trace_macros!(false);
 
 stm!(machine app_stm, AppMachine, AppAtEnd, AppTerminals,
      []=> Before(), {

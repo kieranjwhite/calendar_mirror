@@ -9,30 +9,30 @@ macro_rules! stm {
     (@append_tuple $tupel:expr, ($head_idx:ty, $($idx:expr),*), ($head:ty, $($arg:ty),*) -> $enum_name:ident :: $start:ident ($($comp:expr),+)) => {
         crate::stm!(@append_tuple $tuple, ($($idx:expr),*), ($($arg:ty),*) -> $enum_name :: $start ( $tuple.$head_idx ))
     };
-    (@sub_build_enum () -> { pub enum $enum_name:ident<$t1:tt, $t2:tt> {$($processed_var:ident(dropper::$processed:ident)),*}}) => {
+    (@sub_build_enum () -> { pub enum $enum_name:ident {$($processed_var:ident(dropper::$processed:ident)),*}}) => {
         #[derive(Debug)]
         pub enum $enum_name {
             $($processed_var(dropper::$processed)),*
         }
     };
-    (@sub_build_enum ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$t1:tt, $t2:tt> { } }) => {
+    (@sub_build_enum ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident { } }) => {
         crate::stm!(@sub_build_enum ($($tail $(| $tag |)*),*) -> {
-            pub enum $enum_name<$t1,$t2> {
+            pub enum $enum_name {
                 $head(dropper::$head)
             }
         });
     };
-    (@sub_build_enum ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$t1:tt, $t2:tt> { $($processed_var:ident( dropper::$processed:ident)),+} }) => {
+    (@sub_build_enum ($head:tt |end| $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident { $($processed_var:ident( dropper::$processed:ident)),+} }) => {
         crate::stm!(@sub_build_enum ($($tail $(| $tag |)*),*) -> {
-            pub enum $enum_name<$t1, $t2> {
+            pub enum $enum_name {
                 $($processed_var(dropper::$processed)),*,
                 $head(dropper::$head)
             }
         });
     };
-    (@sub_build_enum ($head:tt $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident<$t1:tt,$t2:tt> { $($processed_var:ident( dropper::$processed:ident)),*} }) => {
+    (@sub_build_enum ($head:tt $(, $tail:ident $(| $tag:ident |)?)*)-> { pub enum $enum_name:ident { $($processed_var:ident( dropper::$processed:ident)),*} }) => {
         crate::stm!(@sub_build_enum ($($tail $(| $tag |)*),*) -> {
-            pub enum $enum_name<$t1,$t2> {
+            pub enum $enum_name {
                 $($processed_var(dropper::$processed)),*
             }
         });
@@ -46,7 +46,7 @@ macro_rules! stm {
             )*
         }
     };
-    (@sub_wall nowall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
+    (@sub_wall nowall $stripped_name:ident $term_name:ident $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
         #[allow(dead_code)]
         pub enum $enum_name {
             $(
@@ -54,7 +54,7 @@ macro_rules! stm {
             )*
         }
     };
-    (@sub_wall wall $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
+    (@sub_wall wall $stripped_name:ident $term_name:ident $mod_name:ident, $enum_name:ident, $($var:ident($($arg:ty),*)),*) => {
         #[warn(dead_code)]
         pub enum $enum_name {
             $(
@@ -79,13 +79,13 @@ macro_rules! stm {
             //use super::$term_name;
             
             pub struct $start {
-                pub finaliser: Box<dyn FnOnce($stripped_name) -> $term_name>
+                pub finaliser: Option<Box<dyn FnOnce($stripped_name) -> $term_name>>
             }
 
             impl Drop for $start {
                 fn drop(&mut self) {
-                    let finaliser=(*self.finaliser).clone();
-                    let _term=finaliser($stripped_name::$start(dropper::$start::new()));                    
+                    let finaliser=self.finaliser.take().expect(&format!("finaliser has not been initialised for {:?}", stringify!($start)));
+                    let _term=(finaliser)($stripped_name::$start(dropper::$start::new()));                    
                 }
             }
 
@@ -94,7 +94,7 @@ macro_rules! stm {
                     fn from(mut old_st: $start_e) -> $start {
                         println!("{:?} -> {:?}", stringify!($start_e), stringify!($start));
                         $start {
-                            finaliser: old_st.finaliser
+                            finaliser: old_st.finaliser.take()
                         }
                     }
                 }
@@ -108,9 +108,10 @@ macro_rules! stm {
             }
 
             impl $start {
+                /*
                 pub fn new(finaliser: Box<dyn FnOnce($stripped_name) -> $term_name>) -> $start {
                     let node=$start {
-                        finaliser:finaliser
+                        finaliser:Some(finaliser)
                     };
                     $( crate::stm!{@sub_end_filter $start_tag
                                    node.end_tags_found();
@@ -124,7 +125,8 @@ macro_rules! stm {
                     
                     node
                 }
-
+                */
+                    
                 pub fn end_tags_found(&self){}
 
                 pub fn is_accepting_state(&self) -> bool {
@@ -135,17 +137,16 @@ macro_rules! stm {
                 }
                 
             }
-
+            /*
             $( crate::stm!{@sub_end_filter $start_tag
                 impl $start {
                         pub fn dropper<S>(old: S) -> $start where $start:From<S> {
                             $start::from(old)
                         }
-
                 }
 
             } )*
-
+            */
             $(
                 impl std::fmt::Debug for $node {
                     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -155,7 +156,7 @@ macro_rules! stm {
                 }
 
                 pub struct $node {
-                    pub finaliser: Box<dyn FnOnce($stripped_name) -> $term_name>,
+                    pub finaliser: Option<Box<dyn FnOnce($stripped_name) -> $term_name>>,
                     _secret: ()
                 }
 
@@ -170,7 +171,8 @@ macro_rules! stm {
                 
                 impl Drop for $node {
                     fn drop(&mut self) {
-                        let _term=(*self.finaliser)($stripped_name::$node(dropper::$node::new()));
+                        let finaliser=self.finaliser.take().expect(&format!("finaliser has not been initialised for {:?}", stringify!($node)));
+                        let _term=(finaliser)($stripped_name::$node(dropper::$node::new()));
                     }
                 }
                 
@@ -179,13 +181,14 @@ macro_rules! stm {
                         fn from(mut old_st: $e) -> $node {
                             println!("{:?} -> {:?}", stringify!($e), stringify!($node));
                             $node {
-                                finaliser: old_st.finaliser,
+                                finaliser: old_st.finaliser.take(),
                                 _secret: ()
                             }
                         }
                     }
                 )*
-                    
+
+                /*
                 $( crate::stm!{@sub_end_filter $tag
                                impl $node {
                                    pub fn dropper<S>(old: S) -> $node where $node:From<S> {
@@ -193,7 +196,7 @@ macro_rules! stm {
                                    }
                                }
                 } )*
-                    
+                 */
             )*
 
             #[cfg(feature = "render_stm")]
@@ -394,14 +397,14 @@ macro_rules! stm {
                 $start $(| $start_tag |)*,
                 $($node $(| $tag |)*),*
             ) -> {
-                pub enum $term_name<S,T> {
+                pub enum $term_name {
                 }
             });
             
             crate::stm!(@sub_bare_dropper_enum $stripped_name, $start,$($node),*);
         }
 
-        stm!(@sub_wall $machine_tag $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
+        stm!(@sub_wall $machine_tag $stripped_name $term_name $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
 
         //stm!(@sub_enum $pertinence $mod_name, $term_name,
         //     $( crate::stm!(@sub_end_filter $start_tag {$start} ) ),*
@@ -433,7 +436,7 @@ macro_rules! stm {
             #[allow(unused_variables)]
             pub fn new(arg : ($($start_arg:ty),*), finaliser: Box<dyn FnOnce($mod_name::$stripped_name) -> $mod_name::$term_name>) -> $enum_name {
                 let node=$mod_name::$start {
-                    finaliser
+                    finaliser: Some(finaliser)
                 };
                 
                 $( crate::stm!{@sub_end_filter $start_tag
