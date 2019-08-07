@@ -15,7 +15,7 @@ use DisplayMachine::*;
 
 use chrono::prelude::*;
 use core::{cmp::Ordering, fmt::Debug};
-use log::trace;
+use log::{trace,error};
 use std::iter::from_fn;
 
 const HEADING_ID: &str = "heading";
@@ -119,27 +119,7 @@ impl Status {
         }
     }
 }
-/*
-pub struct DatedDescription {
-    pub desc: String,
-    pub start: StartDate,
-    pub end: EndDate,
-}
 
-impl DatedDescription {
-    pub fn new(start: &StartDate, end: &EndDate, desc: String) -> DatedDescription {
-        DatedDescription {
-            desc,
-            start: start.clone(),
-            end: end.clone(),
-        }
-    }
-
-    pub fn description(&self) -> &str {
-        &self.desc
-    }
-}
-*/
 cloneable!(EventDescription, String);
 cloneable!(NowDescription, String);
 
@@ -159,7 +139,6 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Error> {
         Ok(Renderer {
             pipe: RenderPipeline::new()?,
-            //state: Some(Empty(display_stm::Empty::inst())),
             state: Some(DisplayMachine::new(
                 (),
                 Box::new(|mach: DisplayAtEnd| {
@@ -180,14 +159,6 @@ impl Renderer {
             dims: SCREEN_DIMS,
             events: None,
         })
-        /*Empty(display_stm::Empty::new(Box::new(
-            |mach: &mut DisplayMachine| match mach {
-                Empty(ref st) => DisplayTerminals::Empty(&st),
-                SaveWarning(ref st) => DisplayTerminals::SaveWarning(&st),
-                UserCode(ref st) => DisplayTerminals::UserCode(&st),
-                Events(ref st) => DisplayTerminals::Events(&st),
-            },
-        )))*/
     }
 
     pub fn wait_for_server() -> Result<Renderer, Error> {
@@ -254,21 +225,6 @@ impl Renderer {
             },
         );
 
-        /*
-        let mut mach=DisplayMachine::new(
-            (),
-            Box::new(|mach: DisplayAtEnd| match mach {
-                DisplayAtEnd::Empty(st) => DisplayTerminals::Empty(st),
-                DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(&t),
-                DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
-                DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
-            }),
-        );
-        let st=match mach {
-            Empty(st) => Empty(st),
-            _ => panic!("whaah")
-        };
-         */
         Ok(())
     }
 
@@ -532,7 +488,7 @@ impl Renderer {
                                 },
                                 InProgress(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
-                                        eprintln!(
+                                        error!(
                                             "overlapping events in cal_display from InProgress when less: {:?}",
                                             content.date);
                                         AppMachine::Error(st.into())
@@ -543,14 +499,14 @@ impl Renderer {
                                 },
                                 After(st) => match partial_ordering {
                                     Some(Ordering::Less) => {
-                                        eprintln!(
+                                        error!(
                                             "overlapping events in cal_display from After when less: {:?}",
                                             content.date
                                         );
                                         AppMachine::Error(st.into())
                                     },
                                     Some(Ordering::Equal) => {
-                                        eprintln!(
+                                        error!(
                                             "overlapping events in cal_display from After when equal: {:?}",
                                             content.date);
                                         AppMachine::Error(st.into())
@@ -697,7 +653,7 @@ impl Renderer {
                 },
             );
         } else {
-            eprintln!("no events");
+            error!("no events");
         };
 
         Ok(())

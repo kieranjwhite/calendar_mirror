@@ -4,7 +4,9 @@ macro_rules! err {
         $(
             impl From<$embedded> for $enum_name {
                 fn from(orig: $embedded) -> $enum_name {
-                    eprintln!("err: {:?} into {:?}::{:?}({:?})", stringify!($embedded), stringify!($enum_name), stringify!($var), stringify!($embedded));
+                    use log::error;
+
+                    error!("err: {:?} into {:?}::{:?}({:?})", stringify!($embedded), stringify!($enum_name), stringify!($var), stringify!($embedded));
                     $enum_name::$var(orig)
                 }
             }

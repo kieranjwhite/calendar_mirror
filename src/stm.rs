@@ -319,6 +319,14 @@ macro_rules! stm {
                             _secret: ()
                         }
                     }
+
+                    #[allow(dead_code, unreachable_code)]
+                    pub fn is_accepting_state(&self) -> bool {
+                        $( crate::stm!{@sub_end_filter $start_tag
+                                       return true;
+                        } )*
+                        return false;
+                    }
                 }
 
                 $(
@@ -332,6 +340,14 @@ macro_rules! stm {
                             $node {
                                 _secret: ()
                             }
+                        }
+
+                        #[allow(dead_code, unreachable_code)]
+                        pub fn is_accepting_state(&self) -> bool {
+                            $( crate::stm!{@sub_end_filter $tag
+                                           return true;
+                            } )*;
+                            return false;
                         }
                     }
                 )*
@@ -369,6 +385,20 @@ macro_rules! stm {
         }
 
         stm!(@sub_wall $machine_tag $stripped_name $term_name $mod_name, $enum_name, $start($($start_arg),*),$($node($($arg),*)),*);
+
+        impl $stripped_name {
+            #[allow(dead_code)]
+            pub fn at_accepting_state(&self) -> bool {
+                match self {
+                    $stripped_name::$start(st) =>
+                        st.is_accepting_state(),
+                    $(
+                        $stripped_name::$node(st) =>
+                            st.is_accepting_state(),
+                    )*
+                }
+            }
+        }
 
         impl std::fmt::Debug for $enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {

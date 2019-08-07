@@ -18,6 +18,7 @@ use cal_display::{Error as CalDisplayError, Renderer};
 use cal_machine::{Error as CalMachineError, RefreshToken};
 use dbus::{BusType, Connection};
 use display::Error as DisplayError;
+use log::{trace,error};
 use nix::{mount::*, unistd::*, Error as NixError};
 use std::{
     env::{self, var_os},
@@ -127,39 +128,39 @@ fn installation<'a>(
 
     match system_d.stop_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG) {
         Ok(_) => {
-            println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+            trace!("stoppe the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         }
         Err(err) => {
-            println!("error disabling {:?}", err);
+            error!("error stopping {:?}", err);
         }
     }
 
-    println!("disabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+    trace!("disabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
     match system_d.disable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false) {
         Ok(_) => {
-            println!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+            trace!("disabled the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         }
         Err(err) => {
-            println!("error disabling {:?}", err);
+            error!("error disabling {:?}", err);
         }
     }
 
     if version_exe.exists() {
         fs::remove_file(&version_exe)?;
     }
-    println!("exe is gone {:?}", version_exe);
+    trace!("exe is gone {:?}", version_exe);
     if version_script.exists() {
         fs::remove_file(&version_script)?;
     }
-    println!("script is gone {:?}", version_script);
+    trace!("script is gone {:?}", version_script);
     if version_unit.exists() {
         fs::remove_file(&version_unit)?;
     }
-    println!("unit is gone {:?}", version_unit);
+    trace!("unit is gone {:?}", version_unit);
     if version_path.exists() {
         fs::remove_dir(&version_path)?;
     }
-    println!("version_path is gone {:?}", version_path);
+    trace!("version_path is gone {:?}", version_path);
 
     if package_install_dir.exists() {
         if bin_path.exists() {
@@ -181,15 +182,15 @@ fn installation<'a>(
     println!("end uninstall");
 
     if action == PackageAction::Install {
-        println!(
+        trace!(
             "begin install. version path: {:?} bin_path: {:?}",
             version_path, bin_path
         );
-        println!(
+        trace!(
             "copying exe: from {:?} to {:?}. script: from {:?} to {:?}, unit: from {:?} to {:?} ",
             exe_path, version_exe, script_path, version_script, systemd_path, version_unit
         );
-        println!(
+        trace!(
             "links: exe {:?} script {:?}",
             runnable_exe_path, runnable_script_path
         );
@@ -212,20 +213,20 @@ fn installation<'a>(
         symlink(&version_exe, &runnable_exe_path)?;
         symlink(&version_script, &runnable_script_path)?;
 
-        println!("linking the unit {:?}", version_unit);
+        trace!("linking the unit {:?}", version_unit);
         if let Some(version_unit_str) = version_unit.to_str() {
             system_d.link_unit_files(vec![version_unit_str], false, false)?;
         } else {
             return Err(PathError(version_unit.to_path_buf()).into());
         }
-        println!("linked the unit {:?}", version_unit);
+        trace!("linked the unit {:?}", version_unit);
 
-        println!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        trace!("enabling the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         system_d.enable_unit_files(vec![CALENDAR_MIRROR_UNIT_NAME], false, false)?;
-        println!("starting the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
+        trace!("starting the unit {:?}", CALENDAR_MIRROR_UNIT_NAME);
         system_d.start_unit(CALENDAR_MIRROR_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
 
-        println!("end install");
+        println!("installed");
     }
 
     Ok(())
@@ -248,10 +249,10 @@ const NETWORK_CHECK_POLL_PERIOD: Duration = Duration::from_millis(750);
 fn sync_time<'a>(system_d: &'a dbus::ConnPath<'a, &'a dbus::Connection>) -> Result<(), Error> {
     match system_d.stop_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG) {
         Ok(_) => {
-            println!("stopped the unit {:?}", NTP_UNIT_NAME);
+            trace!("stopped the unit {:?}", NTP_UNIT_NAME);
         }
         Err(err) => {
-            println!(
+            error!(
                 "error disabling {:?}. {:?} was probably not running",
                 err, NTP_UNIT_NAME
             );
@@ -263,16 +264,16 @@ fn sync_time<'a>(system_d: &'a dbus::ConnPath<'a, &'a dbus::Connection>) -> Resu
             .arg("-S")
             .arg("0.us.pool.ntp.org")
             .output()?;
-        println!("status: {}", output.status);
-        println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        trace!("status: {}", output.status);
+        trace!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        trace!("stderr: {}", String::from_utf8_lossy(&output.stderr));
 
         if output.status.success() {
             break;
         }
         thread::sleep(NETWORK_CHECK_POLL_PERIOD);
     }
-    println!("after sntp");
+    trace!("after sntp");
     system_d.start_unit(NTP_UNIT_NAME, UNIT_STOP_START_CONFIG)?;
     Ok(())
 }
@@ -285,7 +286,7 @@ fn main() -> Result<(), Error> {
     } else {
         "".to_string()
     };
-    println!("path: {}", paths);
+    trace!("path: {}", paths);
 
     let dbus = Connection::get_private(BusType::System)?;
     let system_d = system_d_inst(&dbus)?;
@@ -310,9 +311,9 @@ fn main() -> Result<(), Error> {
     if cfg!(feature = "render_stm") {
         cal_machine::render_stms()?;
     } else {
-        println!("before sync time");
+        trace!("before sync time");
         sync_time(&system_d)?;
-        println!("after sync time");
+        trace!("after sync time");
 
         match fork().expect("fork failed") {
             ForkResult::Parent { child: _ } => {
@@ -344,7 +345,7 @@ fn main() -> Result<(), Error> {
                     let var_dir_dev: &Path = Path::new(var_dir_dev_os);
 
                     create_dir_all(var_dir)?;
-                    println!(
+                    trace!(
                         "before mount: {:?} flags: {:?} dev: {:?} fs type: {:?}",
                         var_dir.display(),
                         ro_flags,
@@ -358,7 +359,7 @@ fn main() -> Result<(), Error> {
                         ro_flags,
                         Option::<&Path>::None,
                     )?;
-                    println!("after mount");
+                    trace!("after mount");
                 }
                 base_flags.insert(MsFlags::MS_REMOUNT);
                 let rw_flags = base_flags;
@@ -397,7 +398,7 @@ fn main() -> Result<(), Error> {
                 loop {
                     match cal_machine::run(&mut renderer, &quitter, &config_file, simple_saver) {
                         Err(cal_machine::Error::Reqwest(error)) => {
-                            eprintln!("reqwest error: {:?}", error);
+                            error!("reqwest error: {:?}", error);
                             thread::sleep(Duration::from_secs(5));
                         }
                         Err(error) => {
@@ -411,9 +412,9 @@ fn main() -> Result<(), Error> {
                 }
 
                 if var_dir_opt.is_some() {
-                    println!("before umount: {:?}", var_dir.display(),);
+                    trace!("before umount: {:?}", var_dir.display(),);
                     umount(var_dir)?;
-                    println!("after umount");
+                    trace!("after umount");
                 }
 
                 println!("finishing up");
