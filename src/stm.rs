@@ -74,7 +74,7 @@ macro_rules! stm {
         
         mod $mod_name
         {
-            use super::$enum_name;
+            //use super::$enum_name;
             //use super::$stripped_name;
             //use super::$term_name;
             
@@ -129,11 +129,12 @@ macro_rules! stm {
                     
                 pub fn end_tags_found(&self){}
 
+                #[allow(dead_code, unreachable_code)]
                 pub fn is_accepting_state(&self) -> bool {
                     $( crate::stm!{@sub_end_filter $start_tag
                                    return true;
                     } )*
-                        return false;
+                    return false;
                 }
                 
             }
@@ -161,6 +162,7 @@ macro_rules! stm {
                 }
 
                 impl $node {
+                    #[allow(dead_code, unreachable_code)]
                     pub fn is_accepting_state(&self) -> bool {
                         $( crate::stm!{@sub_end_filter $tag
                                        return true;
@@ -374,7 +376,7 @@ macro_rules! stm {
 
                 $(
                     impl From<$start_e> for $start {
-                        fn from(mut old_st: $start_e) -> $start {
+                        fn from(_old_st: $start_e) -> $start {
                             $start{
                                 _secret: ()
                             }
@@ -385,7 +387,7 @@ macro_rules! stm {
                 $(
                     $(
                         impl From<$e> for $node {
-                            fn from(mut old_st: $e) -> $node {
+                            fn from(_old_st: $e) -> $node {
                                 $node{ _secret: ()}
                             }
                         }
@@ -451,6 +453,7 @@ macro_rules! stm {
                 crate::stm!(@append_tuple arg, (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15), ($($start_arg:ty),*) -> $enum_name::$start(node))
             }
 
+            #[allow(dead_code)]
             pub fn at_accepting_state(&self) -> bool {
                 match self {
                     $enum_name::$start(st $(, stm!(@sub_pattern ($start_arg) _ ))*) =>

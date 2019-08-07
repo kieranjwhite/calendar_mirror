@@ -264,7 +264,7 @@ impl Appointments {
         Ok(())
     }
 
-    pub fn finalise(mut self) -> AppsReadonly {
+    pub fn finalise(self) -> AppsReadonly {
         AppsReadonly {
             email: self.email(),
             events: self.events,

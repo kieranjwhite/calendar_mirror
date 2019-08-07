@@ -48,10 +48,11 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 const STATUS_FLASH_OFF: &str = " ";
 
 //trace_macros!(true);
-stm!(machine display_stm, DisplayMachine, DisplayAtEnd, DisplayTerminals, [SaveWarning, UserCode, Events] => Empty() |end|, {
-    [Empty, UserCode, Events] => SaveWarning() |end|;
-    [Empty, SaveWarning, Events] => UserCode()  |end|;
-    [Empty, SaveWarning, UserCode] => Events() |end|;
+stm!(machine display_stm, DisplayMachine, DisplayAtEnd, DisplayTerminals, [Empty, SaveWarning, UserCode, Events] => Unknown() |end|, {
+    [Empty, UserCode, Events, Unknown] => SaveWarning() |end|;
+    [Empty, SaveWarning, Events, Unknown] => UserCode()  |end|;
+    [Empty, SaveWarning, UserCode, Unknown] => Events() |end|;
+    [SaveWarning, UserCode, Events, Unknown] => Empty() |end|;
 });
 //trace_macros!(false);
 
@@ -165,6 +166,7 @@ impl Renderer {
                     DisplayAtEnd::SaveWarning(st) => DisplayTerminals::SaveWarning(st),
                     DisplayAtEnd::UserCode(st) => DisplayTerminals::UserCode(st),
                     DisplayAtEnd::Events(st) => DisplayTerminals::Events(st),
+                    DisplayAtEnd::Unknown(st) => DisplayTerminals::Unknown(st),
                 }),
             )),
             status: Status::AllOk,
@@ -214,19 +216,38 @@ impl Renderer {
         (ordering, event_str)
     }
 
+    fn unset_state(&mut self) {
+        self.state = Some(
+            match self
+                .state
+                .take()
+                .expect("no state in Renderer.unset_state()")
+            {
+                Empty(st) => Unknown(st.into()),
+                SaveWarning(st) => Unknown(st.into()),
+                UserCode(st) => Unknown(st.into()),
+                Events(st) => Unknown(st.into()),
+                Unknown(st) => Unknown(st),
+            },
+        );
+    }
+
     pub fn clear(&mut self) -> Result<(), Error> {
+        self.unset_state();
         self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(1);
         ops.push(Op::Clear);
         self.pipe.send(ops.iter(), false)?;
 
-        let state = match self.state.take().expect("no state in Renderer.clear()") {
-            Empty(st) => Empty(st),
-            SaveWarning(st) => Empty(st.into()),
-            UserCode(st) => Empty(st.into()),
-            Events(st) => Empty(st.into()),
-        };
-        self.state = Some(state);
+        self.state = Some(
+            match self.state.take().expect("no state in Renderer.clear()") {
+                Empty(st) => Empty(st),
+                SaveWarning(st) => Empty(st.into()),
+                UserCode(st) => Empty(st.into()),
+                Events(st) => Empty(st.into()),
+                Unknown(st) => Empty(st.into()),
+            },
+        );
 
         /*
         let mut mach=DisplayMachine::new(
@@ -248,19 +269,14 @@ impl Renderer {
 
     fn events_displayed(&mut self) -> bool {
         let mut displayed = false;
-        self.state = Some(
-            match self
-                .state
-                .take()
-                .expect("no state in Renderer.events_displayed()")
-            {
-                Events(st) => {
-                    displayed = true;
-                    Events(st)
-                }
-                other => other,
-            },
-        );
+        match self
+            .state
+            .as_ref()
+            .expect("no state in Renderer.events_displayed()")
+        {
+            Events(_) => displayed = true,
+            _ => (),
+        };
 
         return displayed;
     }
@@ -289,6 +305,7 @@ impl Renderer {
     }
 
     pub fn display_save_warning(&mut self) -> Result<(), Error> {
+        self.unset_state();
         self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(4);
         ops.push(Op::Clear);
@@ -318,6 +335,7 @@ impl Renderer {
                 SaveWarning(st) => SaveWarning(st),
                 UserCode(st) => SaveWarning(st.into()),
                 Events(st) => SaveWarning(st.into()),
+                Unknown(st) => SaveWarning(st.into()),
             },
         );
 
@@ -330,6 +348,7 @@ impl Renderer {
         expires_at: &DateTime<Local>,
         url: &str,
     ) -> Result<(), Error> {
+        self.unset_state();
         self.events = None;
         let mut ops: Vec<Op> = Vec::with_capacity(6);
         ops.push(Op::Clear);
@@ -371,6 +390,7 @@ impl Renderer {
                 SaveWarning(st) => UserCode(st.into()),
                 UserCode(st) => UserCode(st),
                 Events(st) => UserCode(st.into()),
+                Unknown(st) => UserCode(st.into()),
             },
         );
 
@@ -417,8 +437,12 @@ impl Renderer {
         now: Now,
         mut pos_calculator: impl FnMut(GlyphYCnt, GlyphYCnt) -> GlyphYCnt,
     ) -> Result<(), Error> {
-        if render_type == RefreshType::Partial && !self.events_displayed() {
-            return Ok(());
+        if render_type == RefreshType::Partial {
+            if !self.events_displayed() {
+                return Ok(());
+            }
+        } else {
+            self.unset_state();
         }
 
         let _all_displayable = if let Some(ref content) = self.events {
@@ -454,12 +478,10 @@ impl Renderer {
 
                 let mut app_mach = AppMachine::new(
                     (),
-                    Box::new(|mut mach: AppAtEnd| loop {
-                        mach = match mach {
-                            AppAtEnd::Chained(st) => return app_stm::AppTerminals::Chained(st),
-                            AppAtEnd::Error(st) => {
-                                return AppTerminals::Error(st);
-                            }
+                    Box::new(|mach: AppAtEnd| loop {
+                        match mach {
+                            AppAtEnd::Chained(st) => return AppTerminals::Chained(st),
+                            AppAtEnd::Error(st) => return AppTerminals::Error(st),
                             _ => {
                                 panic!("Illegal AppMachine state: {:?}", mach);
                             }
@@ -571,13 +593,9 @@ impl Renderer {
                                         }
                                     }
                                     InProgress(st) => Chained(st.into()),
-                                    After(st) => {
-                                        Chained(st.into())
-                                    }
+                                    After(st) => Chained(st.into()),
                                     Chained(st) => Chained(st),
-                                    Error(st) => {
-                                        Error(st)
-                                    }
+                                    Error(st) => Error(st),
                                 };
                             }
                             out
@@ -645,19 +663,6 @@ impl Renderer {
                 ));
 
                 ops.push(Op::WriteAll(PartialUpdate(false)));
-
-                self.state = Some(
-                    match self
-                        .state
-                        .take()
-                        .expect("no state in Renderer.render_events()")
-                    {
-                        Empty(st) => Events(st.into()),
-                        SaveWarning(st) => Events(st.into()),
-                        UserCode(st) => Events(st.into()),
-                        Events(st) => Events(st),
-                    },
-                );
             } else {
                 ops.push(Op::UpdateText(HEADING_ID.to_string(), heading));
                 ops.push(Op::UpdateText(
@@ -669,8 +674,21 @@ impl Renderer {
             }
 
             self.pipe.send(ops.iter(), false)?;
+            self.state = Some(
+                match self
+                    .state
+                    .take()
+                    .expect("no state in Renderer.render_events()")
+                {
+                    Empty(st) => Events(st.into()),
+                    SaveWarning(st) => Events(st.into()),
+                    UserCode(st) => Events(st.into()),
+                    Events(st) => Events(st),
+                    Unknown(st) => Events(st.into()),
+                },
+            );
         } else {
-            panic!("no events");
+            eprintln!("no events");
         };
 
         Ok(())
