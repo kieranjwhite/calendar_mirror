@@ -36,7 +36,7 @@ use std::{
 };
 
 trace_macros!(true);
-stm!(machine cal_stm, Machine, CalsAtEnd, CalTerminals, [ErrorWait] => LoadAuth(i32,i32) |end|, {
+stm!(machine cal_stm, Machine, CalsAtEnd, CalTerminals, [ErrorWait] => LoadAuth(i32) |end|, {
     [DisplayError] => ErrorWait(DownloadedAt) |end|;
     [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes() |end|;
     [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate) |end|;
@@ -269,7 +269,7 @@ pub fn run(
     let mut display_date = today; //don't delete this variable -- it's needed after a network outage to display events from that last date we navigated to, while at the same time reverting date changes due to the previous failed date navigation operation
     let mut v_pos: GlyphYCnt = GLYPH_Y_ORIGIN;
     let retriever = EventRetriever::inst();
-    let mut mach = Machine::new((1,2), Box::new(|mach| {
+    let mut mach = Machine::new((1,), Box::new(|mach| {
         trace!("dropping cal_machine Machine: {:?}", mach);
         match mach {
             CalsAtEnd::LoadAuth(st) =>CalTerminals::LoadAuth(st),
@@ -309,7 +309,7 @@ pub fn run(
 
     while !quitter.load(AtomicOrdering::SeqCst) {
         mach = match mach {
-            LoadAuth(st, _i, _k) => match RefreshToken::load(&config_file) {
+            LoadAuth(st, _i) => match RefreshToken::load(&config_file) {
                 Err(error_msg) => DisplayError(
                     st.into(),
                     format!("{}: {}", LOAD_FAILED, error_msg.to_string()),
@@ -833,7 +833,7 @@ pub fn run(
             ErrorWait(st, started_wait_at) => {
                 let waiting_for = started_wait_at.as_ref().elapsed();
                 if waiting_for >= RECHECK_PERIOD {
-                    LoadAuth(st.into(), 3, 4)
+                    LoadAuth(st.into(), 3)
                 } else {
                     thread::sleep(BUTTON_POLL_PERIOD);
                     let reset_event = reset_button.event(&mut gpio)?;
