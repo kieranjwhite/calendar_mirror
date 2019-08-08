@@ -48,14 +48,12 @@ const IN_PROGRESS_DELIMITER: &str = "<";
 
 const STATUS_FLASH_OFF: &str = " ";
 
-//trace_macros!(true);
 stm!(machine display_stm, DisplayMachine, DisplayAtEnd, DisplayTerminals, [Empty, SaveWarning, UserCode, Events] => Unknown() |end|, {
     [Empty, UserCode, Events, Unknown] => SaveWarning() |end|;
     [Empty, SaveWarning, Events, Unknown] => UserCode()  |end|;
     [Empty, SaveWarning, UserCode, Unknown] => Events() |end|;
     [SaveWarning, UserCode, Events, Unknown] => Empty() |end|;
 });
-//trace_macros!(false);
 
 stm!(machine app_stm, AppMachine, AppAtEnd, AppTerminals,
      []=> Before(), {

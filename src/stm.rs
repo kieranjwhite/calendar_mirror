@@ -3,11 +3,11 @@ macro_rules! stm {
     (@append_tuple $tuple:expr, ($($idx:expr),*), () -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
         $enum_name :: $start ($($comp),*)
     };
-    (@append_tuple $tuple:expr, ($head_idx:ty, $($idx:expr),*), ($head:ty, $($arg:ty),*) -> $enum_name:ident :: $start:ident ()) => {
-        crate::stm!(@append_tuple $tuple,  ($($idx:expr),*), ($($arg:ty),*) -> $enum_name :: $start ( $tuple.$head_idx ))
+    (@append_tuple $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ()) => {
+        crate::stm!(@append_tuple $tuple,  ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $tuple.$head_idx ))
     };
-    (@append_tuple $tupel:expr, ($head_idx:ty, $($idx:expr),*), ($head:ty, $($arg:ty),*) -> $enum_name:ident :: $start:ident ($($comp:expr),+)) => {
-        crate::stm!(@append_tuple $tuple, ($($idx:expr),*), ($($arg:ty),*) -> $enum_name :: $start ( $tuple.$head_idx ))
+    (@append_tuple $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),+)) => {
+        crate::stm!(@append_tuple $tuple, ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $($comp),*, $tuple.$head_idx ))
     };
     (@sub_build_enum () -> { pub enum $enum_name:ident {$($processed_var:ident(dropper::$processed:ident)),*}}) => {
         #[derive(Debug)]
@@ -410,7 +410,7 @@ macro_rules! stm {
 
         impl $enum_name {
             #[allow(unused_variables)]
-            pub fn new(arg : ($($start_arg:ty),*), finaliser: Box<dyn FnOnce($mod_name::$stripped_name) -> $mod_name::$term_name>) -> $enum_name {
+            pub fn new(arg : ($($start_arg),*), finaliser: Box<dyn FnOnce($mod_name::$stripped_name) -> $mod_name::$term_name>) -> $enum_name {
                 let node=$mod_name::$start {
                     finaliser: Some(finaliser)
                 };
@@ -424,7 +424,7 @@ macro_rules! stm {
                                    node.end_tags_found();
                     } )*
                 )*;
-                crate::stm!(@append_tuple arg, (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15), ($($start_arg:ty),*) -> $enum_name::$start(node))
+                crate::stm!(@append_tuple arg, (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15), ($($start_arg,)*) -> $enum_name::$start(node))
             }
 
             #[allow(dead_code)]
