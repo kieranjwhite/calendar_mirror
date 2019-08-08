@@ -1,16 +1,16 @@
 #[macro_export]
 macro_rules! stm {
-    (@append_tuple noargs, $tuple:expr, ($($idx:tt),*), ($($arg:tt),* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
+    (@widen_enum_variant noargs, $tuple:expr, ($($idx:tt),*), ($($arg:tt),* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
         $enum_name :: $start($($comp),*)
     };
-    (@append_tuple args, $tuple:expr, ($($idx:expr),*), () -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
+    (@widen_enum_variant args, $tuple:expr, ($($idx:expr),*), () -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
         $enum_name :: $start ($($comp),*)
     };
-    (@append_tuple args, $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ()) => {
-        crate::stm!(@append_tuple args, $tuple,  ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $tuple.$head_idx ))
+    (@widen_enum_variant args, $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ()) => {
+        crate::stm!(@widen_enum_variant args, $tuple,  ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $tuple.$head_idx ))
     };
-    (@append_tuple args, $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),+)) => {
-        crate::stm!(@append_tuple args, $tuple, ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $($comp),*, $tuple.$head_idx ))
+    (@widen_enum_variant args, $tuple:expr, ($head_idx:tt, $($idx:tt),*), ($head:tt $(, $arg:tt)* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),+)) => {
+        crate::stm!(@widen_enum_variant args, $tuple, ($($idx),*), ($($arg),*) -> $enum_name :: $start ( $($comp),*, $tuple.$head_idx ))
     };
     (@sub_build_enum () -> { pub enum $enum_name:ident {$($processed_var:ident(dropper::$processed:ident)),*}}) => {
         #[derive(Debug)]
@@ -77,7 +77,7 @@ macro_rules! stm {
     (@insert_tuple_params args, ($($start_arg:ty),*)) => (
         ($($start_arg),*,)
     );
-    
+
     (@private $machine_tag:tt $pertinence:tt $mod_name:ident, $enum_name:ident, $stripped_name:ident, $term_name:ident, [$($start_e:ident), *] => $start_trailing:tt $start: ident($($start_arg:ty),* ,) $(| $start_tag:tt |)?, { $( [$($e:ident), +] => $node:ident($($arg:ty),*) $(| $tag:tt |)? );+ $(;)? } ) => {
 
         use $mod_name::$term_name;
@@ -436,7 +436,7 @@ macro_rules! stm {
                     } )*
                 )*;
 
-                crate::stm!(@append_tuple $start_trailing, arg, (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31), ($($start_arg,)*) -> $enum_name::$start(node))
+                crate::stm!(@widen_enum_variant $start_trailing, arg, (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31), ($($start_arg,)*) -> $enum_name::$start(node))
             }
 
             #[allow(dead_code)]
