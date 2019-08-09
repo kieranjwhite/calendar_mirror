@@ -1,3 +1,84 @@
+/// Create a state machine
+///
+/// # Examples
+///
+/// ```
+/// use reqwest;
+/// use std::path::PathBuf;
+/// use ExampleMach::*;
+///
+/// pub struct RefreshToken(String);
+/// 
+/// pub enum Event {
+///    Refresh,
+///    Quit,
+/// }
+///
+/// pub struct Appointment {
+///    ...
+/// }
+///
+/// stm!(machine
+///    example_stm, ExampleMach, StatesAtEnd, AcceptingStates,
+///    [ Resetting ] => LoadingConfig(PathBuf), {
+///    [ LoadingConfig, PollEvents ] => Retrieving(RefreshToken);
+///    [ Retrieving ] => PollEvents(RefreshToken);
+///    [ PollEvents ]  => Quitting() |end|;
+///    [ LoadingConfig, Retrieving ] => Error(String) |end|;
+///    }
+/// );
+///
+/// fn run() {
+///    let mut mach = ExampleMach::new((PathBuf::from("/var/opt/calendar_mirror/refresh.json"),),
+///       Box::new(|end| {
+///           match end {
+///               StatesAtEnd::Quitting(st) => AcceptingStates::Quitting(st),
+///               StatesAtEnd::Error(st) => AcceptingStates::Error(st),
+///               _ => panic!("Not in an accepting state: {:?}", end),
+///           }
+///       })
+///    );
+///
+///    loop {
+///       mach = match mach {
+///          LoadingConfig(st, path) =>
+///             match load_config(&path) {
+///                Ok(refresh_token) => Retrieving(st.into(), refresh_token),
+///                Err(error) => Error(st.into(), "Failed to load config"),
+///             },
+///          Retrieving(st, refresh_token) => {
+///             match download_appointments(&refresh_token) {
+///                Ok(apps) => PollEvents(st.into(), apps),
+///                Err(error) => Error(st.into(), "Failed to download appointments"),
+///             },
+///          },
+///          PollEvents(st, refresh_token) =>
+///             match read_event() {
+///                Refresh => Retrieving(st.into(), refresh_token),
+///                Quit => Quitting(st.into()),
+///             },
+///          Quitting(st) => break,
+///          Error(st, message) => {
+///             eprintln!(message)};
+///             break;
+///          }
+///       }
+///    }
+/// }
+///
+/// fn load_config(config: &Path) -> Result<RefreshToken, IO::Error> {
+///    ...
+/// }
+///
+/// fn download_appointments(refresh_token: &RefreshToken) ->
+///    Result<Vec<Appointment>, reqwest::Error> {
+///    ...
+/// }
+///
+/// fn read_event() -> Event {
+///    ...
+/// }
+/// ```
 #[macro_export]
 macro_rules! stm {
     (@widen_enum_variant noargs, $tuple:expr, ($($idx:tt),*), ($($arg:tt),* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {

@@ -282,7 +282,7 @@ pub fn run(
             CalsAtEnd::PageEvents(st)=>CalTerminals::PageEvents(st),
             CalsAtEnd::PollEvents(st)=>CalTerminals::PollEvents(st),
             CalsAtEnd::CachedDisplay(st)=>CalTerminals::CachedDisplay(st),
-            CalsAtEnd::NetworkOutage(st)=>CalTerminals::NetworkOutage(st)
+            CalsAtEnd::NetworkOutage(st)=>CalTerminals::NetworkOutage(st),
         }
     }));
     let mut gpio = GPIO::new()?;
