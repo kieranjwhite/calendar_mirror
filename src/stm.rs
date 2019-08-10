@@ -76,10 +76,10 @@
 ///
 /// stm!(machine
 ///    example_stm, ExampleMach, StatesAtEnd, AcceptingStates,
-///    [ Resetting ] => LoadingConfig(PathBuf), {
+///    [ PollEvents ] => LoadingConfig(PathBuf), {
 ///    [ LoadingConfig, PollEvents ] => Retrieving(RefreshToken);
 ///    [ Retrieving ] => PollEvents(RefreshToken);
-///    [ PollEvents ]  => Quitting() |end|;
+///    [ PollEvents ] => Quitting() |end|;
 ///    [ LoadingConfig, Retrieving ] => Error(String) |end|;
 ///    }
 /// );
