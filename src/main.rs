@@ -1,19 +1,74 @@
+//! # Introduction
 //!
-//! A simple rust project to display the contents of a user's google
-//! calendar on a Papyrus ePaper display on a Raspberry Pi.
+//! A simple Rust project to show the events of a user's google calendar on a
+//! Papyrus ePaper display on a Raspberry Pi.
+//!
+//! # Getting Started
 //!
 //! When the application runs for the first time it will request a device
 //! code from the user. Visit the URL on the ePaper display in a browser
 //! on one of your device. The user will be asked to chose one of his the
-//! gmail addresses. The selected account will be used to identify which
-//! person's calendar will be displayed by the application.
+//! gmail addresses. The selected account identifies which person's
+//! calendar will be accessed by the application.
 //!
-//! Next enter the displayed code (without any dashes). When prompted to
-//! grant permission to view calendars select the Allow button.
+//! Next enter the code shown on the unit (without any dashes). When
+//! prompted to grant permission to view calendars select the Allow button
+//! in the browser. On the ePaper display there will be an indication that
+//! configuration is being saved. Once saved, today's events will be
+//! listed. The user will not normally need to be authenticated again
+//! unless there is a long-press of the reset button.
 //!
-//! On the ePaper display there will be an indication that configuration
-//! is being saved. Once that is completed, the events for today will be
-//! listed.
+//! # Display
+//!
+//! ## Status Indicator
+//!
+//! In the top left of the a character will be displayed. This
+//! character acts as a heatbeat indicator and also conveys general
+//! status information.
+//!
+//! * **Flashing '!'.** The unit is powered up and the application is
+//!   running normally and connected to the Internet.
+//! * **Steady 'G'.** A network operation is in progress. While this is
+//!   showing the unit will not respond to button presses. If 'G'
+//!   remains on screen for a number of seconds it is likely that the
+//!   Internet has just been disconnected. If so, eventually the
+//!   operation will eventually timeout and status indicator will switch
+//!   to a flashing 'i'.
+//! * **Flashing 'i'.** The unit is powered up and the application is
+//!   running but is disconnected from the Internet. In this state the
+//!   user will be unable to navigate to a different date because
+//!   doing so would require that the new day's events to be downloaded.
+//!
+//! ## Events
+//!
+//! Once the unit is powered up and the user has been successfully
+//! authenticated, the events for today will be listed in the
+//! chronological order. Anytime today is the selected date and an event
+//! is currently in progress a '<' symbol will be displayed alongside
+//! it. If today is the selected but no events are currently in progress a
+//! separate line indicating the time will be inserted at the appropriate
+//! position.
+//!
+//! # Controls
+//!
+//! The user can then control the behaviour of the application with the
+//! four control buttons.
+//!
+//! * **Previous date** 
+//!     * *Short press.* Navigate to the previous day.
+//! * **Reset**
+//!     * *Short press.* Switch off Raspberry Pi. Shutdown will be
+//!       instantantious. Press this button before disconnecting power in
+//!       order to avoid corrupting the display. *Note: Unless the
+//!       indicated otherwise on the unit, the power can be disconnected
+//!       at any time without fear of damaging the Raspberry Pi.*
+//!     * *Long press.* Re-authenticate user.
+//! * **Scroll**
+//!     * *Short press.* Scroll down and wrap around to the top when the
+//!       last event is reached.
+//!     * *Long press.* Redisplay, showing today's events.
+//! * **Next date**
+//!     * *Short press.* Navigate to the next day.
 
 //#![feature(trace_macros)]
 
