@@ -1,3 +1,7 @@
+//!
+//! A simple rust project to display the contents of a user's google
+//! calendar on a Papyrus ePaper display on a Raspberry Pi.
+
 //#![feature(trace_macros)]
 
 #[macro_use]
@@ -47,13 +51,12 @@ fn system_d_inst<'a>(
     Ok(system_d)
 }
 
+/// Error returned if path to systemd service file isn't valid UTF-8
 #[derive(Debug)]
 pub struct PathError(PathBuf);
 
-#[derive(Clone, Debug)]
-pub struct UninitialisedStaticError();
-
 err!(
+    #[doc="Overarching error type that encapsulates all errors in the application"]
     Error {
         CalMachineError(CalMachineError),
         DisplayError(DisplayError),
@@ -61,8 +64,7 @@ err!(
         NixError(NixError),
         IOError(io::Error),
         DBus(dbus::Error),
-        Path(PathError),
-        UninitialisedStatic(UninitialisedStaticError)
+        Path(PathError)
     }
 );
 

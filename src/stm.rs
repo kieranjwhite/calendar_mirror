@@ -8,7 +8,7 @@
 /// use ExampleMach::*;
 ///
 /// pub struct RefreshToken(String);
-/// 
+///
 /// pub enum Event {
 ///    Refresh,
 ///    Quit,
@@ -59,7 +59,7 @@
 ///             },
 ///          Quitting(st) => break,
 ///          Error(st, message) => {
-///             eprintln!(message)};
+///             eprintln!(message);
 ///             break;
 ///          }
 ///       }

@@ -1,4 +1,4 @@
-use crate::{err, stm};
+use crate::{copyable, err, stm};
 use memmap::{Mmap, MmapOptions};
 use std::{
     fs::File,
@@ -111,7 +111,7 @@ impl LongPressButton {
 
 impl Button<LongButtonEvent> for LongPressButton {
     fn event(&mut self, ports: &mut GPIO) -> Result<Option<LongButtonEvent>, Error> {
-        let (pressing, duration) = ports.pinin(&self.pin)?;
+        let (pressing, duration) = ports.pinin(self.pin)?;
         let mut event: Option<LongButtonEvent> = None;
         let mut state = self.state.take().expect("state of LongPressButton is not initialised");
 
@@ -186,8 +186,9 @@ impl Button<LongButtonEvent> for LongPressButton {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Pin(pub usize);
+copyable!(Pin, usize);
+//#[derive(Clone, Debug)]
+//pub struct Pin(pub usize);
 
 pub struct GPIO {
     map: Mmap,
@@ -216,7 +217,7 @@ impl GPIO {
         let val = instance.value();
         let mut gpio_num: usize = 0;
         while gpio_num < PIN_COUNT {
-            instance.snap[gpio_num] = (GPIO::bit(val, &Pin(gpio_num)), t.clone());
+            instance.snap[gpio_num] = (GPIO::bit(val, Pin(gpio_num)), t.clone());
             gpio_num += 1;
         }
 
@@ -243,7 +244,7 @@ impl GPIO {
         }
     }
 
-    fn bit(val: u32, gpio: &Pin) -> bool {
+    fn bit(val: u32, gpio: Pin) -> bool {
         if (val & (1 << gpio.0)) == 0 {
             //println!("zero pin: {}", gpio.0);
             true
@@ -252,11 +253,11 @@ impl GPIO {
         }
     }
 
-    pub fn pinin(&mut self, gpio: &Pin) -> Result<(bool, Duration), Error> {
+    pub fn pinin(&mut self, gpio: Pin) -> Result<(bool, Duration), Error> {
         let pin_num = gpio.0;
 
         if pin_num >= PIN_COUNT {
-            return Err(Error::InvalidPin(gpio.clone()));
+            return Err(Error::InvalidPin(gpio));
         }
 
         let val = self.value();

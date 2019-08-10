@@ -290,17 +290,28 @@ impl LeftFormatter {
         Ok(unformatted
             .lines()
             .map(|l| {
-                let mut mach = FormattingMachine::new((), Box::new(|mach| {
-                    trace!("dropping FormattingMachine: {:?}", mach);
-                    match mach {
-                        FormattingAtEnd::Empty(st) => FormattingTerminals::Empty(st),
-                        FormattingAtEnd::BuildingBreakable(st) => FormattingTerminals::BuildingBreakable(st),
-                        FormattingAtEnd::NotStartedBuildingNonBreakable(st) => FormattingTerminals::NotStartedBuildingNonBreakable(st),
-                        FormattingAtEnd::StartedBuildingNonBreakable(st) => FormattingTerminals::StartedBuildingNonBreakable(st),
-                        FormattingAtEnd::TokenComplete(_st) => panic!("Dropping when state is not accepting: {:?}", stringify!(mach))
-                        
-                    }
-                }));
+                let mut mach = FormattingMachine::new(
+                    (),
+                    Box::new(|mach| {
+                        trace!("dropping FormattingMachine: {:?}", mach);
+                        match mach {
+                            FormattingAtEnd::Empty(st) => FormattingTerminals::Empty(st),
+                            FormattingAtEnd::BuildingBreakable(st) => {
+                                FormattingTerminals::BuildingBreakable(st)
+                            }
+                            FormattingAtEnd::NotStartedBuildingNonBreakable(st) => {
+                                FormattingTerminals::NotStartedBuildingNonBreakable(st)
+                            }
+                            FormattingAtEnd::StartedBuildingNonBreakable(st) => {
+                                FormattingTerminals::StartedBuildingNonBreakable(st)
+                            }
+                            FormattingAtEnd::TokenComplete(_st) => panic!(
+                                "Dropping when state is not accepting: {:?}",
+                                stringify!(mach)
+                            ),
+                        }
+                    }),
+                );
                 let mut col = GlyphXCnt(0);
                 let mut output = None;
                 let mut pending = Pending::new(GlyphXCnt(self.size.width()));
@@ -374,10 +385,10 @@ impl LeftFormatter {
 
 #[cfg(test)]
 mod tests {
-    use crate::formatter::{Dims, LeftFormatter};
+    use crate::formatter::{Dims, GlyphXCnt, GlyphYCnt, LeftFormatter};
     #[test]
     fn just() {
-        let f = LeftFormatter::new(Dims(5, 15));
+        let f = LeftFormatter::new(Dims(GlyphXCnt(5), GlyphYCnt(15)));
         assert_eq!(f.just("foo blah"), Ok("foo\nblah".to_string()));
         assert_eq!(f.just("foo bla-h"), Ok("foo\nbla-h".to_string()));
         assert_eq!(f.just("foo bla h"), Ok("foo\nbla h".to_string()));
