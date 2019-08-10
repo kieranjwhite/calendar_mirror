@@ -1,0 +1,16 @@
+digraph example_stm {
+    Error[label="Error"][shape="doublecircle"];
+    LoadingConfig[label="Loading\nConfig"][shape="ellipse"];
+    PollEvents[label="PollEvents"][shape="ellipse"];
+    Quitting[label="Quitting"][shape="doublecircle"];
+    Retrieving[label="Retrieving"][shape="ellipse"];
+    _start[label="_start"][shape="point"];
+    _start -> LoadingConfig[label=<<TABLE BORDER="0"><TR><TD><B><I> -&gt; "LoadingConfig"</I></B></TD></TR><TR><TD>PathBuf</TD></TR></TABLE>>];
+    PollEvents -> LoadingConfig[label=<<TABLE BORDER="0"><TR><TD><I>"PollEvents" -&gt; "LoadingConfig"</I></TD></TR><TR><TD>PathBuf</TD></TR></TABLE>>];
+    LoadingConfig -> Retrieving[label=<<TABLE BORDER="0"><TR><TD><I>"LoadingConfig" -&gt; "Retrieving"</I></TD></TR><TR><TD>RefreshToken</TD></TR></TABLE>>];
+    PollEvents -> Retrieving[label=<<TABLE BORDER="0"><TR><TD><I>"PollEvents" -&gt; "Retrieving"</I></TD></TR><TR><TD>RefreshToken</TD></TR></TABLE>>];
+    Retrieving -> PollEvents[label=<<TABLE BORDER="0"><TR><TD><I>"Retrieving" -&gt; "PollEvents"</I></TD></TR><TR><TD>RefreshToken</TD></TR></TABLE>>];
+    PollEvents -> Quitting[label=<<TABLE BORDER="0"><TR><TD><I>"PollEvents" -&gt; "Quitting"</I></TD></TR></TABLE>>];
+    LoadingConfig -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"LoadingConfig" -&gt; "Error"</I></TD></TR><TR><TD>String</TD></TR></TABLE>>];
+    Retrieving -> Error[label=<<TABLE BORDER="0"><TR><TD><I>"Retrieving" -&gt; "Error"</I></TD></TR><TR><TD>String</TD></TR></TABLE>>];
+}

@@ -1,6 +1,19 @@
 //!
 //! A simple rust project to display the contents of a user's google
 //! calendar on a Papyrus ePaper display on a Raspberry Pi.
+//!
+//! When the application runs for the first time it will request a device
+//! code from the user. Visit the URL on the ePaper display in a browser
+//! on one of your device. The user will be asked to chose one of his the
+//! gmail addresses. The selected account will be used to identify which
+//! person's calendar will be displayed by the application.
+//!
+//! Next enter the displayed code (without any dashes). When prompted to
+//! grant permission to view calendars select the Allow button.
+//!
+//! On the ePaper display there will be an indication that configuration
+//! is being saved. Once that is completed, the events for today will be
+//! listed.
 
 //#![feature(trace_macros)]
 
