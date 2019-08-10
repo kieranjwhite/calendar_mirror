@@ -1,6 +1,62 @@
 /// Create a state machine
 ///
-/// # Examples
+/// The stm! macro allows the user to declaratively define a state
+/// machine.
+///
+/// # Usage
+///
+/// ## State Machine Declaration
+///
+/// The example below demonstates how the macro should be invoked. 
+///
+/// The first argument (example_stm) in the example is the name of a
+/// sub-module that the macro will create and populate with various types
+/// in order to minimise pollution of the parent module's namespace.
+///
+/// The second argument (ExampleMach in the example) is the name of the
+/// enum that will represent the state machine. There will be a variant of
+/// this enum corresponding to each state. Each variant is a tuple struct
+/// where the first argument is the state. There can be an arbitrary
+/// number of subsequent parameters for the variant and these correspond
+/// to state specific arguments. The user initialises the state machine by
+/// invoking this enum's associated constructor method, new.
+///
+/// The third argument (StatesAtEnd) is the name of another enum, again
+/// with tuple struct variants corresponding to each state, however this
+/// enum's variants only encapsulate its corresponding state; there are no
+/// additional parameters.
+///
+/// The fourth argument (AcceptingStates) is yet another enum but this one
+/// only includes tuple struct variants corresponding to accepting
+/// states. The tuple struct variant have only one parameter, the state.
+///
+/// Next a series of state transitions are defined. The first of these
+/// lists mappings to the starting state. Following that are the mappings
+/// to every other state.  The user can indicate which states are
+/// accepting by appending an |end| tag to the state mapping. 
+///
+/// ## Initialising the State Machine
+///
+/// When initialising a state machine the user provides two arguments.
+///
+/// The first argument is a tuple containing the state arguments specific
+/// to the starting state.
+///
+/// For the second argument the user must provide a closure that is run
+/// when the final state is dropped. This closure is passed an enum
+/// instance of type specified by the third argument in the macro
+/// invocation. This instance indicates the state machine's final
+/// state. The closure must return an instance of the same type specified
+/// by the macro's fourth argument. If the closure's argument is not an
+/// accepting state, typically the appropriate response is to panic!
+///
+/// # Example
+///
+/// The example below demonstates how the stm! macro is used. The only
+/// state a user can instantiate is the starting state. Other states are
+/// created by performing a state transition using Rust's From
+/// trait. Invalid state transitions are caught at compile time.
+///
 ///
 /// ```
 /// use reqwest;
@@ -79,6 +135,37 @@
 ///    ...
 /// }
 /// ```
+///
+/// # Rendering the State Machine in Graphviz
+///
+/// The stm! macro can optionally generate methods for creating a graphviz
+/// dot file. Firstly the project must be compiled with the render_stm
+/// feature enabled:
+///
+/// cargo build --features render_stm
+///
+/// At run time the user can check that this feature was enabled and subsequently
+/// proceed to generate the dot file as follows:
+///
+/// ```
+/// if cfg!(feature = "render_stm") {
+///     let mut f = File::create("example_machine.dot")?;
+///     ExampleMach::render_to(&mut f);
+///     f.flush()?;
+/// } else {
+/// 	...
+/// }
+/// ```
+///
+/// As we are using the ? operator, the above code will only work in a
+/// function that can propagate an std::io::Result error.
+///
+/// Given the dot file, an svg file of the graph can be generated with the
+/// shell commands:
+///
+/// cat example_machine.dot | dot -Tsvg > example_machine.svg
+///
+/// The dot command is provided by the graphviz package.
 #[macro_export]
 macro_rules! stm {
     (@widen_enum_variant noargs, $tuple:expr, ($($idx:tt),*), ($($arg:tt),* $(,)?) -> $enum_name:ident :: $start:ident ($($comp:expr),*)) => {
