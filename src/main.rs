@@ -16,13 +16,40 @@
 //! in the browser. On the ePaper display there will be an indication that
 //! configuration is being saved. Once saved, today's events will be
 //! listed. The user will not normally need to be authenticated again
-//! unless there is a long-press of the reset button.
+//! unless there is a long-press of the reset button. The event screen
+//! will now be displayed. While the event screen is visible the user will
+//! be able to interact with the application using the four control
+//! buttons.
 //!
-//! # Display
+//! # Event Screen #
 //!
-//! ## Layout
+//! The image below shows the layout of the event screen. There are a
+//! number of components visible in this screen:
 //!
-//! The image below shows the layout of the main event screen.
+//! 1. Status Indicator,
+//! 2. Display Date,
+//! 3. E-mail address of Calendar Owner,
+//! 4. The list of Events and possible the Current Time.
+//!
+//! These will be discussed next.
+//!
+//! ## Display Date ##
+//!
+//! At the top of the screen is the display date. That date can be changed
+//! with the control buttons. Changing the date does not immediately
+//! result in the new day's events being downloaded. The new events are
+//! only downloaded 1500ms after the release of the Previous Date or Next
+//! Date control button. This allows the user to navigate relatively
+//! quickly to the date of interest before incurring a delay associated
+//! with the remote download.
+//!
+//! ## E-mail ##
+//!
+//! In the calendar data that is retrieved from Google an E-mail address
+//! is associated with each event and this occupies the top-right of the
+//! screen. Where there are no events or there is more than one E-mail
+//! address linked with the day's events then the label "E-mail not
+//! listed" is shown instead.
 //!
 //! <div>
 //! <img src="data:image/jpg;base64,
@@ -1458,7 +1485,7 @@
 //! 4oxHJblz5nxnEdaGnqMczXNQHCxxM7f1j//Z">
 //! </div>
 //!
-//! ## Status Indicator
+//! ## Status Indicator ##
 //!
 //! In the top left of the a character will be displayed. This
 //! character acts as a heatbeat indicator and also conveys general
@@ -1467,11 +1494,11 @@
 //! * **Flashing '!'.** The unit is powered up and the application is
 //!   running normally and connected to the Internet.
 //! * **Steady 'G'.** A network operation is in progress. While this is
-//!   showing the unit will not respond to button presses. If 'G'
-//!   remains on screen for a number of seconds it is likely that the
-//!   Internet has just been disconnected. If so, eventually the
-//!   operation will eventually timeout and status indicator will switch
-//!   to a flashing 'i'.
+//!   showing the unit will not respond to button presses. If 'G' remains
+//!   on screen for a number of seconds it is likely that the Internet has
+//!   just been disconnected. If so, eventually the operation will
+//!   eventually timeout and the status indicator will switch to a
+//!   flashing 'i'.
 //! * **Flashing 'i'.** The unit is powered up and the application is
 //!   running but is disconnected from the Internet. In this state the
 //!   user will be unable to navigate to a different date because
@@ -1480,7 +1507,7 @@
 //!   is not running. The most likely explanation is that the power is
 //!   disconnected.
 //!
-//! ## Events
+//! ## Events and Current Time ##
 //!
 //! Once the unit is powered up and the user has been successfully
 //! authenticated, the events for today will be listed in the
@@ -1490,7 +1517,7 @@
 //! separate line indicating the current time will be inserted at the
 //! appropriate position.
 //!
-//! # Controls
+//! # Control Buttons
 //!
 //! The user can then control the behaviour of the application with the
 //! four control buttons.
@@ -1502,7 +1529,7 @@
 //!       instantantious. Press this button before disconnecting power in
 //!       order to avoid corrupting the display.
 //! 	  
-//! 	  *Note: Unless indicated otherwise on the unit, the power can be
+//! 	  *Note: Unless indicated otherwise by the unit, the power can be
 //!       disconnected at any time without fear of damaging the Raspberry
 //!       Pi.*
 //!     * *Long press.* Re-authenticate user.
