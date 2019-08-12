@@ -1,7 +1,7 @@
 //! # Introduction
 //!
 //! A simple Rust project to show the events of a user's google calendar on a
-//! Papyrus ePaper display on a Raspberry Pi.
+//! PaPiRus ePaper display on a Raspberry Pi.
 //!
 //! # Getting Started
 //!
