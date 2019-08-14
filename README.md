@@ -19,7 +19,7 @@ website refers to a pogo pin, but it is not required for this project.
 
 ## Operating System and Drivers ##
 
-The OS was Raspbian Stretch. No other OS versions have been
+The OS was Raspbian Buster. No other OS versions have been
 tested. However it's likely that the code will run on other operating
 systems with few if any changes.
 
@@ -76,7 +76,7 @@ More information on how to accomplish both tasks can be found on the
 forums](https://www.raspberrypi.org/forums/viewtopic.php?p=1044893).
 
 Switching between mounting the root partition as read-only and
-mounting as read-write should be as easy as editing /boot/cmdline.txt
+mounting as read-write is as easy as editing /boot/cmdline.txt
 deleting or inserting boot=overlay. The Raspberry Pi will need to be
 rebooted for the change to take effect. For now please ensure that the
 root partition is mounted in read-write mode.
@@ -89,11 +89,11 @@ to the configuration partition) can be found at
 copy this file you will need to ensure that the device names
 (including that of the configuration partition) are correct.
 
-The reason the configuration partition is mounted read-only when is
-because we know that the only application that will attempt to write
-to it is Calendar Mirror. Once the application starts after a power up
-or reboot it will remount that partition in read-only mode, only
-remounting temporarily as read-write when necessary to update its
+The reason the configuration partition is mounted read-only at boot-up
+is because we know that the only application that will attempt to
+write to it is Calendar Mirror. Once that application starts after a
+power up or reboot it will remount that partition in read-only mode,
+only remounting temporarily as read-write when necessary to update its
 configuration. While this is occurring a warning is be displayed on
 the device indicating that it should not be powered down.
 
@@ -103,9 +103,9 @@ read-write mode with the command:
 
 `sudo mount /boot -o remount,rw`
 
-For Calendar Mirror to function correctly when installed you will need
-to edit the systemd/calendar_mirror.service file in your git working
-directory to ensure the line beginning with "Environment=" is
+For Calendar Mirror to function correctly, before installing you will
+need to edit the systemd/calendar_mirror.service file in your git
+working directory to ensure the line beginning with "Environment=" is
 correct. More specifically change the value of the
 CALENDAR\_MIRROR\_DEV environment variable value to match the device
 path of your configuration partition.
@@ -122,9 +122,9 @@ Clone the Calendar Mirror repository with the command:
 
 ## Set Client Id. and Secret ##
 
-Calendar Mirror authenticates using a client id and secret. You will
-need to generate these items and then include them in the Calendar
-Mirror source.
+Calendar Mirror authenticates using an OAuth2 client ID and
+secret. You will need to generate these items and then include them in
+the Calendar Mirror source.
 
 Step 1 of Google's [authentication
 document](https://developers.google.com/identity/protocols/OAuth2)
