@@ -1,16 +1,16 @@
 # Calendar Mirror #
 
-Calendar Mirror is a simple rust project to display the contents of a
-user's google calendar on a PaPiRus ePaper display on a Raspberry Pi.
+Calendar Mirror is a Rust application that displays the contents of a
+user's Google calendar on a PaPiRus ePaper display on a Raspberry Pi.
 
 ## Hardware ##
 
-This project has been developed for a Raspberry Pi 3 B+ running with a
-2.7" PaPiRus ePaper HAT module. Other Raspberry Pi versions (apart
-from the Raspberry Pi Zero) might also suffice. Smaller versions of
-the PaPiRus HAT might also be compatible if some changes to the
-rendering code are made(you will need to change the value of the
-SCREEN\_DIMS constant in cal_display.rs) --- however the lack of
+This project has been developed for a Raspberry Pi 3 B+ with a 2.7"
+PaPiRus ePaper HAT module installed. Other Raspberry Pi versions
+(apart from the Raspberry Pi Zero) might also suffice. Smaller
+versions of the PaPiRus HAT might also be compatible if some changes
+to the rendering code are made(you will need to change the value of
+the SCREEN\_DIMS constant in cal_display.rs) --- however the lack of
 screen space will prove limiting.
 
 Assemble the hardware as described
@@ -39,24 +39,13 @@ compile and run this project:
 
 2. [PaPiRus drivers](https://github.com/PiSupply/PaPiRus). Install
    these as described in the link.
+   
+3. The application assumes there is a working network connection so
+   please ensure that the Raspberry Pi is preconfigured to have a
+   working network connection in the environment where it will
+   eventually be used.
 
-## Compilation, Installation & Configuration Setup ##
-
-### Compilation ###
-
-Calendar Mirror can be compiled with the stable rust
-toolchain. Install the rust toolchain on your Raspberry Pi as
-described on the [Rust](https://www.rust-lang.org/) website.
-
-Clone the Calendar Mirror repository with the command:
-
-`git clone ...`
-
-Change to the directory containing the cloned project and enter:
-
-`cargo build`
-
-### Configuration Setup ###
+## Configuration Partition ##
 
 Calendar Mirror is designed to run on a system where all partitions
 have been mounted read-only by default. Application configuration is
@@ -76,12 +65,6 @@ different device as it cannot be unmounted.
 
 On the new partition, create an ext4 filesystem with the mkfs command.
 
-### Installation ###
-
-Install the binary and related resources with:
-
-`sudo ./target/debug/calendar_mirror --install`
-
 ## Filesystem Configuration ##
 
 To protect against filesystem corruption that could be caused by power
@@ -93,10 +76,112 @@ More information on how to accomplish both tasks can be found on the
 [raspberrypi
 forums](https://www.raspberrypi.org/forums/viewtopic.php?p=1044893).
 
-Finally update your /etc/fstab to mount /boot as readonly by default
+Switching between mounting the root partition as read-only and
+mounting as read-write should be as easy as editing /boot/cmdline.txt
+deleting or inserting boot=overlay. The Raspberry Pi will need to be
+rebooted for the change to take effect. For now please ensure that the
+root partition is mounted in read-write mode.
+
+Update your /etc/fstab to mount /boot as readonly by default
 and the configuration partition you created above as read-write. An
 example fstab file (where /dev/mmcblk0p8 is the device corresponding
-to the configuration partition) can be found .
+to the configuration partition) can be found at
+<http://hourglassapps.com/calendar_mirror/fstab>. If you intend to
+copy this file you will need to ensure that the device names
+(including that of the configuration partition) are correct.
 
-### Read-Only Root Filesystem ###
+The reason the configuration partition is mounted read-only when is
+because we know that the only application that will attempt to write
+to it is Calendar Mirror. Once the application starts after a power up
+or reboot it will remount that partition in read-only mode, only
+remounting temporarily as read-write when necessary to update its
+configuration. While this is occurring a warning is be displayed on
+the device indicating that it should not be powered down.
 
+From now on if you need to edit a file in /boot such as
+/boot/cmdline.txt you will first need to temporarily remount /boot in
+read-write mode with the command:
+
+sudo mount /boot -o remount,rw
+
+For Calendar Mirror to function correctly when installed you will need
+to edit the systemd/calendar_mirror.service file in your git working
+directory to ensure the line beginning with "Environment=" is
+correct. More specifically change the value of the
+CALENDAR\_MIRROR\_DEV environment variable value to match the device
+path of your configuration partition.
+
+## Install Toolchain and Download Source ##
+
+Calendar Mirror can be compiled with the stable rust
+toolchain. Install the rust toolchain on your Raspberry Pi as
+described on the [Rust](https://www.rust-lang.org/) website.
+
+Clone the Calendar Mirror repository with the command:
+
+`git clone ...`
+
+## Set Client Id. and Secret ##
+
+Calendar Mirror authenticates using a client id and secret. You will
+need to generate these items and then include them in the Calendar
+Mirror source.
+
+Step 1 of Google's [authentication
+document](https://developers.google.com/identity/protocols/OAuth2)
+describes in general terms how to a create the ID and secret. However
+specifically the steps are as follows:
+
+1. Visit the [developer console URL](https://console.developers.google.com/).
+2. Click on the combo box to the right of the GoogleAPIs logo in the
+   top-left of the screen. A dialog box appears.
+3. Select the New Project in the top right of the dialog box. A new
+   screen will appear. Change the content of the Project name text
+   field to Calendar Mirror and click Create.
+4. You will be returned to the developer console. Select the + Enable
+   APIs and Service button. The API selection screen appears.
+5. In the Search for APIs and Services search box search for the
+   keyword calendar. Of the results returned select the Google
+   Calendar API result.
+6. In the API screen that appears, click the Enable button. You willl
+   be returned to the developer console once again. Select the
+   Credentials item in the naviagtion bar.
+7. Next click on the Credentials in APIs & Services link then click the
+   Create Credentials button in the dialog box that appears.
+8. A list of options appears. Select the OAuth client ID
+   option. Another screen, Create OAuth client ID, appears.
+9. Click on the Configure consent screen button. In the OAuth consent
+   screen tab that you will presented with first change the
+   Application name to Calendar Mirror. Next click on the Add scope
+   button. You will be presented with a list of scopes. Click on
+   ../auth/calendar.events.readonly and then the Add button.
+10. You will be returned to the OAuth consent screen tab. Scroll to
+   the bottom and click Save.
+11. Now you will be returned to the Create OAuth client ID
+    screen. Select Other and change the Name field to calendar_mirror.
+12. Click on the Create button. A dialog will appear providing you
+    with your client ID and secret. These values can be retrieved from
+    the developer console at any time by clicking on the Credentials
+    navigation item and then the 'pencil' icon on the calendar_mirror
+    row.
+13. Next edit the file src/cal_machine/retriever.rs, change the
+	specified values for CLIENT\_ID\_VAL and CLIENT\_SECRET\_VAL to
+	match the new client id. and secret and then save.
+
+## Build ##
+
+Change to the directory containing the cloned project and enter:
+
+`cargo build`
+
+## Installation ##
+
+Install the binary and related resources with:
+
+`sudo ./target/debug/calendar_mirror --install`
+
+Calendar Mirror should start immediately. Finally remount /boot in
+read-write mode as described above and edit /boot/cmdline.txt to
+ensure the Raspberry Pi root directory will in future be mounted
+read-only. Finally reboot and verify that Calendar Mirror restarts
+after rebooting.

@@ -1,0 +1,7 @@
+proc            /proc           proc    defaults          0       0
+/dev/mmcblk0p6  /boot           vfat    defaults,ro       0       2
+/dev/mmcblk0p7  /               ext4    defaults,noatime  0       1
+/dev/mmcblk0p8  /var/opt/calendar_mirror	ext4    noauto,rw  0	2
+
+# a swapfile is not a swap partition, no line here
+#   use  dphys-swapfile swap[on|off]  for that
