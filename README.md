@@ -34,8 +34,7 @@ compile and run this project:
    command. Conversely the same packages can be installed by download
    the list above and from within the download directory, enter:
 
-```sudo dpkg --set-selections < packages.txt
-```
+`sudo dpkg --set-selections < packages.txt`
 
 2. [PaPiRus drivers](https://github.com/PiSupply/PaPiRus). Install
    these as described in the link.
@@ -102,7 +101,7 @@ From now on if you need to edit a file in /boot such as
 /boot/cmdline.txt you will first need to temporarily remount /boot in
 read-write mode with the command:
 
-sudo mount /boot -o remount,rw
+`sudo mount /boot -o remount,rw`
 
 For Calendar Mirror to function correctly when installed you will need
 to edit the systemd/calendar_mirror.service file in your git working
@@ -119,7 +118,7 @@ described on the [Rust](https://www.rust-lang.org/) website.
 
 Clone the Calendar Mirror repository with the command:
 
-`git clone ...`
+`git clone https://github.com/kieranjwhite/calendar_mirror.git`
 
 ## Set Client Id. and Secret ##
 
