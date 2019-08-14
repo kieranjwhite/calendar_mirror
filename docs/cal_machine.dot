@@ -18,6 +18,7 @@ digraph cal_stm {
     LoadAuth -> RequestCodes[label=<<TABLE BORDER="0"><TR><TD><I>"LoadAuth" -&gt; "RequestCodes"</I></TD></TR></TABLE>>];
     NetworkOutage -> RequestCodes[label=<<TABLE BORDER="0"><TR><TD><I>"NetworkOutage" -&gt; "RequestCodes"</I></TD></TR></TABLE>>];
     PollEvents -> RequestCodes[label=<<TABLE BORDER="0"><TR><TD><I>"PollEvents" -&gt; "RequestCodes"</I></TD></TR></TABLE>>];
+    RefreshAuth -> RequestCodes[label=<<TABLE BORDER="0"><TR><TD><I>"RefreshAuth" -&gt; "RequestCodes"</I></TD></TR></TABLE>>];
     LoadAuth -> RefreshAuth[label=<<TABLE BORDER="0"><TR><TD><I>"LoadAuth" -&gt; "RefreshAuth"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>PendingDisplayDate</TD></TR></TABLE>>];
     NetworkOutage -> RefreshAuth[label=<<TABLE BORDER="0"><TR><TD><I>"NetworkOutage" -&gt; "RefreshAuth"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>PendingDisplayDate</TD></TR></TABLE>>];
     PageEvents -> RefreshAuth[label=<<TABLE BORDER="0"><TR><TD><I>"PageEvents" -&gt; "RefreshAuth"</I></TD></TR><TR><TD>RefreshToken</TD></TR><TR><TD>PendingDisplayDate</TD></TR></TABLE>>];

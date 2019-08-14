@@ -38,7 +38,7 @@ use std::{
 //trace_macros!(true);
 stm!(machine cal_stm, Machine, CalsAtEnd, CalTerminals, [ErrorWait] => LoadAuth() |end|, {
     [DisplayError] => ErrorWait(DownloadedAt) |end|;
-    [ErrorWait, LoadAuth, NetworkOutage, PollEvents] => RequestCodes() |end|;
+    [ErrorWait, LoadAuth, NetworkOutage, PollEvents, RefreshAuth] => RequestCodes() |end|;
     [LoadAuth, NetworkOutage, PageEvents, PollEvents] => RefreshAuth(RefreshToken, PendingDisplayDate) |end|;
     [DeviceAuthPoll, RefreshAuth, PollEvents] => ReadFirstEvents(Authenticators, RefreshedAt, RefreshType, PendingDisplayDate) |end|;
     [RequestCodes] => DeviceAuthPoll(String, PeriodSeconds) |end|;
@@ -388,6 +388,12 @@ pub fn run(
                                         pending_display_date,
                                     )
                                 }
+                            }
+                            StatusCode::BAD_REQUEST => {
+                                RequestCodes(st.into())
+                            }
+                            StatusCode::UNAUTHORIZED => {
+                                RequestCodes(st.into())
                             }
                             other_status => {
                                 let err_msg = format!("When refreshing status: {:?}", other_status);
