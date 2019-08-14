@@ -34,7 +34,13 @@ compile and run this project:
    command. Conversely the same packages can be installed by download
    the list above and from within the download directory, enter:
 
-`sudo dpkg --set-selections < packages.txt`
+```
+sudo /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/
+sudo dpkg --set-selections < packages.txt
+sudo apt-get dselect-upgrade
+```
+
+	Note you will see warnings appear about certain packages not found in the status or available databases.
 
 2. [PaPiRus drivers](https://github.com/PiSupply/PaPiRus). Install
    these as described in the link.
