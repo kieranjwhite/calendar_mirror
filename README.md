@@ -344,5 +344,7 @@ four control buttons.
 * **Next date**
     * *Short press.* Navigate to the next day.
 
+------------------
+
 <a name="screens">1</a>: At the very least you will need to change
     the value of the SCREEN\_DIMS constant in cal_display.rs
