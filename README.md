@@ -234,7 +234,8 @@ Mirror restarts after rebooting.
 
 ## Operating Instructions ##
 
-
+The operating instructions can be found
+[here](https://raw.githubusercontent.com/kieranjwhite/calendar_mirror/master/target/doc/calendar_mirror/index.html?token=AAP3ZHXLIDDAAL2WS3TD5SK5K26JC).
 
 [^1]: At the very least you will need to change the value of the
     SCREEN\_DIMS constant in cal_display.rs
