@@ -72,8 +72,8 @@ display warns the user not to disconnect power).
 
 ### Configuration Partition ###
 
-Calendar Mirror is designed to run on a system where all partitions
-have been mounted read-only by default. Application configuration is
+Calendar Mirror is designed to run on a system where the root
+partition has been mounted read-only. Application configuration is
 saved on a dedicated ext4 partition. Normally this partition is also
 mounted read-only, but when a change needs to be saved it is
 temporarily remounted in read-write mode. The application displays a
