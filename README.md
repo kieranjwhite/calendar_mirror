@@ -63,7 +63,8 @@ jump ahead to the Install Toolchain and Download Source
 section. Otherwise continue with the next two sections which will
 describe how to setup your Raspberry Pi so that filesystem partitions,
 are for the most part, mounted in read-only mode, allowing you to
-power-off the unit by simply unplugging the power cable.
+power-off the unit by simply unplugging the power cable (unless the
+display warns the user not to disconnect power).
 
 ## Configuration Partition ##
 
@@ -71,20 +72,24 @@ Calendar Mirror is designed to run on a system where all partitions
 have been mounted read-only by default. Application configuration is
 saved on a dedicated ext4 partition. Normally this partition is also
 mounted read-only, but when a change needs to be saved it is
-temporarily remounted in read-write mode. 
+temporarily remounted in read-write mode. The application displays a
+warning on the ePaper display for the entire duration that this
+partition is mounted in read-write mode.
 
 You will now need to create this configuration partition:
 
-Create a new small Linux partition (around 7 Mib in size) on your
-SD-Card. If there isn't sufficient free space in your patition table
-you might need to shrink one of your existing partitions first to
-create some free space using an application such as GParted. You will
-need to ensure that the partition is not mounted before shrinking
+Create a new small Linux partition (7 or 8 Mib in size will be ample)
+on your SD-Card. If there isn't sufficient free space in your patition
+table you might need to shrink one of your existing partitions first
+to create some free space using an application such as GParted. You
+will need to ensure that the partition is not mounted before shrinking
 it. Shrinking the root partition, if required, must be done from a
-different device as it cannot be unmounted.
+different device as it cannot be unmounted while the Raspberry Pi is
+running.
 
-On the new partition, create an ext4 filesystem with the mkfs command
-and once that is done, create a mount-point for the new partition:
+On the new partition, create an ext4 filesystem with the mkfs command,
+if it has not already be created by your partitioning software and
+once that is done, create a mount-point for the new partition:
 
 `sudo mkdir -p /var/opt/calendar_mirror`
 
@@ -113,10 +118,10 @@ to the configuration partition) can be found at
 copy this file you will need to ensure that the device names
 (including that of the configuration partition) are correct.
 
-The reason the configuration partition is mounted read-only at boot-up
-is because we know that the only application that will attempt to
-write to it is Calendar Mirror. Once that application starts after a
-power up or reboot it will remount that partition in read-only mode,
+The reason the configuration partition can mounted read-only at
+boot-up is because we know that the only application that will attempt
+to write to it is Calendar Mirror. Once that application starts after
+a power up or reboot it will remount that partition in read-only mode,
 only remounting temporarily as read-write when necessary to update its
 configuration. While this is occurring a warning is be displayed on
 the device indicating that it should not be powered down.
@@ -130,7 +135,7 @@ read-write mode with the command:
 For Calendar Mirror to function correctly, before installing you will
 need to edit the systemd/calendar_mirror.service file in your git
 working directory to ensure the line beginning with "Environment=" is
-correct. More specifically change the value of the
+correct. More specifically you might need to change the value of the
 CALENDAR\_MIRROR\_DEV environment variable value to match the device
 path of your configuration partition.
 
@@ -214,13 +219,18 @@ the system time with a network server.
 
 You can install the binary and related resources with the command:
 
-`sudo ./target/debug/calendar_mirror --install`
+`sudo ./target/debug/calendar_mirror --installsudo ./target/debug/calendar_mirror --install`
 
-Calendar Mirror should start immediately. Finally remount /boot in
-read-write mode as described above and edit /boot/cmdline.txt to
-ensure the Raspberry Pi root directory will in future be mounted
-read-only. Finally reboot and verify that Calendar Mirror restarts
-after rebooting.
+This command will replace any previous calendar\_mirror installs with
+the new one. If there aren't any older installs of the application you
+will see a couple of systemd errors that are generated when the
+installer attempts to to stop the old non-existent calendar_mirror
+service. These can be ignored.
+
+Finally remount /boot in read-write mode as described above and edit
+/boot/cmdline.txt to ensure the Raspberry Pi root directory will in
+future be mounted read-only. Finally reboot and verify that Calendar
+Mirror restarts after rebooting.
 
 [^1]: At the very least you will need to change the value of the
     SCREEN\_DIMS constant in cal_display.rs
