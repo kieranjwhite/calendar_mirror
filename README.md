@@ -219,7 +219,7 @@ the system time with a network server.
 
 You can install the binary and related resources with the command:
 
-`sudo ./target/debug/calendar_mirror --installsudo ./target/debug/calendar_mirror --install`
+`sudo ./target/debug/calendar_mirror --install`
 
 This command will replace any previous calendar\_mirror installs with
 the new one. If there aren't any older installs of the application you
@@ -231,6 +231,10 @@ Finally remount /boot in read-write mode as described above and edit
 /boot/cmdline.txt to ensure the Raspberry Pi root directory will in
 future be mounted read-only. Finally reboot and verify that Calendar
 Mirror restarts after rebooting.
+
+## Operating Instructions ##
+
+
 
 [^1]: At the very least you will need to change the value of the
     SCREEN\_DIMS constant in cal_display.rs
