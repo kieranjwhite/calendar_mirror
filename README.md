@@ -287,6 +287,9 @@ screen. Where there are no events or there is more than one E-mail
 address linked with the day's events then the label "E-mail not
 listed" is shown instead.
 
+![annotated photo of Raspberry Pi with ePaper display running Calendar
+Mirror](https://github.com/kieranjwhite/calendar_mirror/raw/master/docs/annotated_display.jpg)
+
 <div>
 <img src="data:image/jpg;base64,
 /9j/4AAQSkZJRgABAQIAJQAlAAD/4QCERXhpZgAASUkqAAgAAAAFABoBBQABAAAASgAAABsBBQAB
