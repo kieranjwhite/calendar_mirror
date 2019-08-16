@@ -266,10 +266,10 @@ number of components visible in this screen:
 3. E-mail address of Calendar Owner,
 4. The list of Events and possible the Current Time.
 
+These will be discussed next.
+
 ![annotated photo of Raspberry Pi with ePaper display running Calendar
 Mirror](https://github.com/kieranjwhite/calendar_mirror/raw/master/docs/annotated_display.jpg)
-
-These will be discussed next.
 
 #### Display Date ####
 
