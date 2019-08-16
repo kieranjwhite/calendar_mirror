@@ -1,6 +1,6 @@
 # Calendar Mirror #
 
-Calendar Mirror is a Rust application that displays the contents of a
+Calendar Mirror is a Rust application that displays events from a
 user's Google calendar on a PaPiRus ePaper display on a Raspberry Pi.
 
 ## Hardware ##
