@@ -3,7 +3,9 @@
 Calendar Mirror is a Rust application that displays events from a
 user's Google calendar on a PaPiRus ePaper display on a Raspberry Pi.
 
-## Hardware ##
+## Installation and Setup ##
+
+### Hardware ###
 
 This project has been developed for a Raspberry Pi 3 B+ with a 2.7"
 PaPiRus ePaper HAT module installed. Other Raspberry Pi versions
@@ -16,7 +18,7 @@ Assemble the hardware as described
 [here](https://learn.pi-supply.com/make/papirus-assembly-tips-and-gotchas/). That
 website refers to a pogo pin, but it is not required for this project.
 
-## Operating System and Drivers ##
+### Operating System and Drivers ###
 
 The OS was Raspbian Buster. No other OS versions have been
 tested. However it's likely that the code will run on other operating
@@ -66,7 +68,7 @@ are for the most part, mounted in read-only mode, allowing you to
 power-off the unit by simply unplugging the power cable (unless the
 display warns the user not to disconnect power).
 
-## Configuration Partition ##
+### Configuration Partition ###
 
 Calendar Mirror is designed to run on a system where all partitions
 have been mounted read-only by default. Application configuration is
@@ -93,7 +95,7 @@ once that is done, create a mount-point for the new partition:
 
 `sudo mkdir -p /var/opt/calendar_mirror`
 
-## Filesystem Configuration ##
+### Filesystem Configuration ###
 
 To protect against filesystem corruption that could be caused by power
 interruptions it is prudent to ensure that any mounted partitions are
@@ -139,7 +141,7 @@ correct. More specifically you might need to change the value of the
 CALENDAR\_MIRROR\_DEV environment variable value to match the device
 path of your configuration partition.
 
-## Install Toolchain and Download Source ##
+### Install Toolchain and Download Source ###
 
 Calendar Mirror can be compiled with the stable rust
 toolchain. Install the rust toolchain on your Raspberry Pi as
@@ -149,7 +151,7 @@ Clone the Calendar Mirror repository with the command:
 
 `git clone https://github.com/kieranjwhite/calendar_mirror.git`
 
-## Set Client Id. and Secret ##
+### Set Client Id. and Secret ###
 
 Calendar Mirror authenticates using an OAuth2 client ID and
 secret. You will need to generate these items and then include them in
@@ -196,7 +198,7 @@ specifically the steps are as follows:
 	specified values for CLIENT\_ID\_VAL and CLIENT\_SECRET\_VAL to
 	match the new client id. and secret and then save.
 
-## Build ##
+### Build ###
 
 Change to the directory containing the cloned project and enter:
 
@@ -206,7 +208,7 @@ Assuming the the application compiles without errors you can either
 proceed to the next section to install Calendar Mirror or you can test
 it without installing, which is described next.
 
-## Testing ##
+### Testing ###
 
 Remaining in the project directory enter the following:
 
@@ -215,7 +217,7 @@ Remaining in the project directory enter the following:
 The application runs as root because, when starting up it synchronises
 the system time with a network server.
 
-## Installation ##
+### Installation ###
 
 You can install the binary and related resources with the command:
 
@@ -234,12 +236,7 @@ Mirror restarts after rebooting.
 
 ## Operating Instructions ##
 
-# Introduction
-
-A simple Rust project to show the events of a user's google calendar on a
-PaPiRus ePaper display on a Raspberry Pi.
-
-# Getting Started
+### Getting Started ###
 
 When the application runs for the first time it will request a device
 code from the user. Visit the URL on the ePaper display in a browser
@@ -257,7 +254,9 @@ will now be displayed. While the event screen is visible the user will
 be able to interact with the application using the four control
 buttons.
 
-# Event Screen #
+### Event Screen ###
+
+#### Introduction ####
 
 The image below shows the layout of the event screen. There are a
 number of components visible in this screen:
@@ -272,7 +271,7 @@ Mirror](https://github.com/kieranjwhite/calendar_mirror/raw/master/docs/annotate
 
 These will be discussed next.
 
-## Display Date ##
+#### Display Date ####
 
 At the top of the screen is the display date. That date can be changed
 with the control buttons. Changing the date does not immediately
@@ -282,7 +281,7 @@ Date control button. This allows the user to navigate relatively
 quickly to the date of interest before incurring a delay associated
 with the remote download.
 
-## E-mail ##
+#### E-mail ####
 
 In the calendar data that is retrieved from Google an E-mail address
 is associated with each event and this occupies the top-right of the
@@ -290,7 +289,7 @@ screen. Where there are no events or there is more than one E-mail
 address linked with the day's events then the label "E-mail not
 listed" is shown instead.
 
-## Status Indicator ##
+#### Status Indicator ####
 
 In the top left of the a character will be displayed. This
 character acts as a heatbeat indicator and also conveys general
@@ -312,7 +311,7 @@ status information.
   is not running. The most likely explanation is that the power is
   disconnected.
 
-## Events and Current Time ##
+#### Events and Current Time ####
 
 Once the unit is powered up and the user has been successfully
 authenticated, the events for today will be listed in the
@@ -322,7 +321,7 @@ it. If today is selected but no events are currently in progress a
 separate line indicating the current time will be inserted at the
 appropriate position.
 
-# Control Buttons
+### Control Buttons ###
 
 The user can then control the behaviour of the application with the
 four control buttons.
