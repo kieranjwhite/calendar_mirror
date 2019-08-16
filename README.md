@@ -11,8 +11,8 @@ This project has been developed for a Raspberry Pi 3 B+ with a 2.7"
 PaPiRus ePaper HAT module installed. Other Raspberry Pi versions
 (apart from the Raspberry Pi Zero) might also suffice. Smaller
 versions of the PaPiRus HAT might also be compatible if some changes
-to the rendering code are made sup>[1](#screens)</sup> &mdash; however
-the lack of screen space might prove limiting.
+to the rendering code are made <sup>[1](#screens)</sup> &mdash;
+however the lack of screen space might prove limiting.
 
 Assemble the hardware as described
 [here](https://learn.pi-supply.com/make/papirus-assembly-tips-and-gotchas/). That
