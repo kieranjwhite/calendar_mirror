@@ -38,7 +38,9 @@ compile and run this project:
 
 ```
 	sudo /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/
+	
 	sudo dpkg --set-selections < packages.txt
+	
 	sudo apt-get dselect-upgrade
 ```
 
