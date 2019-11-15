@@ -169,7 +169,7 @@ impl From<PollResponse> for Authenticators {
     }
 }
 
-impl From<(AuthTokens)> for Authenticators {
+impl From<AuthTokens> for Authenticators {
     fn from((refresh_token, refresh_response): AuthTokens) -> Authenticators {
         Authenticators {
             refresh_token,

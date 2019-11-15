@@ -868,7 +868,7 @@ macro_rules! stm {
                     pub fn is_accepting_state(&self) -> bool {
                         $( crate::stm!{@sub_end_filter $tag
                                        return true;
-                        } )*;
+                        } )*
                         return false;
                     }
                 }
@@ -1077,7 +1077,7 @@ macro_rules! stm {
                         pub fn is_accepting_state(&self) -> bool {
                             $( crate::stm!{@sub_end_filter $tag
                                            return true;
-                            } )*;
+                            } )*
                             return false;
                         }
                     }
@@ -1148,7 +1148,7 @@ macro_rules! stm {
 
                 $( crate::stm!{@sub_end_filter $start_tag
                                node.end_tags_found();
-                } )*;
+                } )*
 
                 $(
                     $( crate::stm!{@sub_end_filter $tag

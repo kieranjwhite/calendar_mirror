@@ -126,7 +126,7 @@ impl Status {
             STATUS_FLASH_OFF
         } else {
             match self {
-                Status::AllOk => "!",
+                Status::AllOk => " ",
                 Status::NetworkDown => "i",
                 Status::NetworkPending => "G",
             }
