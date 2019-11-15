@@ -179,7 +179,7 @@ pub struct PersonalIdentifier {
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
-    pub summary: String,
+    pub summary: Option<String>,
     pub description: Option<String>,
     pub creator: PersonalIdentifier,
     pub start: DateTimeStamp,

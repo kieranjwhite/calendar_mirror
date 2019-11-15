@@ -206,7 +206,10 @@ impl PartialOrd for Event {
 impl From<&retriever::Event> for Result<Event, Error> {
     fn from(ev: &retriever::Event) -> Result<Event, Error> {
         Ok(Event {
-            summary: ev.summary.to_string(),
+            summary: match &ev.summary {
+                Some(summary) => summary.to_string(),
+                None => "Unknown".to_string(),
+            },
             description: ev.description.clone(),
             all_consuming: !(ev.start.date_time.is_none() && ev.end.date_time.is_none()),
             start: StartDate(
@@ -230,14 +233,17 @@ impl Appointments {
     pub fn new() -> Appointments {
         Appointments {
             events: Vec::new(),
-            state: Some(Machine::new((), Box::new(|mach|{
-                trace!("dropping evs Machine: {:?}", mach);
-                match mach {
-                    EmailsAtEnd::Uninitialised(st)=> EmailTerminals::Uninitialised(st),
-                    EmailsAtEnd::OneCreator(st)=> EmailTerminals::OneCreator(st),
-                    EmailsAtEnd::NotOneCreator(st)=> EmailTerminals::NotOneCreator(st),
-                }
-            }))),
+            state: Some(Machine::new(
+                (),
+                Box::new(|mach| {
+                    trace!("dropping evs Machine: {:?}", mach);
+                    match mach {
+                        EmailsAtEnd::Uninitialised(st) => EmailTerminals::Uninitialised(st),
+                        EmailsAtEnd::OneCreator(st) => EmailTerminals::OneCreator(st),
+                        EmailsAtEnd::NotOneCreator(st) => EmailTerminals::NotOneCreator(st),
+                    }
+                }),
+            )),
         }
     }
 
