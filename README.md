@@ -298,7 +298,9 @@ character acts as a heatbeat indicator and also conveys general
 status information.
 
 * **Flashing '!'.** The unit is powered up and the application is
-  running normally and connected to the Internet.
+  running normally and connected to the Internet. This indicator has
+  been removed in the latest version of the code as the frequent
+  updates were affecting the display.
 * **Steady 'G'.** A network operation is in progress. While this is
   showing the unit will not respond to button presses. If 'G' remains
   on screen for a number of seconds it is likely that the Internet has
@@ -309,9 +311,6 @@ status information.
   running but is disconnected from the Internet. In this state the
   user will be unable to navigate to a different date because
   doing so would require that the new day's events to be downloaded.
-* **Anything else (i.e. steady '!', 'i' or a blank).** The application
-  is not running. The most likely explanation is that the power is
-  disconnected.
 
 #### Events and Current Time ####
 
