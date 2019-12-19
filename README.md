@@ -334,7 +334,7 @@ four control buttons.
       instantantious. Press this button before disconnecting power in
       order to avoid corrupting the display.
 	  
-	  *Note: Unless indicated otherwise by the unit, the power can be
+	  *Note: Unless indicated otherwise by the display, the power can be
       disconnected at any time without fear of damaging the Raspberry
       Pi.*
     * *Long press.* Re-authenticate user.
